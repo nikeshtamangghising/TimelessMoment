@@ -1,0 +1,196 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { loadStripe } from '@stripe/stripe-js'
+import { Elements } from '@stripe/react-stripe-js'
+import MainLayout from '@/components/layout/main-layout'
+import CheckoutForm from '@/components/checkout/checkout-form'
+import OrderSummary from '@/components/checkout/order-summary'
+import { useCartStore } from '@/stores/cart-store'
+import { useAuth } from '@/hooks/use-auth'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { getStripePublishableKey } from '@/lib/stripe'
+import Loading from '@/components/ui/loading'
+
+const stripePromise = loadStripe(getStripePublishableKey())
+
+export default function CheckoutPage() {
+  const router = useRouter()
+  const { items, clearCart } = useCartStore()
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const [clientSecret, setClientSecret] = useState<string>('')
+  const [paymentIntentId, setPaymentIntentId] = useState<string>('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string>('')
+
+  useEffect(() => {
+    // Redirect if not authenticated
+    if (!authLoading && !isAuthenticated) {
+      router.push('/auth/signin?redirect=/checkout')
+      return
+    }
+
+    // Redirect if cart is empty
+    if (items.length === 0) {
+      router.push('/cart')
+      return
+    }
+
+    // Create payment intent
+    if (isAuthenticated && items.length > 0) {
+      createPaymentIntent()
+    }
+  }, [isAuthenticated, authLoading, items, router])
+
+  const createPaymentIntent = async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/checkout/create-payment-intent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create payment intent')
+      }
+
+      const data = await response.json()
+      setClientSecret(data.clientSecret)
+      setPaymentIntentId(data.paymentIntentId)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred'
+      setError(errorMessage)
+      console.error('Error creating payment intent:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePaymentSuccess = () => {
+    // Clear cart after successful payment
+    clearCart()
+    // Redirect to success page
+    router.push(`/checkout/success?payment_intent=${paymentIntentId}`)
+  }
+
+  if (authLoading || loading) {
+    return (
+      <MainLayout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex justify-center items-center py-16">
+            <Loading size="lg" />
+          </div>
+        </div>
+      </MainLayout>
+    )
+  }
+
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Card>
+            <CardContent className="p-8 text-center">
+              <h2 className="text-2xl font-bold text-red-600 mb-4">Checkout Error</h2>
+              <p className="text-gray-600 mb-6">{error}</p>
+              <button
+                onClick={() => router.push('/cart')}
+                className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700"
+              >
+                Return to Cart
+              </button>
+            </CardContent>
+          </Card>
+        </div>
+      </MainLayout>
+    )
+  }
+
+  if (!clientSecret) {
+    return (
+      <MainLayout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center py-16">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Setting up checkout...
+            </h2>
+            <Loading size="lg" />
+          </div>
+        </div>
+      </MainLayout>
+    )
+  }
+
+  const appearance = {
+    theme: 'stripe' as const,
+    variables: {
+      colorPrimary: '#4f46e5',
+    },
+  }
+
+  const options = {
+    clientSecret,
+    appearance,
+  }
+
+  return (
+    <MainLayout>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
+          <p className="mt-2 text-gray-600">
+            Complete your purchase securely with Stripe
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Checkout Form */}
+          <div>
+            <Card>
+              <CardHeader>
+                <h2 className="text-lg font-medium text-gray-900">
+                  Payment Information
+                </h2>
+              </CardHeader>
+              <CardContent>
+                <Elements options={options} stripe={stripePromise}>
+                  <CheckoutForm
+                    onSuccess={handlePaymentSuccess}
+                    onError={(error) => setError(error)}
+                  />
+                </Elements>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Order Summary */}
+          <div>
+            <OrderSummary items={items} />
+          </div>
+        </div>
+
+        {/* Security Notice */}
+        <div className="mt-8 text-center">
+          <div className="inline-flex items-center space-x-2 text-sm text-gray-500">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+            </svg>
+            <span>Secure checkout powered by Stripe</span>
+          </div>
+        </div>
+      </div>
+    </MainLayout>
+  )
+}

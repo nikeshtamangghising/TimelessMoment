@@ -1,0 +1,79 @@
+// Production Prisma Schema
+// This extends the base schema with production-specific configurations
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+  binaryTargets = ["native", "rhel-openssl-1.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // For connection pooling
+}
+
+// Production-specific models and configurations
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  resource  String
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+model SystemMetrics {
+  id          String   @id @default(cuid())
+  metricName  String
+  metricValue Float
+  timestamp   DateTime @default(now())
+  metadata    Json?
+
+  @@map("system_metrics")
+}
+
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  enabled     Boolean  @default(false)
+  description String?
+  conditions  Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("feature_flags")
+}
+
+// Extend existing models with production fields
+model User {
+  // ... existing fields from base schema
+  auditLogs AuditLog[]
+  lastLoginAt DateTime?
+  loginCount Int @default(0)
+  
+  @@map("users")
+}
+
+model Product {
+  // ... existing fields from base schema
+  viewCount Int @default(0)
+  lastViewedAt DateTime?
+  
+  @@map("products")
+}
+
+model Order {
+  // ... existing fields from base schema
+  trackingNumber String?
+  shippedAt DateTime?
+  deliveredAt DateTime?
+  
+  @@map("orders")
+}
