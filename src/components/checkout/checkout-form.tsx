@@ -13,9 +13,12 @@ import { useAuth } from '@/hooks/use-auth'
 interface CheckoutFormProps {
   onSuccess: () => void
   onError: (error: string) => void
+  isGuest?: boolean
+  guestEmail?: string
+  onGuestEmailChange?: (email: string) => void
 }
 
-export default function CheckoutForm({ onSuccess, onError }: CheckoutFormProps) {
+export default function CheckoutForm({ onSuccess, onError, isGuest, guestEmail, onGuestEmailChange }: CheckoutFormProps) {
   const stripe = useStripe()
   const elements = useElements()
   const { user } = useAuth()
@@ -68,6 +71,32 @@ export default function CheckoutForm({ onSuccess, onError }: CheckoutFormProps) 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Guest Email */}
+      {isGuest && (
+        <div>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            Contact Information
+          </h3>
+          <div>
+            <label htmlFor="guest-email" className="block text-sm font-medium text-gray-700 mb-2">
+              Email address *
+            </label>
+            <input
+              id="guest-email"
+              type="email"
+              required
+              value={guestEmail || ''}
+              onChange={(e) => onGuestEmailChange?.(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              placeholder="Enter your email address"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              We'll send your order confirmation to this email
+            </p>
+          </div>
+        </div>
+      )}
+      
       {/* Shipping Address */}
       <div>
         <h3 className="text-lg font-medium text-gray-900 mb-4">

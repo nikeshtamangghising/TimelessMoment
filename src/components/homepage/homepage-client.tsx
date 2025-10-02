@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Product } from '@/types';
+import { ProductWithCategory } from '@/types';
 import MainLayout from '@/components/layout/main-layout';
 import HeroSection from './hero-section';
 import CategoriesSection from './categories-section';
@@ -11,9 +11,9 @@ import FeaturesSection from './features-section';
 import TestimonialsSection from './testimonials-section';
 
 interface HomepageData {
-  featured: Product[];
-  popular: Product[];
-  newArrivals: Product[];
+  featured: ProductWithCategory[];
+  popular: ProductWithCategory[];
+  newArrivals: ProductWithCategory[];
   categories: string[];
 }
 
@@ -127,7 +127,7 @@ export default function HomepageClient() {
             title="Featured Products"
             subtitle="Discover our handpicked selection of amazing products"
             products={data.featured}
-            viewAllLink="/products"
+            viewAllLink="/categories"
             variant="featured"
           />
         )}
@@ -139,7 +139,7 @@ export default function HomepageClient() {
             title="Popular Choices"
             subtitle="See what everyone else is buying"
             products={data.popular}
-            viewAllLink="/products?sort=popular"
+            viewAllLink="/categories?sort=popular"
             className="bg-gradient-to-b from-gray-50 to-white"
             variant="popular"
           />
@@ -150,7 +150,7 @@ export default function HomepageClient() {
             title="New Arrivals"
             subtitle="Check out our latest products"
             products={data.newArrivals}
-            viewAllLink="/products?sort=newest"
+            viewAllLink="/categories?sort=newest"
             variant="trending"
           />
         )}

@@ -1,11 +1,16 @@
-import { User, Product, Order, OrderItem, Role, OrderStatus, InventoryChangeType } from '@prisma/client'
+import { User, Product, Order, OrderItem, Role, OrderStatus, InventoryChangeType, Category, Brand } from '@prisma/client'
 
 // Re-export Prisma types
-export type { User, Product, Order, OrderItem, Role, OrderStatus, InventoryChangeType }
+export type { User, Product, Order, OrderItem, Role, OrderStatus, InventoryChangeType, Category, Brand }
 
 // Extended types with relations
 export type UserWithOrders = User & {
   orders: Order[]
+}
+
+export type ProductWithCategory = Product & {
+  category: Category
+  brand?: Brand | null
 }
 
 export type ProductWithOrderItems = Product & {

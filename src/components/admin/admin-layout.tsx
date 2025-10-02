@@ -14,7 +14,9 @@ import {
   ArrowRightOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
-  ArchiveBoxIcon
+  ArchiveBoxIcon,
+  FolderIcon,
+  TagIcon
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/hooks/use-auth'
 import Button from '@/components/ui/button'
@@ -26,6 +28,8 @@ interface AdminLayoutProps {
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: HomeIcon },
   { name: 'Products', href: '/admin/products', icon: CubeIcon },
+  { name: 'Categories', href: '/admin/categories', icon: FolderIcon },
+  { name: 'Brands', href: '/admin/brands', icon: TagIcon },
   { name: 'Inventory', href: '/admin/inventory', icon: ArchiveBoxIcon },
   { name: 'Orders', href: '/admin/orders', icon: ShoppingBagIcon },
   { name: 'Customers', href: '/admin/customers', icon: UsersIcon },

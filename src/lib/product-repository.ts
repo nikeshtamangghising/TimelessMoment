@@ -39,6 +39,10 @@ export class ProductRepository {
       cacheKey,
       () => prisma.product.findUnique({
         where: { id },
+        include: {
+          category: true,
+          brand: true,
+        },
       }),
       {
         memoryTtl: CACHE_DURATIONS.MEDIUM,
@@ -55,6 +59,10 @@ export class ProductRepository {
       cacheKey,
       () => prisma.product.findUnique({
         where: { slug },
+        include: {
+          category: true,
+          brand: true,
+        },
       }),
       {
         memoryTtl: CACHE_DURATIONS.MEDIUM,
@@ -78,12 +86,18 @@ export class ProductRepository {
 
         const where = this.buildWhereClause(filters)
 
+        const orderBy = this.buildOrderBy(filters.sort)
+        
         const [products, total] = await Promise.all([
           prisma.product.findMany({
             where,
             skip,
             take: limit,
-            orderBy: { createdAt: 'desc' },
+            include: {
+              category: true,
+              brand: true,
+            },
+            orderBy,
           }),
           prisma.product.count({ where }),
         ])
@@ -153,13 +167,20 @@ export class ProductRepository {
     return getCachedData(
       'categories',
       async () => {
-        const result = await prisma.product.findMany({
-          select: { category: true },
-          distinct: ['category'],
-          where: { isActive: true },
+        const result = await prisma.category.findMany({
+          where: { 
+            isActive: true,
+            products: {
+              some: {
+                isActive: true
+              }
+            }
+          },
+          select: { name: true },
+          orderBy: { name: 'asc' }
         })
 
-        return result.map(item => item.category)
+        return result.map(item => item.name)
       },
       {
         memoryTtl: CACHE_DURATIONS.LONG,
@@ -187,7 +208,12 @@ export class ProductRepository {
       () => prisma.product.findMany({
         where: { 
           isActive: true,
+          isFeatured: true,
           inventory: { gt: 0 }
+        },
+        include: {
+          category: true,
+          brand: true,
         },
         orderBy: [
           { createdAt: 'desc' },
@@ -211,6 +237,10 @@ export class ProductRepository {
           isActive: true,
           inventory: { gt: 0 }
         },
+        include: {
+          category: true,
+          brand: true,
+        },
         // In a real app, you'd order by view count, sales, etc.
         // For now, we'll use a combination of factors
         orderBy: [
@@ -233,7 +263,12 @@ export class ProductRepository {
       () => prisma.product.findMany({
         where: { 
           isActive: true,
+          isNewArrival: true,
           inventory: { gt: 0 }
+        },
+        include: {
+          category: true,
+          brand: true,
         },
         orderBy: { createdAt: 'desc' },
         take: limit,
@@ -253,6 +288,10 @@ export class ProductRepository {
         where: { 
           isActive: true,
           inventory: { gt: 0 }
+        },
+        include: {
+          category: true,
+          brand: true,
         },
         // In a real app, you'd have analytics data to determine trending
         // For now, we'll use recent products with good inventory
@@ -291,23 +330,23 @@ export class ProductRepository {
           take: 10, // Last 10 orders
         })
 
-        // Extract categories from user's purchase history
-        const purchasedCategories = new Set<string>()
+        // Extract category IDs from user's purchase history
+        const purchasedCategoryIds = new Set<string>()
         userOrders.forEach(order => {
           order.items.forEach(item => {
             if (item.product) {
-              purchasedCategories.add(item.product.category)
+              purchasedCategoryIds.add(item.product.categoryId)
             }
           })
         })
 
         // Get products from preferred categories
-        if (purchasedCategories.size > 0) {
+        if (purchasedCategoryIds.size > 0) {
           return prisma.product.findMany({
             where: {
               isActive: true,
               inventory: { gt: 0 },
-              category: { in: Array.from(purchasedCategories) },
+              categoryId: { in: Array.from(purchasedCategoryIds) },
               // Exclude products user already bought
               NOT: {
                 id: {
@@ -316,6 +355,10 @@ export class ProductRepository {
                   )
                 }
               }
+            },
+            include: {
+              category: true,
+              brand: true,
             },
             orderBy: [
               { createdAt: 'desc' },
@@ -341,9 +384,15 @@ export class ProductRepository {
       `category-products:${category}:${limit}`,
       () => prisma.product.findMany({
         where: {
-          category,
+          category: {
+            name: category
+          },
           isActive: true,
           inventory: { gt: 0 }
+        },
+        include: {
+          category: true,
+          brand: true,
         },
         orderBy: [
           { createdAt: 'desc' },
@@ -363,7 +412,9 @@ export class ProductRepository {
     const where: any = {}
 
     if (filters.category) {
-      where.category = filters.category
+      where.category = {
+        name: filters.category
+      }
     }
 
     if (filters.search) {
@@ -386,6 +437,24 @@ export class ProductRepository {
     }
 
     return where
+  }
+
+  private buildOrderBy(sort?: string) {
+    switch (sort) {
+      case 'newest':
+        return { createdAt: 'desc' }
+      case 'price-low':
+        return { price: 'asc' }
+      case 'price-high':
+        return { price: 'desc' }
+      case 'rating':
+        return { ratingAvg: 'desc' }
+      case 'popular':
+        // In a real app, this would be based on view count, sales, etc.
+        return [{ inventory: 'desc' }, { createdAt: 'desc' }]
+      default:
+        return { createdAt: 'desc' }
+    }
   }
 }
 

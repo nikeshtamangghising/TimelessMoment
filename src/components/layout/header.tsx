@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { signOut } from 'next-auth/react'
 import Button from '@/components/ui/button'
 import { UserIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
 import CartIcon from '@/components/cart/cart-icon'
+import SearchAutocomplete from '@/components/search/search-autocomplete'
 
 export default function Header() {
   const { user, isAuthenticated, isAdmin } = useAuth()
@@ -20,6 +22,7 @@ export default function Header() {
     setIsMobileMenuOpen(!isMobileMenuOpen)
   }
 
+
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -31,14 +34,13 @@ export default function Header() {
             </Link>
           </div>
 
+          {/* Search Bar - Desktop */}
+          <div className="hidden md:flex flex-1 max-w-lg mx-8">
+            <SearchAutocomplete className="w-full" />
+          </div>
+
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <Link
-              href="/products"
-              className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium"
-            >
-              Products
-            </Link>
             <Link
               href="/categories"
               className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium"
@@ -122,14 +124,14 @@ export default function Header() {
       {/* Mobile navigation */}
       {isMobileMenuOpen && (
         <div className="md:hidden border-t border-gray-200 bg-white">
+          {/* Mobile Search */}
+          <div className="px-4 py-3 border-b border-gray-200">
+            <SearchAutocomplete 
+              className="w-full" 
+              onClose={() => setIsMobileMenuOpen(false)}
+            />
+          </div>
           <div className="px-4 py-3 space-y-1">
-            <Link
-              href="/products"
-              className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-indigo-600 hover:bg-gray-50 rounded-md transition-colors"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Products
-            </Link>
             <Link
               href="/categories"
               className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-indigo-600 hover:bg-gray-50 rounded-md transition-colors"

@@ -24,7 +24,10 @@ export const updateUserSchema = createUserSchema.partial()
 export const createProductSchema = z.object({
   name: z.string().min(1, 'Product name is required'),
   description: z.string().min(1, 'Product description is required'),
+  shortDescription: z.string().optional(),
   price: z.number().positive('Price must be positive'),
+  discountPrice: z.number().positive('Discount price must be positive').optional().nullable(),
+  currency: z.string().min(3, 'Currency code is required').max(3).default('USD'),
   images: z.array(
     z.string()
       .min(1, 'Image path cannot be empty')
@@ -35,9 +38,22 @@ export const createProductSchema = z.object({
   ).min(1, 'At least one product image is required'),
   inventory: z.number().int().min(0, 'Inventory cannot be negative'),
   lowStockThreshold: z.number().int().min(0, 'Low stock threshold cannot be negative').default(5),
-  category: z.string().min(1, 'Category is required'),
+  categoryId: z.string().cuid('Invalid category ID'),
+  brandId: z.string().cuid('Invalid brand ID').optional().nullable(),
   slug: z.string().min(1, 'Slug is required').regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens'),
+  sku: z.string().optional().nullable(),
+  weight: z.number().positive('Weight must be positive').optional().nullable(),
+  dimensions: z.object({
+    length: z.string().optional(),
+    width: z.string().optional(),
+    height: z.string().optional(),
+  }).optional().nullable(),
+  metaTitle: z.string().max(60, 'Meta title must be 60 characters or less').optional(),
+  metaDescription: z.string().max(160, 'Meta description must be 160 characters or less').optional(),
+  tags: z.array(z.string()).default([]),
   isActive: z.boolean().default(true),
+  isFeatured: z.boolean().default(false),
+  isNewArrival: z.boolean().default(false),
 })
 
 export const updateProductSchema = createProductSchema.partial()
@@ -72,6 +88,7 @@ export const productFiltersSchema = z.object({
   maxPrice: z.number().positive().optional(),
   search: z.string().optional(),
   isActive: z.boolean().optional(),
+  sort: z.enum(['newest', 'price-low', 'price-high', 'rating', 'popular']).optional(),
 })
 
 // Cart validation schemas

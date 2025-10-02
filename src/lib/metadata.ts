@@ -96,13 +96,14 @@ export function generateMetadata(config: MetadataConfig): Metadata {
 }
 
 export function generateProductMetadata(product: Product): Metadata {
+  const categoryName = (product as any)?.category?.name ?? (product as any)?.category;
   const keywords = [
     product.name,
-    product.category,
+    categoryName,
     'buy online',
     'e-commerce',
     ...(product.description?.split(' ').slice(0, 5) || []),
-  ];
+  ].filter(Boolean) as string[];
 
   return generateMetadata({
     title: product.name,

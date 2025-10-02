@@ -19,14 +19,17 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Parse filter parameters
+    // Parse filter parameters (ignore _t cache-busting parameter)
     const filters = {
       category: searchParams.get('category') || undefined,
       minPrice: searchParams.get('minPrice') ? parseFloat(searchParams.get('minPrice')!) : undefined,
       maxPrice: searchParams.get('maxPrice') ? parseFloat(searchParams.get('maxPrice')!) : undefined,
       search: searchParams.get('search') || undefined,
       isActive: searchParams.get('isActive') ? searchParams.get('isActive') === 'true' : undefined,
+      sort: searchParams.get('sort') || undefined,
     }
+    
+    console.log('API: Received filters:', filters)
 
     const filtersResult = productFiltersSchema.safeParse(filters)
     if (!filtersResult.success) {

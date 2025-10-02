@@ -4,9 +4,9 @@ import { updateProductSchema } from '@/lib/validations'
 import { createAdminHandler } from '@/lib/auth-middleware'
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export async function GET(
@@ -14,7 +14,8 @@ export async function GET(
   { params }: RouteParams
 ) {
   try {
-    const product = await productRepository.findById(params.id)
+    const { id } = await params
+    const product = await productRepository.findById(id)
 
     if (!product) {
       return NextResponse.json(
@@ -45,9 +46,12 @@ export const PUT = createAdminHandler<RouteParams>(async (
     )
   }
   
-  const { params } = context
+  const { params: paramsPromise } = context
   try {
-    const body = await request.json()
+    const [body, params] = await Promise.all([
+      request.json(),
+      paramsPromise
+    ])
     
     const validationResult = updateProductSchema.safeParse(body)
     if (!validationResult.success) {
@@ -115,8 +119,9 @@ export const DELETE = createAdminHandler<RouteParams>(async (
     )
   }
   
-  const { params } = context
+  const { params: paramsPromise } = context
   try {
+    const params = await paramsPromise
     // Check if product exists
     const existingProduct = await productRepository.findById(params.id)
     if (!existingProduct) {

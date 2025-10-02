@@ -87,6 +87,10 @@
   },
   "crons": [
     {
+      "path": "/api/cron/update-scores",
+      "schedule": "0 * * * *"
+    },
+    {
       "path": "/api/cron/sitemap-update",
       "schedule": "0 2 * * *"
     },

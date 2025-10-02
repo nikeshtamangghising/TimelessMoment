@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createPaymentIntent } from '@/lib/stripe'
-import { createAuthHandler } from '@/lib/auth-middleware'
 import { getCartSummary } from '@/lib/cart-utils'
 import { productRepository } from '@/lib/product-repository'
+import { getToken } from 'next-auth/jwt'
 import { z } from 'zod'
 
 const createPaymentIntentSchema = z.object({
@@ -10,9 +10,10 @@ const createPaymentIntentSchema = z.object({
     productId: z.string(),
     quantity: z.number().positive(),
   })).min(1, 'Cart must have at least one item'),
+  guestEmail: z.string().email().optional(), // For guest checkout
 })
 
-export const POST = createAuthHandler(async (request: NextRequest) => {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const validationResult = createPaymentIntentSchema.safeParse(body)
@@ -27,7 +28,11 @@ export const POST = createAuthHandler(async (request: NextRequest) => {
       )
     }
 
-    const { items } = validationResult.data
+    const { items, guestEmail } = validationResult.data
+    
+    // Check if user is authenticated (optional for guest checkout)
+    const token = await getToken({ req: request })
+    const isGuest = !token
 
     // Validate and fetch current product data
     const cartItems = []
@@ -75,6 +80,9 @@ export const POST = createAuthHandler(async (request: NextRequest) => {
         subtotal: summary.subtotal.toString(),
         shipping: summary.shipping.toString(),
         tax: summary.tax.toString(),
+        userId: token?.sub || null,
+        guestEmail: isGuest ? guestEmail : null,
+        isGuest: isGuest.toString(),
       }
     )
 
@@ -83,6 +91,7 @@ export const POST = createAuthHandler(async (request: NextRequest) => {
       paymentIntentId: paymentIntent.id,
       amount: paymentIntent.amount,
       currency: paymentIntent.currency,
+      isGuest,
       summary: {
         subtotal: summary.subtotal,
         shipping: summary.shipping,
@@ -107,4 +116,4 @@ export const POST = createAuthHandler(async (request: NextRequest) => {
       { status: 500 }
     )
   }
-})
+}

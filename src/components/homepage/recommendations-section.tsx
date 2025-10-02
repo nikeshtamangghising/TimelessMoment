@@ -2,12 +2,33 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { Product } from '@/types'
+import { ProductWithCategory } from '@/types'
 import ProductSection from './product-section'
+
+interface RecommendationData {
+  personalized: Array<{
+    productId: string;
+    score: number;
+    reason: string;
+    product: ProductWithCategory;
+  }>;
+  popular: Array<{
+    productId: string;
+    score: number;
+    reason: string;
+    product: ProductWithCategory;
+  }>;
+  trending: Array<{
+    productId: string;
+    score: number;
+    reason: string;
+    product: ProductWithCategory;
+  }>;
+}
 
 export default function RecommendationsSection() {
   const { data: session } = useSession()
-  const [recommendations, setRecommendations] = useState<Product[]>([])
+  const [recommendations, setRecommendations] = useState<RecommendationData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -15,14 +36,15 @@ export default function RecommendationsSection() {
     async function fetchRecommendations() {
       try {
         setLoading(true)
-        const response = await fetch('/api/homepage/recommendations')
+        const userId = session?.user?.id || 'guest'
+        const response = await fetch(`/api/recommendations/${userId}?personalizedLimit=8&popularLimit=8&trendingLimit=8`)
         
         if (!response.ok) {
           throw new Error('Failed to fetch recommendations')
         }
         
         const data = await response.json()
-        setRecommendations(data.recommendations || [])
+        setRecommendations(data)
       } catch (err) {
         console.error('Error fetching recommendations:', err)
         setError(err instanceof Error ? err.message : 'Failed to load recommendations')
@@ -44,7 +66,7 @@ export default function RecommendationsSection() {
               <div className="h-4 bg-gray-300 rounded w-96 mx-auto mb-8"></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {Array.from({ length: 4 }).map((_, index) => (
+              {Array.from({ length: 8 }).map((_, index) => (
                 <div key={index} className="animate-pulse">
                   <div className="bg-gray-300 rounded-lg h-64 mb-4"></div>
                   <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
@@ -58,24 +80,47 @@ export default function RecommendationsSection() {
     )
   }
 
-  if (error || recommendations.length === 0) {
+  if (error || !recommendations) {
     return null // Don't show section if there's an error or no recommendations
   }
 
-  const title = session?.user ? 'For You' : 'Trending Now'
-  const subtitle = session?.user 
-    ? 'Personalized recommendations based on your preferences'
-    : 'Popular products that others are loving'
-  const variant = session?.user ? 'default' : 'trending'
-
   return (
-    <ProductSection
-      title={title}
-      subtitle={subtitle}
-      products={recommendations}
-      viewAllLink="/products"
-      className="bg-gradient-to-b from-white to-gray-50"
-      variant={variant}
-    />
+    <>
+      {/* Trending Products - Always show */}
+      {recommendations.trending.length > 0 && (
+        <ProductSection
+          title="Trending Now"
+          subtitle="Hot products that everyone is talking about"
+          products={recommendations.trending.map(r => r.product)}
+          viewAllLink="/products?sort=trending"
+          className="bg-gradient-to-b from-white to-gray-50"
+          variant="trending"
+        />
+      )}
+      
+      {/* Personalized Recommendations - Only for logged in users */}
+      {session?.user && recommendations.personalized.length > 0 && (
+        <ProductSection
+          title="Picked For You"
+          subtitle="Personalized recommendations based on your preferences"
+          products={recommendations.personalized.map(r => r.product)}
+          viewAllLink="/products?personalized=true"
+          className="bg-gradient-to-b from-gray-50 to-white"
+          variant="default"
+        />
+      )}
+      
+      {/* Popular Products */}
+      {recommendations.popular.length > 0 && (
+        <ProductSection
+          title="Popular Choices"
+          subtitle="Products that customers love the most"
+          products={recommendations.popular.map(r => r.product)}
+          viewAllLink="/products?sort=popular"
+          className="bg-gradient-to-b from-white to-gray-50"
+          variant="popular"
+        />
+      )}
+    </>
   )
 }

@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { Product } from '@/types'
+import { ProductWithCategory } from '@/types'
 import ProductCard from '@/components/products/product-card'
+import ProductModal from '@/components/products/product-modal'
 // Inline SVG icons to avoid import issues
 const StarIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
@@ -25,7 +27,7 @@ const SparklesIcon = ({ className }: { className?: string }) => (
 interface ProductSectionProps {
   title: string
   subtitle?: string
-  products: Product[]
+  products: ProductWithCategory[]
   viewAllLink?: string
   className?: string
   variant?: 'default' | 'featured' | 'popular' | 'trending'
@@ -39,8 +41,21 @@ export default function ProductSection({
   className = '',
   variant = 'default'
 }: ProductSectionProps) {
+  const [selectedProduct, setSelectedProduct] = useState<ProductWithCategory | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
   if (products.length === 0) {
     return null
+  }
+
+  const handleProductClick = (product: ProductWithCategory) => {
+    setSelectedProduct(product)
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setSelectedProduct(null)
   }
 
   const getVariantIcon = () => {
@@ -113,8 +128,8 @@ export default function ProductSection({
           )}
         </div>
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        {/* Products Grid - Mobile-First: 2-col mobile, 4-col desktop */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
           {products.map((product, index) => (
             <div 
               key={product.id}
@@ -123,7 +138,11 @@ export default function ProductSection({
                 animationDelay: `${index * 100}ms`,
               }}
             >
-              <ProductCard product={product} />
+              <ProductCard 
+                product={product} 
+                onAddToCart={() => {}} 
+                onProductClick={handleProductClick}
+              />
             </div>
           ))}
         </div>
@@ -143,6 +162,13 @@ export default function ProductSection({
           </div>
         )}
       </div>
+      
+      {/* Product Modal */}
+      <ProductModal 
+        product={selectedProduct}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+      />
     </section>
   )
 }

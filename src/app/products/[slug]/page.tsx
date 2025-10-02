@@ -66,10 +66,15 @@ export default async function ProductPage({ params }: ProductPageProps) {
     notFound()
   }
 
+  const productWithCategory = product as any
+  const categoryName = typeof productWithCategory.category === 'object' 
+    ? productWithCategory.category?.name 
+    : productWithCategory.category || 'Uncategorized'
+    
   const breadcrumbs = [
     { name: 'Home', url: '/' },
     { name: 'Products', url: '/products' },
-    { name: product.category, url: `/products?category=${product.category}` },
+    { name: categoryName, url: `/products?category=${categoryName}` },
     { name: product.name, url: `/products/${product.slug}` },
   ]
 
@@ -120,8 +125,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
               <nav className="text-sm text-gray-500 mb-4">
                 <Link href="/products" className="hover:text-gray-700">Products</Link>
                 <span className="mx-2">/</span>
-                <Link href={`/products?category=${product.category}`} className="hover:text-gray-700">
-                  {product.category}
+                <Link href={`/products?category=${categoryName}`} className="hover:text-gray-700">
+                  {categoryName}
                 </Link>
                 <span className="mx-2">/</span>
                 <span className="text-gray-900">{product.name}</span>
@@ -136,7 +141,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                   ${product.price.toFixed(2)}
                 </span>
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-                  {product.category}
+                  {categoryName}
                 </span>
               </div>
             </div>

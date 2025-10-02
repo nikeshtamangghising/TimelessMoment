@@ -6,85 +6,87 @@ import { ArrowRightIcon, SparklesIcon, ShoppingBagIcon } from '@heroicons/react/
 
 export default function HeroSection() {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Animated Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
-        <div className="absolute inset-0 bg-black/10"></div>
-        
-        {/* Floating Elements */}
-        <div className="absolute top-20 left-10 w-20 h-20 bg-white/10 rounded-full blur-xl animate-pulse"></div>
-        <div className="absolute top-40 right-20 w-32 h-32 bg-pink-500/20 rounded-full blur-2xl animate-bounce"></div>
-        <div className="absolute bottom-20 left-20 w-24 h-24 bg-blue-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-40 right-10 w-16 h-16 bg-purple-500/20 rounded-full blur-xl animate-bounce delay-500"></div>
-      </div>
-
+    <section className="relative bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 md:py-20">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-grid-gray-100/[0.03] bg-[size:60px_60px]"></div>
+      
       {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <div className="mb-8">
-          <div className="inline-flex items-center px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-white/90 text-sm font-medium mb-6 border border-white/20">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          {/* Small Badge */}
+          <div className="inline-flex items-center px-4 py-2 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium mb-6">
             <SparklesIcon className="w-4 h-4 mr-2" />
-            New Collection Available
+            New Arrivals • Free Shipping Over $50
           </div>
           
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 bg-gradient-to-r from-white via-blue-100 to-purple-100 bg-clip-text text-transparent leading-tight">
-            Shop the
+          {/* Main Headline - More Product Focused */}
+          <h1 className="text-4xl md:text-6xl font-bold mb-6 text-gray-900 leading-tight">
+            Find Your Perfect
             <br />
-            <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">
-              Future
+            <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              Product Today
             </span>
           </h1>
           
-          <p className="text-xl md:text-2xl text-white/80 mb-12 max-w-3xl mx-auto leading-relaxed">
-            Discover cutting-edge products, exclusive deals, and the latest trends. 
-            Your perfect shopping experience starts here.
+          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            Discover thousands of products at unbeatable prices with fast, free delivery.
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16">
-          <Link href="/products">
+        {/* Quick Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
+          <Link href="/categories">
             <Button 
               size="lg" 
-              className="group bg-white text-gray-900 hover:bg-gray-100 px-8 py-4 text-lg font-semibold rounded-full shadow-2xl hover:shadow-white/25 transition-all duration-300 hover:scale-105"
+              className="group bg-indigo-600 hover:bg-indigo-700 px-8 py-4 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
             >
               <ShoppingBagIcon className="w-5 h-5 mr-2" />
-              Start Shopping
+              Shop Now
               <ArrowRightIcon className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
           </Link>
           
-          <Link href="/categories">
+          <Link href="/categories?sort=deals">
             <Button 
               variant="outline" 
               size="lg" 
-              className="group border-2 border-white/30 text-white hover:bg-white/10 backdrop-blur-sm px-8 py-4 text-lg font-semibold rounded-full transition-all duration-300 hover:scale-105"
+              className="group border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 px-8 py-4 text-lg font-semibold rounded-full transition-all duration-300 hover:scale-105"
             >
-              Browse Categories
+              View Deals
               <ArrowRightIcon className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
           </Link>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-          <div className="text-center">
-            <div className="text-3xl md:text-4xl font-bold text-white mb-2">10K+</div>
-            <div className="text-white/70">Happy Customers</div>
+        {/* Key Features - More Commerce Focused */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto text-center">
+          <div className="flex flex-col items-center">
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div className="text-lg font-semibold text-gray-900 mb-2">Free Shipping</div>
+            <div className="text-gray-600">On orders over $50</div>
           </div>
-          <div className="text-center">
-            <div className="text-3xl md:text-4xl font-bold text-white mb-2">500+</div>
-            <div className="text-white/70">Premium Products</div>
+          <div className="flex flex-col items-center">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div className="text-lg font-semibold text-gray-900 mb-2">Fast Delivery</div>
+            <div className="text-gray-600">2-day shipping available</div>
           </div>
-          <div className="text-center">
-            <div className="text-3xl md:text-4xl font-bold text-white mb-2">24/7</div>
-            <div className="text-white/70">Customer Support</div>
+          <div className="flex flex-col items-center">
+            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="text-lg font-semibold text-gray-900 mb-2">Secure Checkout</div>
+            <div className="text-gray-600">256-bit SSL encryption</div>
           </div>
-        </div>
-      </div>
-
-      {/* Scroll Indicator */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-        <div className="w-6 h-10 border-2 border-white/30 rounded-full flex justify-center">
-          <div className="w-1 h-3 bg-white/50 rounded-full mt-2 animate-pulse"></div>
         </div>
       </div>
     </section>
