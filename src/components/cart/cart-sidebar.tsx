@@ -1,16 +1,23 @@
 'use client'
 
-import { Fragment } from 'react'
+import { Fragment, useMemo } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { XMarkIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon, ShoppingBagIcon, TruckIcon, GiftIcon } from '@heroicons/react/24/outline'
 import { useCartStore } from '@/stores/cart-store'
+import { getFreeShippingThreshold, DEFAULT_CURRENCY } from '@/lib/currency'
 import CartItem from './cart-item'
 import CartSummary from './cart-summary'
 import Button from '@/components/ui/button'
 import Link from 'next/link'
 
 export default function CartSidebar() {
-  const { items, isOpen, closeCart, getTotalItems } = useCartStore()
+  const { items, isOpen, closeCart, getTotalItems, getTotalPrice } = useCartStore()
+  
+  // Shipping threshold calculations
+  const FREE_SHIPPING_THRESHOLD = getFreeShippingThreshold(DEFAULT_CURRENCY)
+  const totalPrice = useMemo(() => getTotalPrice(), [items])
+  const remainingForFreeShipping = FREE_SHIPPING_THRESHOLD - totalPrice
+  const qualifiesForFreeShipping = totalPrice >= FREE_SHIPPING_THRESHOLD
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
@@ -60,8 +67,47 @@ export default function CartSidebar() {
                         </div>
                       </div>
 
+                      {/* Shipping Threshold Banner - Show only when items exist */}
+                      {items.length > 0 && (
+                        <div className="mt-6">
+                          {qualifiesForFreeShipping ? (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center space-x-3">
+                              <div className="flex-shrink-0">
+                                <TruckIcon className="h-5 w-5 text-green-600" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-green-800">
+                                  🎉 You qualify for FREE shipping!
+                                </p>
+                                <p className="text-sm text-green-600">
+                                  Your order will be delivered at no extra cost
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                              <div className="flex items-center space-x-3 mb-2">
+                                <TruckIcon className="h-5 w-5 text-blue-600" />
+                <p className="text-sm font-medium text-blue-800">
+                  Add ₹ {remainingForFreeShipping.toFixed(2)} more for FREE shipping!
+                </p>
+                              </div>
+                              <div className="w-full bg-blue-200 rounded-full h-2">
+                                <div 
+                                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${Math.min((totalPrice / FREE_SHIPPING_THRESHOLD) * 100, 100)}%` }}
+                                ></div>
+                              </div>
+              <p className="text-xs text-blue-600 mt-1">
+                ₹ {totalPrice.toFixed(2)} of ₹ {FREE_SHIPPING_THRESHOLD} required
+              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Cart Items */}
-                      <div className="mt-8">
+                      <div className="mt-6">
                         {items.length === 0 ? (
                           <div className="text-center py-12">
                             <ShoppingBagIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -71,12 +117,29 @@ export default function CartSidebar() {
                             <p className="mt-1 text-sm text-gray-500">
                               Start adding some items to your cart!
                             </p>
-                            <div className="mt-6">
-                              <Link href="/products">
-                                <Button onClick={closeCart}>
-                                  Continue Shopping
+                            <div className="mt-6 space-y-3">
+                              <Link href="/categories">
+                                <Button onClick={closeCart} className="w-full">
+                                  Browse Categories
                                 </Button>
                               </Link>
+                              <Link href="/products">
+                                <Button variant="outline" onClick={closeCart} className="w-full">
+                                  View All Products
+                                </Button>
+                              </Link>
+                            </div>
+                            
+                            {/* Shopping Incentives */}
+                            <div className="mt-8 space-y-4">
+                              <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+                                <TruckIcon className="h-4 w-4" />
+                <span>Free shipping over ₹ 7,500</span>
+                              </div>
+                              <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+                                <GiftIcon className="h-4 w-4" />
+                                <span>Easy 30-day returns</span>
+                              </div>
                             </div>
                           </div>
                         ) : (

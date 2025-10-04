@@ -30,13 +30,27 @@ export class ActivityTracker {
     try {
       await prisma.$transaction(async (tx) => {
         // 1. Create activity record
+        // Build the data object carefully to avoid Prisma validation issues
+        const activityData: {
+          productId: string;
+          activityType: any;
+          userId?: string;
+          sessionId?: string;
+        } = {
+          productId,
+          activityType,
+        };
+        
+        // Add userId or sessionId based on what's available
+        if (userId) {
+          activityData.userId = userId;
+        }
+        if (sessionId && !userId) {
+          activityData.sessionId = sessionId;
+        }
+        
         await tx.userActivity.create({
-          data: {
-            userId,
-            sessionId,
-            productId,
-            activityType,
-          },
+          data: activityData,
         });
 
         // 2. Update product counters
@@ -68,13 +82,26 @@ export class ActivityTracker {
     try {
       await prisma.$transaction(async (tx) => {
         for (const activity of activities) {
+          const activityData: {
+            productId: string;
+            activityType: any;
+            userId?: string;
+            sessionId?: string;
+          } = {
+            productId: activity.productId,
+            activityType: activity.activityType,
+          };
+          
+          // Add userId or sessionId based on what's available
+          if (activity.userId) {
+            activityData.userId = activity.userId;
+          }
+          if (activity.sessionId && !activity.userId) {
+            activityData.sessionId = activity.sessionId;
+          }
+          
           await tx.userActivity.create({
-            data: {
-              userId: activity.userId,
-              sessionId: activity.sessionId,
-              productId: activity.productId,
-              activityType: activity.activityType,
-            },
+            data: activityData,
           });
 
           // Update product counters
@@ -318,6 +345,83 @@ export class ActivityTracker {
       activityCount: count,
     }));
   }
+}
+
+// Helper function for tracking individual activities (client-safe)
+export const trackActivity = async (data: ActivityData) => {
+  // Check if we're running on the client side
+  if (typeof window !== 'undefined') {
+    // Make API call to track activity
+    try {
+      const response = await fetch('/api/activity', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Failed to track activity: ${response.statusText}`)
+      }
+      
+      return await response.json()
+    } catch (error) {
+      console.error('Error tracking activity:', error)
+      throw error
+    }
+  } else {
+    // Server side - use direct method
+    return ActivityTracker.trackActivity(data)
+  }
+}
+
+// Helper function to create a view tracker observer
+export const createViewTracker = (userId?: string, sessionId?: string) => {
+  // Check if Intersection Observer is available
+  if (typeof IntersectionObserver === 'undefined') {
+    return null
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const productId = entry.target.getAttribute('data-product-id')
+          if (productId && (userId || sessionId)) {
+            // Track the view activity
+            trackActivity({
+              userId,
+              sessionId: !userId ? sessionId : undefined,
+              productId,
+              activityType: 'VIEW',
+            }).catch((error) => {
+              console.error('Error tracking view:', error)
+            })
+            
+            // Stop observing this element to prevent duplicate views
+            observer.unobserve(entry.target)
+          }
+        }
+      })
+    },
+    {
+      threshold: 0.5, // Trigger when 50% of the element is visible
+      rootMargin: '0px 0px -50px 0px', // Require element to be 50px into viewport
+    }
+  )
+
+  return observer
+}
+
+// Helper function to track view immediately (without observer)
+export const trackView = (productId: string, userId?: string, sessionId?: string) => {
+  return trackActivity({
+    userId,
+    sessionId: !userId ? sessionId : undefined,
+    productId,
+    activityType: 'VIEW',
+  })
 }
 
 export default ActivityTracker;

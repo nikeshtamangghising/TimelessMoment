@@ -191,6 +191,10 @@ export async function invalidateUser(userId: string): Promise<void> {
   memoryCache.delete(generateUserCacheKey(userId))
 }
 
+export function clearMemoryCache(): void {
+  memoryCache.clear()
+}
+
 // Hybrid caching strategy (memory + Next.js cache)
 export async function getCachedData<T>(
   key: string,

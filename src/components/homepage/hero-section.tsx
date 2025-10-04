@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRightIcon, SparklesIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
+import { formatCurrency, getFreeShippingThreshold, DEFAULT_CURRENCY } from '@/lib/currency';
 
 export default function HeroSection() {
   return (
@@ -16,7 +17,7 @@ export default function HeroSection() {
           {/* Small Badge */}
           <div className="inline-flex items-center px-4 py-2 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium mb-6">
             <SparklesIcon className="w-4 h-4 mr-2" />
-            New Arrivals • Free Shipping Over $50
+            New Arrivals • Free Shipping Over {formatCurrency(getFreeShippingThreshold(), DEFAULT_CURRENCY)}
           </div>
           
           {/* Main Headline - More Product Focused */}
@@ -67,7 +68,7 @@ export default function HeroSection() {
               </svg>
             </div>
             <div className="text-lg font-semibold text-gray-900 mb-2">Free Shipping</div>
-            <div className="text-gray-600">On orders over $50</div>
+            <div className="text-gray-600">On orders over {formatCurrency(getFreeShippingThreshold(), DEFAULT_CURRENCY)}</div>
           </div>
           <div className="flex flex-col items-center">
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">

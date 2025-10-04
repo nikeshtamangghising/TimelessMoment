@@ -128,8 +128,8 @@ export default function ProductSection({
           )}
         </div>
 
-        {/* Products Grid - Mobile-First: 2-col mobile, 4-col desktop */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
+        {/* Products Grid - Higher Density: 2-col mobile, 6-col desktop */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 lg:gap-5">
           {products.map((product, index) => (
             <div 
               key={product.id}
@@ -140,7 +140,6 @@ export default function ProductSection({
             >
               <ProductCard 
                 product={product} 
-                onAddToCart={() => {}} 
                 onProductClick={handleProductClick}
               />
             </div>

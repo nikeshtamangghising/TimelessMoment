@@ -4,10 +4,10 @@ import RecommendationEngine from '@/lib/recommendation-engine';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const { userId } = params;
+    const { userId } = await params;
     const searchParams = request.nextUrl.searchParams;
     
     const personalizedLimit = parseInt(searchParams.get('personalizedLimit') || '12');

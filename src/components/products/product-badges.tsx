@@ -2,6 +2,7 @@
 
 import { StarIcon, FireIcon, SparklesIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/solid'
 import { ClockIcon } from '@heroicons/react/24/outline'
+import { formatCurrency, getFreeShippingThreshold, DEFAULT_CURRENCY } from '@/lib/currency'
 
 interface ProductBadgesProps {
   product: {
@@ -123,8 +124,8 @@ export default function ProductBadges({
 
   // Trust Signals (if enabled)
   if (showTrustSignals) {
-    // Free Shipping (for orders over $50)
-    if (product.price >= 50) {
+    // Free Shipping (for orders over threshold)
+    if (product.price >= getFreeShippingThreshold()) {
       trustSignals.push(
         <div key="shipping" className="flex items-center text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
           <TruckIcon className="w-3 h-3 mr-1" />
@@ -242,8 +243,9 @@ export function DeliveryEstimate({ price, className = '' }: DeliveryEstimateProp
     const today = new Date()
     const deliveryDate = new Date(today)
     
-    if (price >= 50) {
-      // Free 2-day shipping for orders over $50
+    const freeShippingThreshold = getFreeShippingThreshold()
+    if (price >= freeShippingThreshold) {
+      // Free 2-day shipping for orders over threshold
       deliveryDate.setDate(today.getDate() + 2)
     } else {
       // Standard 5-7 day shipping
@@ -257,7 +259,8 @@ export function DeliveryEstimate({ price, className = '' }: DeliveryEstimateProp
     })
   }
 
-  const isFreeShipping = price >= 50
+  const freeShippingThreshold = getFreeShippingThreshold()
+  const isFreeShipping = price >= freeShippingThreshold
   const deliveryDate = getDeliveryDate()
 
   return (
@@ -268,14 +271,14 @@ export function DeliveryEstimate({ price, className = '' }: DeliveryEstimateProp
           {isFreeShipping ? (
             <span className="text-green-600 font-medium">Free delivery by {deliveryDate}</span>
           ) : (
-            <span className="text-gray-600">Delivery by {deliveryDate} - $5.99 shipping</span>
+            <span className="text-gray-600">Delivery by {deliveryDate} - {formatCurrency(999, DEFAULT_CURRENCY)} shipping</span>
           )}
         </span>
       </div>
       
       {!isFreeShipping && (
         <div className="text-xs text-blue-600">
-          💡 Add ${(50 - price).toFixed(2)} more for free shipping
+          💡 Add {formatCurrency(freeShippingThreshold - price, DEFAULT_CURRENCY)} more for free shipping
         </div>
       )}
     </div>

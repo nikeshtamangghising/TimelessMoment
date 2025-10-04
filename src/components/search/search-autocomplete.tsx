@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { formatCurrency, DEFAULT_CURRENCY } from '@/lib/currency'
 import { Product } from '@/types'
 
 interface SearchAutocompleteProps {
@@ -203,7 +204,7 @@ export default function SearchAutocomplete({
                     {product.name}
                   </div>
                   <div className="text-sm text-gray-500 truncate">
-                    {product.category} • ${product.price.toFixed(2)}
+                    {product.category} • {formatCurrency(product.price, product.currency || DEFAULT_CURRENCY)}
                   </div>
                 </div>
               </button>

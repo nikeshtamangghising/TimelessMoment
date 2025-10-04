@@ -8,6 +8,7 @@ import Input from '@/components/ui/input'
 import Select from '@/components/ui/select'
 import ImageUpload from '@/components/ui/image-upload'
 import { Product, Brand, Category } from '@/types'
+import { DEFAULT_CURRENCY } from '@/lib/currency'
 
 interface ProductFormProps {
   product?: Product
@@ -23,7 +24,7 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
     shortDescription: (product as any)?.shortDescription || '',
     price: product?.price?.toString() || '',
     discountPrice: (product as any)?.discountPrice?.toString() || '',
-    currency: (product as any)?.currency || 'USD',
+    currency: (product as any)?.currency || DEFAULT_CURRENCY,
     categoryId: (product as any)?.categoryId || '',
     brandId: (product as any)?.brandId || '',
     slug: product?.slug || '',
@@ -84,16 +85,16 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
     }
   }, [formData.name, product])
 
-  // Auto-generate SKU from name if not exists
+  // Auto-generate SKU from name if not exists (works for both new and existing products)
   useEffect(() => {
-    if (formData.name && !product && !formData.sku) {
+    if (formData.name && !formData.sku) {
       const sku = formData.name
         .toUpperCase()
         .replace(/[^A-Z0-9]+/g, '')
         .substring(0, 10) + '-' + Date.now().toString().slice(-4)
       setFormData(prev => ({ ...prev, sku }))
     }
-  }, [formData.name, product, formData.sku])
+  }, [formData.name, formData.sku])
 
   const handleInputChange = (field: string, value: string | boolean | object) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -149,6 +150,12 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
     } else if (!/^[a-z0-9-]+$/.test(formData.slug)) {
       newErrors.slug = 'Slug must contain only lowercase letters, numbers, and hyphens'
     }
+    
+    if (!formData.sku.trim()) {
+      newErrors.sku = 'SKU is required'
+    } else if (!/^[A-Z0-9-]+$/.test(formData.sku)) {
+      newErrors.sku = 'SKU must contain only uppercase letters, numbers, and hyphens'
+    }
 
     if (!formData.inventory || parseInt(formData.inventory) < 0) {
       newErrors.inventory = 'Valid inventory count is required'
@@ -164,6 +171,16 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
+  }
+
+  const generateSKU = () => {
+    if (formData.name) {
+      const sku = formData.name
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, '')
+        .substring(0, 10) + '-' + Date.now().toString().slice(-4)
+      setFormData(prev => ({ ...prev, sku }))
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -196,6 +213,7 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
 
   // Currency options
   const currencyOptions = [
+    { value: 'NPR', label: 'NPR (₹)' },
     { value: 'USD', label: 'USD ($)' },
     { value: 'EUR', label: 'EUR (€)' },
     { value: 'GBP', label: 'GBP (£)' },
@@ -329,13 +347,34 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="SKU"
-                value={formData.sku}
-                onChange={(e) => handleInputChange('sku', e.target.value)}
-                error={errors.sku}
-                helperText="Stock Keeping Unit (auto-generated if empty)"
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  SKU <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={formData.sku}
+                    onChange={(e) => handleInputChange('sku', e.target.value)}
+                    className={`flex-1 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
+                      errors.sku ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter SKU"
+                  />
+                  <button
+                    type="button"
+                    onClick={generateSKU}
+                    className="px-3 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 whitespace-nowrap"
+                    title="Generate new SKU"
+                  >
+                    Generate
+                  </button>
+                </div>
+                {errors.sku && (
+                  <p className="mt-1 text-sm text-red-600">{errors.sku}</p>
+                )}
+                <p className="mt-1 text-sm text-gray-500">Stock Keeping Unit (auto-generated if empty)</p>
+              </div>
 
               <Input
                 label="Slug"

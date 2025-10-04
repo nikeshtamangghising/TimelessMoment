@@ -72,6 +72,26 @@ export class ProductRepository {
     )
   }
 
+  async findBySku(sku: string): Promise<Product | null> {
+    const cacheKey = `product:sku:${sku}`
+    
+    return getCachedData(
+      cacheKey,
+      () => prisma.product.findUnique({
+        where: { sku },
+        include: {
+          category: true,
+          brand: true,
+        },
+      }),
+      {
+        memoryTtl: CACHE_DURATIONS.MEDIUM,
+        nextjsTags: [CACHE_TAGS.PRODUCT, `${CACHE_TAGS.PRODUCT}:sku:${sku}`],
+        nextjsRevalidate: CACHE_DURATIONS.LONG,
+      }
+    )
+  }
+
   async findMany(
     filters: ProductFiltersInput = {},
     pagination: PaginationInput = { page: 1, limit: 10 }

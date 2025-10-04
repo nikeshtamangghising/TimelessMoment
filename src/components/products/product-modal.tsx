@@ -9,6 +9,7 @@ import { ProductWithCategory } from '@/types'
 import { Button } from '@/components/ui/button'
 import { useCart } from '@/contexts/cart-context'
 import { useCartStore } from '@/stores/cart-store'
+import { formatCurrency, getFreeShippingThreshold, DEFAULT_CURRENCY } from '@/lib/currency'
 
 interface ProductModalProps {
   product: ProductWithCategory | null
@@ -216,7 +217,7 @@ export default function ProductModal({ product, isOpen, onClose }: ProductModalP
                       
                       <div className="flex items-center justify-between mb-4">
                         <div className="text-3xl font-bold text-indigo-600">
-                          ${product.price.toFixed(2)}
+                          {formatCurrency(product.price, product.currency || DEFAULT_CURRENCY)}
                         </div>
                         <div className="flex items-center space-x-2">
                           <button
@@ -320,7 +321,7 @@ export default function ProductModal({ product, isOpen, onClose }: ProductModalP
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-600">
                         <div className="flex items-center">
                           <span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>
-                          Free shipping on orders over $50
+                          Free shipping on orders over {formatCurrency(getFreeShippingThreshold(), DEFAULT_CURRENCY)}
                         </div>
                         <div className="flex items-center">
                           <span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>

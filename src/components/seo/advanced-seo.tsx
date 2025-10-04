@@ -1,5 +1,6 @@
 import Head from 'next/head'
 import { Product } from '@/types'
+import { DEFAULT_CURRENCY } from '@/lib/currency'
 
 interface AdvancedSEOProps {
   title: string
@@ -97,7 +98,7 @@ export default function AdvancedSEO({
         offers: {
           "@type": "Offer",
           price: productData.discountPrice || productData.price,
-          priceCurrency: productData.currency || "USD",
+          priceCurrency: productData.currency || DEFAULT_CURRENCY,
           availability: productData.inventory > 0 
             ? "https://schema.org/InStock" 
             : "https://schema.org/OutOfStock",
@@ -189,7 +190,7 @@ export default function AdvancedSEO({
       {productData && (
         <>
           <meta property="product:price:amount" content={String(productData.discountPrice || productData.price)} />
-          <meta property="product:price:currency" content={productData.currency || "USD"} />
+          <meta property="product:price:currency" content={productData.currency || DEFAULT_CURRENCY} />
           <meta property="product:availability" content={productData.inventory > 0 ? "in stock" : "out of stock"} />
           {productData.brand && (
             <meta property="product:brand" content={productData.brand.name} />

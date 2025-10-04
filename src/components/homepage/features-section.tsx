@@ -1,5 +1,7 @@
 'use client'
 
+import { formatCurrency, getFreeShippingThreshold, DEFAULT_CURRENCY } from '@/lib/currency'
+
 // Inline SVG icons to avoid import issues
 const TruckIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -41,7 +43,7 @@ const features = [
   {
     icon: TruckIcon,
     title: 'Free Shipping',
-    description: 'Free delivery on orders over $50. Fast and reliable shipping worldwide.',
+    description: `Free delivery on orders over ${formatCurrency(getFreeShippingThreshold(), DEFAULT_CURRENCY)}. Fast and reliable shipping worldwide.`,
     gradient: 'from-blue-500 to-cyan-500'
   },
   {

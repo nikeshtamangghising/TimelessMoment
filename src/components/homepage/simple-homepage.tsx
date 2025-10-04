@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { formatCurrency, getFreeShippingThreshold, DEFAULT_CURRENCY } from '@/lib/currency'
 
 export default function SimpleHomepage() {
   return (
@@ -107,7 +108,7 @@ export default function SimpleHomepage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
-              { icon: '🚚', title: 'Free Shipping', desc: 'Free delivery on orders over $50. Fast and reliable shipping worldwide.', gradient: 'from-blue-500 to-cyan-500' },
+              { icon: '🚚', title: 'Free Shipping', desc: `Free delivery on orders over ${formatCurrency(getFreeShippingThreshold(), DEFAULT_CURRENCY)}. Fast and reliable shipping worldwide.`, gradient: 'from-blue-500 to-cyan-500' },
               { icon: '🔒', title: 'Secure Payment', desc: 'Your payment information is encrypted and secure with industry-standard protection.', gradient: 'from-green-500 to-emerald-500' },
               { icon: '🔄', title: 'Easy Returns', desc: '30-day hassle-free returns. Not satisfied? Get your money back, no questions asked.', gradient: 'from-purple-500 to-pink-500' },
               { icon: '💬', title: '24/7 Support', desc: 'Our friendly customer support team is here to help you anytime, anywhere.', gradient: 'from-orange-500 to-red-500' },

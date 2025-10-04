@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { SettingsRepository } from '../src/lib/settings-repository'
 
 const prisma = new PrismaClient()
 
@@ -52,14 +53,15 @@ async function main() {
 
   console.log('✅ Categories created')
 
-  // Create sample products
+  // Create sample products with NPR pricing
   const products = [
     {
       name: 'Wireless Bluetooth Headphones',
       slug: 'wireless-bluetooth-headphones',
       description: 'High-quality wireless headphones with noise cancellation and 30-hour battery life. Perfect for music lovers and professionals.',
       shortDescription: 'Premium wireless headphones with noise cancellation',
-      price: 199.99,
+      price: 26599, // ~$200 USD
+      currency: 'NPR',
       images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500'],
       inventory: 50,
       categoryId: electronicsCategory.id,
@@ -73,7 +75,8 @@ async function main() {
       slug: 'smart-fitness-watch',
       description: 'Advanced fitness tracking watch with heart rate monitoring, GPS, and water resistance. Track your workouts and health metrics.',
       shortDescription: 'Advanced fitness tracking watch with GPS',
-      price: 299.99,
+      price: 39899, // ~$300 USD
+      currency: 'NPR',
       images: ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500'],
       inventory: 30,
       categoryId: electronicsCategory.id,
@@ -87,7 +90,8 @@ async function main() {
       slug: 'premium-cotton-t-shirt',
       description: 'Comfortable and stylish cotton t-shirt made from 100% organic cotton. Available in multiple colors and sizes.',
       shortDescription: 'Comfortable organic cotton t-shirt',
-      price: 29.99,
+      price: 3999, // ~$30 USD
+      currency: 'NPR',
       images: ['https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500'],
       inventory: 100,
       categoryId: clothingCategory.id,
@@ -101,7 +105,8 @@ async function main() {
       slug: 'designer-jeans',
       description: 'Classic fit designer jeans with premium denim. Perfect for casual and semi-formal occasions.',
       shortDescription: 'Classic fit designer jeans',
-      price: 89.99,
+      price: 11999, // ~$90 USD
+      currency: 'NPR',
       images: ['https://images.unsplash.com/photo-1542272604-787c3835535d?w=500'],
       inventory: 75,
       categoryId: clothingCategory.id,
@@ -115,7 +120,8 @@ async function main() {
       slug: 'smart-home-speaker',
       description: 'Voice-controlled smart speaker with built-in AI assistant. Control your smart home devices and stream music.',
       shortDescription: 'Voice-controlled smart speaker with AI',
-      price: 149.99,
+      price: 19999, // ~$150 USD
+      currency: 'NPR',
       images: ['https://images.unsplash.com/photo-1543512214-318c7553f230?w=500'],
       inventory: 40,
       categoryId: homeCategory.id,
@@ -129,7 +135,8 @@ async function main() {
       slug: 'indoor-plant-set',
       description: 'Beautiful collection of low-maintenance indoor plants perfect for beginners. Includes care instructions.',
       shortDescription: 'Low-maintenance indoor plant collection',
-      price: 49.99,
+      price: 6699, // ~$50 USD
+      currency: 'NPR',
       images: ['https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=500'],
       inventory: 60,
       categoryId: homeCategory.id,
@@ -143,7 +150,8 @@ async function main() {
       slug: 'programming-fundamentals-book',
       description: 'Comprehensive guide to programming fundamentals covering multiple languages and best practices.',
       shortDescription: 'Complete guide to programming fundamentals',
-      price: 39.99,
+      price: 5329, // ~$40 USD
+      currency: 'NPR',
       images: ['https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=500'],
       inventory: 80,
       categoryId: booksCategory.id,
@@ -157,7 +165,8 @@ async function main() {
       slug: 'cookbook-healthy-recipes',
       description: 'Collection of delicious and nutritious recipes for healthy living. Perfect for home cooks.',
       shortDescription: 'Delicious healthy recipes collection',
-      price: 24.99,
+      price: 3329, // ~$25 USD
+      currency: 'NPR',
       images: ['https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=500'],
       inventory: 90,
       categoryId: booksCategory.id,
@@ -178,7 +187,10 @@ async function main() {
 
   console.log('✅ Products created')
 
-  // Create a sample user
+  // Create a sample admin user with password
+  const bcrypt = require('bcryptjs')
+  const hashedPassword = await bcrypt.hash('admin123', 12)
+  
   const user = await prisma.user.upsert({
     where: { email: 'admin@example.com' },
     update: {},
@@ -186,10 +198,15 @@ async function main() {
       email: 'admin@example.com',
       name: 'Admin User',
       role: 'ADMIN',
+      password: hashedPassword,
     },
   })
 
   console.log('✅ Admin user created')
+
+  // Initialize default settings
+  await SettingsRepository.initializeDefaults()
+  console.log('✅ Default settings initialized')
 
   console.log('🎉 Database seeding completed successfully!')
 }

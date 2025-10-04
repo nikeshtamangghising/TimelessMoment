@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { ProductWithCategory } from '@/types'
 import ProductCard from '@/components/products/product-card'
 import ProductModal from '@/components/products/product-modal'
+import BackToTop from '@/components/ui/back-to-top'
+import { formatCurrency, DEFAULT_CURRENCY } from '@/lib/currency'
 import { 
   ChevronRightIcon, 
   AdjustmentsHorizontalIcon, 
@@ -71,7 +73,11 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [gridColumns, setGridColumns] = useState(4)
+  const [gridColumns, setGridColumns] = useState(5)
+  const [allProducts, setAllProducts] = useState<ProductWithCategory[]>([])
+  const [displayedProducts, setDisplayedProducts] = useState<ProductWithCategory[]>([])
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
 
   const router = useRouter()
   const urlSearchParams = useSearchParams()
@@ -169,6 +175,13 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
         console.log('All product categories:', productsResult.data.map(p => p.category?.name))
       }
       setProductsData(productsResult)
+      
+      // Set up load more functionality
+      const products = productsResult.data || []
+      setAllProducts(products)
+      const initialDisplayCount = 24 // Show 24 products initially
+      setDisplayedProducts(products.slice(0, initialDisplayCount))
+      setHasMore(products.length > initialDisplayCount)
 
       // Fetch available filters
       const filtersResponse = await fetch('/api/products/filters')
@@ -215,6 +228,20 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
   const clearFilters = () => {
     router.push('/categories')
   }
+  
+  const loadMore = () => {
+    setLoadingMore(true)
+    
+    setTimeout(() => {
+      const currentCount = displayedProducts.length
+      const nextBatch = 12 // Load 12 more products at a time
+      const newDisplayed = allProducts.slice(0, currentCount + nextBatch)
+      
+      setDisplayedProducts(newDisplayed)
+      setHasMore(newDisplayed.length < allProducts.length)
+      setLoadingMore(false)
+    }, 500) // Small delay for better UX
+  }
 
   if (loading) {
     return (
@@ -222,9 +249,11 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
         <div className="animate-pulse">
           <div className="h-8 bg-gray-300 rounded w-1/3 mx-auto mb-4"></div>
           <div className="h-4 bg-gray-300 rounded w-1/2 mx-auto mb-8"></div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-48 bg-gray-300 rounded"></div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
+            {Array.from({ length: 24 }).map((_, i) => (
+              <div key={i} className="aspect-square bg-gray-300 rounded-lg animate-pulse">
+                <div className="h-full w-full bg-gradient-to-br from-gray-200 to-gray-300 rounded-lg"></div>
+              </div>
             ))}
           </div>
         </div>
@@ -328,7 +357,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
           <div className="flex gap-8">
             {/* Filters Sidebar */}
             <div className={`${showFilters ? 'block' : 'hidden'} lg:block w-full lg:w-64 flex-shrink-0`}>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-6">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-4 max-h-screen overflow-y-auto">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
                   <Button
@@ -484,20 +513,25 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                       </button>
                     </div>
                     
-                    {/* Grid Columns (only for grid view) */}
+                    {/* Grid Density (only for grid view) */}
                     {viewMode === 'grid' && (
                       <div className="hidden md:flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
-                        {[2, 3, 4].map((cols) => (
+                        {[
+                          { value: 3, label: 'Large' },
+                          { value: 4, label: 'Medium' },
+                          { value: 5, label: 'Dense' },
+                          { value: 6, label: 'Compact' }
+                        ].map((option) => (
                           <button
-                            key={cols}
-                            onClick={() => setGridColumns(cols)}
+                            key={option.value}
+                            onClick={() => setGridColumns(option.value)}
                             className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                              gridColumns === cols 
+                              gridColumns === option.value 
                                 ? 'bg-white text-gray-900 shadow-sm' 
                                 : 'text-gray-600 hover:text-gray-900'
                             }`}
                           >
-                            {cols}
+                            {option.label}
                           </button>
                         ))}
                       </div>
@@ -521,26 +555,26 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
               </div>
 
               {/* Products Grid */}
-              {productsData.data && productsData.data.length > 0 ? (
+              {displayedProducts && displayedProducts.length > 0 ? (
                 <div>
                   {viewMode === 'grid' ? (
-                    <div className={`grid gap-4 md:gap-6 ${
-                      gridColumns === 2 ? 'grid-cols-1 sm:grid-cols-2' :
-                      gridColumns === 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' :
-                      'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                    <div className={`grid gap-3 md:gap-4 ${
+                      gridColumns === 3 ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3' :
+                      gridColumns === 4 ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' :
+                      gridColumns === 5 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5' :
+                      'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
                     }`}>
-                      {productsData.data.map((product) => (
+                      {displayedProducts.map((product) => (
                         <ProductCard
                           key={product.id}
                           product={product}
-                          onAddToCart={() => {}}
                           onProductClick={handleProductClick}
                         />
                       ))}
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {productsData.data.map((product) => (
+                      {displayedProducts.map((product) => (
                         <div key={product.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
                           <div className="flex items-center space-x-4">
                             <div className="w-20 h-20 flex-shrink-0">
@@ -554,7 +588,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                               <h3 className="text-lg font-medium text-gray-900 truncate">{product.name}</h3>
                               <p className="text-sm text-gray-500 line-clamp-2 mt-1">{product.description}</p>
                               <div className="flex items-center mt-2 space-x-4">
-                                <span className="text-xl font-bold text-indigo-600">${product.price.toFixed(2)}</span>
+                                <span className="text-xl font-bold text-indigo-600">{formatCurrency(product.price, product.currency || DEFAULT_CURRENCY)}</span>
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                   {product.category.name}
                                 </span>
@@ -596,63 +630,41 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                     </div>
                   )}
 
-                  {/* Pagination */}
-                  {productsData.pagination && productsData.pagination.totalPages > 1 && (
+                  {/* Load More Button */}
+                  {hasMore && (
                     <div className="mt-8 flex justify-center">
-                      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                        <div className="flex items-center justify-center space-x-2">
-                          {(productsData.pagination?.page || 1) > 1 && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateFilters({ page: String((productsData.pagination?.page || 1) - 1) })}
-                            >
-                              <ChevronRightIcon className="w-4 h-4 mr-2 rotate-180" />
-                              Previous
-                            </Button>
-                          )}
-                          
-                          <div className="flex items-center space-x-1">
-                            {Array.from({ length: Math.min(5, productsData.pagination?.totalPages || 1) }, (_, i) => {
-                              const pageNum = i + 1
-                              const currentPage = productsData.pagination?.page || 1
-                              const isActive = pageNum === currentPage
-                              
-                              return (
-                                <button
-                                  key={pageNum}
-                                  onClick={() => updateFilters({ page: String(pageNum) })}
-                                  className={`px-3 py-2 text-sm rounded-md transition-colors ${
-                                    isActive
-                                      ? 'bg-indigo-600 text-white'
-                                      : 'text-gray-700 hover:bg-gray-100'
-                                  }`}
-                                >
-                                  {pageNum}
-                                </button>
-                              )
-                            })}
-                          </div>
-                          
-                          {(productsData.pagination?.page || 1) < (productsData.pagination?.totalPages || 1) && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateFilters({ page: String((productsData.pagination?.page || 1) + 1) })}
-                            >
-                              Next
-                              <ChevronRightIcon className="w-4 h-4 ml-2" />
-                            </Button>
-                          )}
-                        </div>
-                        <div className="text-center mt-2">
-                          <span className="text-sm text-gray-600">
-                            Page {productsData.pagination?.page || 1} of {productsData.pagination?.totalPages || 1}
-                          </span>
-                        </div>
-                      </div>
+                      <Button
+                        onClick={loadMore}
+                        disabled={loadingMore}
+                        size="lg"
+                        className="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                      >
+                        {loadingMore ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Loading More...
+                          </>
+                        ) : (
+                          <>Load More Products</>
+                        )}
+                      </Button>
                     </div>
                   )}
+                  
+                  {/* Products Count */}
+                  <div className="mt-6 text-center">
+                    <span className="text-sm text-gray-500">
+                      Showing {displayedProducts.length} of {allProducts.length} products
+                      {allProducts.length > displayedProducts.length && (
+                        <span className="ml-2 text-blue-600 font-medium">
+                          · {allProducts.length - displayedProducts.length} more available
+                        </span>
+                      )}
+                    </span>
+                  </div>
                 </div>
               ) : (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
@@ -700,6 +712,9 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
           isOpen={isModalOpen}
           onClose={handleCloseModal}
         />
+        
+        {/* Back to Top Button */}
+        <BackToTop />
       </div>
     </div>
   )

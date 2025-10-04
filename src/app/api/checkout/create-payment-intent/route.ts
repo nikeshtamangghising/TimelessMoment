@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createPaymentIntent } from '@/lib/stripe'
-import { getCartSummary } from '@/lib/cart-utils'
+import { getCartSummaryWithSettings } from '@/lib/cart-utils'
 import { productRepository } from '@/lib/product-repository'
 import { getToken } from 'next-auth/jwt'
 import { z } from 'zod'
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate order total
-    const summary = getCartSummary(cartItems)
+    const summary = await getCartSummaryWithSettings(cartItems)
 
     // Create payment intent
     const paymentIntent = await createPaymentIntent(

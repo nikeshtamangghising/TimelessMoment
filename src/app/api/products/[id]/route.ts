@@ -84,6 +84,17 @@ export const PUT = createAdminHandler<RouteParams>(async (
       }
     }
 
+    // Check if SKU is being updated and if it conflicts
+    if (validationResult.data.sku && validationResult.data.sku !== existingProduct.sku) {
+      const skuConflict = await productRepository.findBySku(validationResult.data.sku)
+      if (skuConflict && skuConflict.id !== params.id) {
+        return NextResponse.json(
+          { error: 'A product with this SKU already exists' },
+          { status: 400 }
+        )
+      }
+    }
+
     const updatedProduct = await productRepository.update(params.id, validationResult.data)
 
     return NextResponse.json({
@@ -95,6 +106,21 @@ export const PUT = createAdminHandler<RouteParams>(async (
     console.error('Error updating product:', error)
     
     if (error instanceof Error) {
+      // Handle Prisma unique constraint violations
+      if (error.message.includes('Unique constraint failed on the fields: (`sku`)')) {
+        return NextResponse.json(
+          { error: 'A product with this SKU already exists. Please use a different SKU.' },
+          { status: 400 }
+        )
+      }
+      
+      if (error.message.includes('Unique constraint failed on the fields: (`slug`)')) {
+        return NextResponse.json(
+          { error: 'A product with this slug already exists. Please use a different slug.' },
+          { status: 400 }
+        )
+      }
+      
       return NextResponse.json(
         { error: error.message },
         { status: 400 }

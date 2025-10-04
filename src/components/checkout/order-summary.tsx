@@ -1,17 +1,113 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { CartItem } from '@/types'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { getCartSummary, formatPrice } from '@/lib/cart-utils'
+import { getCartSummary, getCartSummaryWithSettings, formatPrice } from '@/lib/cart-utils'
+import Loading from '@/components/ui/loading'
 
 interface OrderSummaryProps {
   items: CartItem[]
 }
 
+interface CartSummary {
+  subtotal: number
+  shipping: number
+  tax: number
+  total: number
+  itemsCount: number
+  freeShippingThreshold: number
+  freeShippingRemaining: number
+  taxRate: number
+  shippingRate: number
+}
+
 export default function OrderSummary({ items }: OrderSummaryProps) {
-  const summary = getCartSummary(items)
+  const [summary, setSummary] = useState<CartSummary | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    fetchCartSummary()
+  }, [items])
+
+  const fetchCartSummary = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      
+      // Use API endpoint to get accurate calculations with database settings
+      const response = await fetch('/api/cart/summary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ items }),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to calculate order summary')
+      }
+      
+      const data = await response.json()
+      setSummary(data.summary)
+    } catch (err) {
+      console.error('Error calculating cart summary:', err)
+      setError('Failed to calculate order total')
+      
+      // Fallback to hardcoded values if API call fails
+      const fallbackSummary = getCartSummary(items)
+      setSummary({
+        ...fallbackSummary,
+        taxRate: 0.13,
+        shippingRate: 200
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <Card className="sticky top-8">
+        <CardHeader>
+          <h2 className="text-lg font-medium text-gray-900">
+            Order Summary
+          </h2>
+        </CardHeader>
+        <CardContent className="flex justify-center py-8">
+          <Loading size="md" />
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error && !summary) {
+    return (
+      <Card className="sticky top-8">
+        <CardHeader>
+          <h2 className="text-lg font-medium text-gray-900">
+            Order Summary
+          </h2>
+        </CardHeader>
+        <CardContent className="text-center py-8">
+          <p className="text-red-600 text-sm">{error}</p>
+          <button
+            onClick={fetchCartSummary}
+            className="mt-2 text-indigo-600 hover:text-indigo-500 text-sm"
+          >
+            Try again
+          </button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!summary) {
+    return null
+  }
 
   return (
     <Card className="sticky top-8">
@@ -102,7 +198,16 @@ export default function OrderSummary({ items }: OrderSummaryProps) {
         {summary.shipping === 0 && summary.subtotal >= summary.freeShippingThreshold && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-3">
             <p className="text-sm text-green-800 font-medium">
-              🎉 You saved {formatPrice(9.99)} on shipping!
+              🎉 You saved {formatPrice(summary.shippingRate)} on shipping!
+            </p>
+          </div>
+        )}
+        
+        {/* Free Shipping Progress */}
+        {summary.shipping > 0 && summary.freeShippingRemaining > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800">
+              💡 Add {formatPrice(summary.freeShippingRemaining)} more to get free shipping!
             </p>
           </div>
         )}

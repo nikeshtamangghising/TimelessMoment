@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
@@ -23,6 +24,14 @@ export default function MobileBottomNav() {
   const pathname = usePathname()
   const { getTotalItems, openCart } = useCartStore()
   const { isAuthenticated } = useAuth()
+  const [isClient, setIsClient] = useState(false)
+
+  // Only show cart count after hydration to prevent mismatches
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  const cartItemCount = isClient ? getTotalItems() : 0
 
   const navigation = [
     {
@@ -82,9 +91,9 @@ export default function MobileBottomNav() {
               >
                 <div className="relative">
                   <Icon className="h-6 w-6" />
-                  {getTotalItems() > 0 && (
+                  {isClient && cartItemCount > 0 && (
                     <div className="absolute -top-2 -right-2 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                      {getTotalItems() > 99 ? '99+' : getTotalItems()}
+                      {cartItemCount > 99 ? '99+' : cartItemCount}
                     </div>
                   )}
                 </div>

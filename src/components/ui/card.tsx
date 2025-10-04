@@ -53,6 +53,30 @@ const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
 
 CardContent.displayName = 'CardContent'
 
+const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingElement>>(
+  ({ className, ...props }, ref) => (
+    <h3
+      ref={ref}
+      className={clsx('text-lg font-semibold leading-6 text-gray-900', className)}
+      {...props}
+    />
+  )
+)
+
+CardTitle.displayName = 'CardTitle'
+
+const CardDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLParagraphElement>>(
+  ({ className, ...props }, ref) => (
+    <p
+      ref={ref}
+      className={clsx('text-sm text-gray-600 mt-1', className)}
+      {...props}
+    />
+  )
+)
+
+CardDescription.displayName = 'CardDescription'
+
 const CardFooter = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
     <div
@@ -65,4 +89,4 @@ const CardFooter = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
 
 CardFooter.displayName = 'CardFooter'
 
-export { Card, CardHeader, CardContent, CardFooter }
+export { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter }

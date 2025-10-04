@@ -24,7 +24,7 @@ export async function trackActivity(params: {
   try {
     const { productId, activityType, userId } = params;
     
-    await fetch('/api/track/activity', {
+    await fetch('/api/activity', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -1,4 +1,6 @@
 import { CartItem } from '@/types'
+import { formatCurrency, getFreeShippingThreshold, DEFAULT_CURRENCY } from './currency'
+import { SettingsRepository } from './settings-repository'
 
 export function calculateCartTotal(items: CartItem[]): number {
   return items.reduce((total, item) => {
@@ -10,11 +12,8 @@ export function calculateCartItemsCount(items: CartItem[]): number {
   return items.reduce((total, item) => total + item.quantity, 0)
 }
 
-export function formatPrice(price: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(price)
+export function formatPrice(price: number, currency: string = DEFAULT_CURRENCY): string {
+  return formatCurrency(price, currency)
 }
 
 export function validateCartItem(item: CartItem): {
@@ -77,11 +76,14 @@ export function getCartSummary(items: CartItem[]) {
   const subtotal = calculateCartTotal(items)
   const itemsCount = calculateCartItemsCount(items)
   
-  // Calculate shipping (free over $50)
-  const shipping = subtotal >= 50 ? 0 : 9.99
+  // Get free shipping threshold for NPR
+  const freeShippingThreshold = getFreeShippingThreshold(DEFAULT_CURRENCY)
   
-  // Calculate tax (8.5%)
-  const tax = subtotal * 0.085
+  // Calculate shipping (free over NPR 200)
+  const shipping = subtotal >= freeShippingThreshold ? 0 : 200 // NPR 200 for shipping
+  
+  // Calculate tax (13% VAT for Nepal)
+  const tax = subtotal * 0.13
   
   const total = subtotal + shipping + tax
 
@@ -91,8 +93,40 @@ export function getCartSummary(items: CartItem[]) {
     tax,
     total,
     itemsCount,
-    freeShippingThreshold: 50,
-    freeShippingRemaining: Math.max(0, 50 - subtotal)
+    freeShippingThreshold,
+    freeShippingRemaining: Math.max(0, freeShippingThreshold - subtotal)
+  }
+}
+
+// Async version that uses configurable settings from the database
+// This ensures shipping costs and thresholds are always synced with admin settings
+export async function getCartSummaryWithSettings(items: CartItem[]) {
+  const subtotal = calculateCartTotal(items)
+  const itemsCount = calculateCartItemsCount(items)
+  
+  // Get configurable settings
+  const freeShippingThreshold = await SettingsRepository.getValue('free_shipping_threshold', 200)
+  const shippingRate = await SettingsRepository.getValue('shipping_rate', 200)
+  const taxRate = await SettingsRepository.getValue('tax_rate', 0.13)
+  
+  // Calculate shipping
+  const shipping = subtotal >= freeShippingThreshold ? 0 : shippingRate
+  
+  // Calculate tax
+  const tax = subtotal * taxRate
+  
+  const total = subtotal + shipping + tax
+
+  return {
+    subtotal,
+    shipping,
+    tax,
+    total,
+    itemsCount,
+    freeShippingThreshold,
+    freeShippingRemaining: Math.max(0, freeShippingThreshold - subtotal),
+    taxRate,
+    shippingRate
   }
 }
 

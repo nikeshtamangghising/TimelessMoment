@@ -11,17 +11,9 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * Utility function to format numbers as currency
+ * Re-exported from currency module for backward compatibility
  */
-export function formatCurrency(
-  amount: number,
-  currency: string = 'USD',
-  locale: string = 'en-US'
-) {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-  }).format(amount)
-}
+export { formatCurrency, getCurrencySymbol, DEFAULT_CURRENCY } from './currency'
 
 /**
  * Utility function to generate random ID

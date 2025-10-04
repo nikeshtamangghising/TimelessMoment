@@ -1,15 +1,15 @@
-import Image from 'next/image'
-import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
-import { ProductWithCategory } from '@/types'
+import Image from 'next/image'
+import Link from 'next/link'
+import Button from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { useCart } from '@/contexts/cart-context'
 import { useCartStore } from '@/stores/cart-store'
 import { useFavorites } from '@/hooks/use-favorites'
-import { createViewTracker, trackActivity } from '@/lib/activity-utils'
-
+import { createViewTracker, trackActivity } from '@/lib/activity-tracker'
+import { formatCurrency, getCurrencySymbol, DEFAULT_CURRENCY } from '@/lib/currency'
+import { ProductWithCategory } from '@/types'
 interface ProductCardProps {
   product: ProductWithCategory
   onAddToCart?: (productId: string) => void
@@ -38,7 +38,10 @@ export default function ProductCard({
   useEffect(() => {
     if (!trackViews || !cardRef.current) return
 
-    const observer = createViewTracker(session?.user?.id)
+    // Generate a session ID for guest users if no user is logged in
+    const sessionId = !session?.user?.id ? `guest_${Date.now()}_${Math.random()}` : undefined
+    
+    const observer = createViewTracker(session?.user?.id, sessionId)
     if (observer) {
       cardRef.current.setAttribute('data-product-id', product.id)
       observer.observe(cardRef.current)
@@ -194,10 +197,10 @@ export default function ProductCard({
           {product.discountPrice ? (
             <>
               <span className="text-lg font-bold text-green-600">
-                ${product.discountPrice.toFixed(2)}
+                {formatCurrency(product.discountPrice, product.currency || DEFAULT_CURRENCY)}
               </span>
               <span className="text-sm text-gray-500 line-through">
-                ${product.price.toFixed(2)}
+                {formatCurrency(product.price, product.currency || DEFAULT_CURRENCY)}
               </span>
               <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">
                 {Math.round(((product.price - product.discountPrice) / product.price) * 100)}% OFF
@@ -205,7 +208,7 @@ export default function ProductCard({
             </>
           ) : (
             <span className="text-lg font-bold text-blue-600">
-              ${product.price.toFixed(2)}
+              {formatCurrency(product.price, product.currency || DEFAULT_CURRENCY)}
             </span>
           )}
         </div>

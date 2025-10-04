@@ -83,7 +83,7 @@ model Product {
   shortDescription     String?              // For cards and listings
   price                Float
   discountPrice        Float?               // For sale pricing
-  currency             String               @default("USD")
+  currency             String               @default("NPR")
   images               String[]
   inventory            Int
   lowStockThreshold    Int                  @default(5)
@@ -225,6 +225,28 @@ enum InventoryChangeType {
   ORDER_RETURNED
   INITIAL
   OTHER
+}
+
+// Site Settings Model for configurable shipping, tax, etc.
+model SiteSettings {
+  id                    String   @id @default(cuid())
+  key                   String   @unique
+  value                 String
+  type                  SettingType @default(STRING)
+  description           String?
+  category              String   @default("general")
+  isPublic              Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+enum SettingType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
 }
 
 // Hierarchical Categories for SEO and navigation
@@ -387,7 +409,7 @@ enum DiscountType {
 model UserActivity {
   id           String   @id @default(cuid())
   userId       String?
-  sessionId    String   // For guest users
+  sessionId    String?  // For guest users
   productId    String
   activityType ActivityType
   createdAt    DateTime @default(now())

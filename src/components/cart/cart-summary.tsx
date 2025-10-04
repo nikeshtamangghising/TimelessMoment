@@ -1,11 +1,119 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useCartStore } from '@/stores/cart-store'
 import { getCartSummary, formatPrice } from '@/lib/cart-utils'
+import Loading from '@/components/ui/loading'
+
+interface CartSummary {
+  subtotal: number
+  shipping: number
+  tax: number
+  total: number
+  itemsCount: number
+  freeShippingThreshold: number
+  freeShippingRemaining: number
+  taxRate?: number
+  shippingRate?: number
+}
 
 export default function CartSummary() {
   const { items } = useCartStore()
-  const summary = getCartSummary(items)
+  const [summary, setSummary] = useState<CartSummary | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    console.log('CartSummary useEffect triggered with items:', items)
+    if (items.length > 0) {
+      fetchCartSummary()
+    } else {
+      setSummary(null)
+    }
+  }, [items])
+
+  const fetchCartSummary = async () => {
+    try {
+      setLoading(true)
+      
+      console.log('Fetching cart summary for items:', items)
+      console.log('Items count:', items.length)
+      console.log('Items structure:', items.map(item => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        hasProduct: !!item.product,
+        productId: item.product?.id
+      })))
+      
+      // Validate items before sending
+      if (!items || items.length === 0) {
+        console.log('No items to calculate summary for')
+        setSummary(null)
+        return
+      }
+      
+      // Use API endpoint to get accurate calculations with database settings
+      const response = await fetch('/api/cart/summary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ items }),
+      })
+      
+      console.log('Response status:', response.status)
+      console.log('Response ok:', response.ok)
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('API Error Response:', errorText)
+        throw new Error(`Failed to calculate cart summary: ${response.status} ${errorText}`)
+      }
+      
+      const data = await response.json()
+      console.log('API Response data:', data)
+      
+      if (data.success && data.summary) {
+        setSummary(data.summary)
+      } else {
+        throw new Error('Invalid response format from API')
+      }
+    } catch (err) {
+      console.error('Error calculating cart summary:', err)
+      console.error('Error details:', {
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      })
+      
+      // Fallback to hardcoded values if API call fails
+      console.log('Using fallback calculation')
+      const fallbackSummary = getCartSummary(items)
+      setSummary({
+        ...fallbackSummary,
+        taxRate: 0.13,
+        shippingRate: 200
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-4">
+        <Loading size="sm" />
+      </div>
+    )
+  }
+
+  if (!summary || items.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">Your cart is empty</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-3">
@@ -69,7 +177,7 @@ export default function CartSummary() {
       {summary.shipping === 0 && summary.subtotal >= summary.freeShippingThreshold && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-3">
           <p className="text-sm text-green-800 font-medium">
-            🎉 You saved {formatPrice(9.99)} on shipping!
+            🎉 You saved {formatPrice(summary.shippingRate || 200)} on shipping!
           </p>
         </div>
       )}

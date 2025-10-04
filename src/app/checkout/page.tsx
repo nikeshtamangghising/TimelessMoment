@@ -7,7 +7,9 @@ import { loadStripe } from '@stripe/stripe-js'
 import { Elements } from '@stripe/react-stripe-js'
 import MainLayout from '@/components/layout/main-layout'
 import CheckoutForm from '@/components/checkout/checkout-form'
+import CheckoutProgress from '@/components/checkout/checkout-progress'
 import OrderSummary from '@/components/checkout/order-summary'
+import TrustSignals from '@/components/checkout/trust-signals'
 import { useCartStore } from '@/stores/cart-store'
 import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -144,6 +146,7 @@ export default function CheckoutPage() {
 
   return (
     <MainLayout>
+      <CheckoutProgress currentStep={2} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
@@ -200,8 +203,9 @@ export default function CheckoutPage() {
           </div>
 
           {/* Order Summary */}
-          <div>
+          <div className="space-y-6">
             <OrderSummary items={items} />
+            <TrustSignals />
           </div>
         </div>
 

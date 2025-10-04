@@ -10,6 +10,7 @@ import { Product } from '@/types'
 import { generateProductMetadata } from '@/lib/metadata'
 import { generateProductSchema, generateBreadcrumbSchema, combineSchemas } from '@/lib/structured-data'
 import StructuredData from '@/components/seo/structured-data'
+import AddToCartSection from '@/components/products/add-to-cart-section'
 
 interface ProductPageProps {
   params: {
@@ -208,41 +209,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </Card>
 
             {/* Add to Cart Section */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center border border-gray-300 rounded-md">
-                  <button className="px-3 py-2 text-gray-600 hover:text-gray-800">
-                    -
-                  </button>
-                  <input
-                    type="number"
-                    min="1"
-                    max={product.inventory}
-                    defaultValue="1"
-                    className="w-16 px-2 py-2 text-center border-0 focus:ring-0"
-                  />
-                  <button className="px-3 py-2 text-gray-600 hover:text-gray-800">
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex space-x-4">
-                <Button
-                  size="lg"
-                  disabled={product.inventory === 0}
-                  className="flex-1"
-                >
-                  {product.inventory === 0 ? 'Out of Stock' : 'Add to Cart'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                >
-                  ♡ Wishlist
-                </Button>
-              </div>
-            </div>
+            <AddToCartSection product={product} />
 
             {/* Product Features */}
             <Card>
