@@ -20,6 +20,7 @@ import { useAuth } from '@/hooks/use-auth'
 import Button from '@/components/ui/button'
 import AdminDashboardContent from './admin-dashboard-content'
 import AdminSettingsTab from './admin-settings-tab'
+import AdminProductsTab from './admin-products-tab'
 
 export type AdminTab = 'dashboard' | 'products' | 'categories' | 'brands' | 'inventory' | 'orders' | 'customers' | 'analytics' | 'settings'
 

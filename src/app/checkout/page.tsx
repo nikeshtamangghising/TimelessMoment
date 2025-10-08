@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { loadStripe } from '@stripe/stripe-js'
-import { Elements } from '@stripe/react-stripe-js'
 import MainLayout from '@/components/layout/main-layout'
 import CheckoutForm from '@/components/checkout/checkout-form'
 import CheckoutProgress from '@/components/checkout/checkout-progress'
@@ -13,17 +11,14 @@ import TrustSignals from '@/components/checkout/trust-signals'
 import { useCartStore } from '@/stores/cart-store'
 import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { getStripePublishableKey } from '@/lib/stripe'
+import { PaymentMethod } from '@/lib/payment-gateways'
 import Loading from '@/components/ui/loading'
-
-const stripePromise = loadStripe(getStripePublishableKey())
 
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, clearCart } = useCartStore()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
-  const [clientSecret, setClientSecret] = useState<string>('')
-  const [paymentIntentId, setPaymentIntentId] = useState<string>('')
+  const [orderTotal, setOrderTotal] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>('')
   const [guestEmail, setGuestEmail] = useState<string>('')
@@ -35,23 +30,50 @@ export default function CheckoutPage() {
       return
     }
 
-    // Create payment intent for both authenticated and guest users
+    // Calculate order total
     if (!authLoading && items.length > 0) {
-      createPaymentIntent()
+      calculateOrderTotal()
     }
   }, [authLoading, items, router])
 
-  const createPaymentIntent = async () => {
+  const calculateOrderTotal = async () => {
     setLoading(true)
     setError('')
 
     try {
-      const response = await fetch('/api/checkout/create-payment-intent', {
+      const response = await fetch('/api/cart/summary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ items }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to calculate order total')
+      }
+
+      const data = await response.json()
+      setOrderTotal(data.summary.total)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred'
+      setError(errorMessage)
+      console.error('Error calculating order total:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePaymentInitiate = async (method: PaymentMethod) => {
+    try {
+      const response = await fetch('/api/checkout/initiate-payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          method,
           items: items.map(item => ({
             productId: item.productId,
             quantity: item.quantity,
@@ -62,26 +84,41 @@ export default function CheckoutPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create payment intent')
+        throw new Error(errorData.error || 'Failed to initiate payment')
       }
 
       const data = await response.json()
-      setClientSecret(data.clientSecret)
-      setPaymentIntentId(data.paymentIntentId)
+      
+      if (data.success) {
+        return {
+          success: true,
+          paymentUrl: data.paymentUrl,
+          transactionId: data.transactionId,
+        }
+      } else {
+        return {
+          success: false,
+          error: data.error || 'Payment initiation failed',
+        }
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred'
-      setError(errorMessage)
-      console.error('Error creating payment intent:', err)
-    } finally {
-      setLoading(false)
+      console.error('Error initiating payment:', err)
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Payment initiation failed',
+      }
     }
   }
 
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = (paymentMethod: PaymentMethod, transactionId?: string) => {
     // Clear cart after successful payment
     clearCart()
-    // Redirect to success page
-    router.push(`/checkout/success?payment_intent=${paymentIntentId}`)
+    // Redirect to success page with payment details
+    const params = new URLSearchParams({
+      method: paymentMethod,
+      ...(transactionId && { transaction_id: transactionId }),
+    })
+    router.push(`/checkout/success?${params.toString()}`)
   }
 
   if (authLoading || loading) {
@@ -117,32 +154,6 @@ export default function CheckoutPage() {
     )
   }
 
-  if (!clientSecret) {
-    return (
-      <MainLayout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center py-16">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Setting up checkout...
-            </h2>
-            <Loading size="lg" />
-          </div>
-        </div>
-      </MainLayout>
-    )
-  }
-
-  const appearance = {
-    theme: 'stripe' as const,
-    variables: {
-      colorPrimary: '#4f46e5',
-    },
-  }
-
-  const options = {
-    clientSecret,
-    appearance,
-  }
 
   return (
     <MainLayout>
@@ -151,7 +162,7 @@ export default function CheckoutPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
           <p className="mt-2 text-gray-600">
-            Complete your purchase securely with Stripe
+            Complete your purchase securely
           </p>
           {!isAuthenticated && (
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -189,15 +200,15 @@ export default function CheckoutPage() {
                 </h2>
               </CardHeader>
               <CardContent>
-                <Elements options={options} stripe={stripePromise}>
-                  <CheckoutForm
-                    onSuccess={handlePaymentSuccess}
-                    onError={(error) => setError(error)}
-                    isGuest={!isAuthenticated}
-                    guestEmail={guestEmail}
-                    onGuestEmailChange={setGuestEmail}
-                  />
-                </Elements>
+                <CheckoutForm
+                  onSuccess={handlePaymentSuccess}
+                  onError={(error) => setError(error)}
+                  orderTotal={orderTotal}
+                  isGuest={!isAuthenticated}
+                  guestEmail={guestEmail}
+                  onGuestEmailChange={setGuestEmail}
+                  onPaymentInitiate={handlePaymentInitiate}
+                />
               </CardContent>
             </Card>
           </div>
@@ -215,7 +226,7 @@ export default function CheckoutPage() {
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
             </svg>
-            <span>Secure checkout powered by Stripe</span>
+            <span>Secure checkout with multiple payment options</span>
           </div>
         </div>
       </div>

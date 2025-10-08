@@ -1,34 +1,56 @@
 'use client'
 
 import { useState } from 'react'
-import {
-  useStripe,
-  useElements,
-  PaymentElement,
-  AddressElement,
-} from '@stripe/react-stripe-js'
-import Button from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
+import { PaymentMethod } from '@/lib/payment-gateways'
+import PaymentMethodSelector from './payment-method-selector'
+import Button from '@/components/ui/button'
 
 interface CheckoutFormProps {
-  onSuccess: () => void
+  onSuccess: (paymentMethod: PaymentMethod, transactionId?: string) => void
   onError: (error: string) => void
+  orderTotal: number
   isGuest?: boolean
   guestEmail?: string
   onGuestEmailChange?: (email: string) => void
+  onPaymentInitiate?: (method: PaymentMethod) => Promise<{ success: boolean; paymentUrl?: string; error?: string }>
 }
 
-export default function CheckoutForm({ onSuccess, onError, isGuest, guestEmail, onGuestEmailChange }: CheckoutFormProps) {
-  const stripe = useStripe()
-  const elements = useElements()
+export default function CheckoutForm({ 
+  onSuccess, 
+  onError, 
+  orderTotal, 
+  isGuest, 
+  guestEmail, 
+  onGuestEmailChange,
+  onPaymentInitiate 
+}: CheckoutFormProps) {
   const { user } = useAuth()
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState<string>('')
+  const [customerInfo, setCustomerInfo] = useState({
+    name: user?.name || '',
+    email: user?.email || guestEmail || '',
+    phone: '',
+    address: '',
+    city: '',
+    postalCode: ''
+  })
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
 
-    if (!stripe || !elements) {
+    if (!selectedPaymentMethod) {
+      setMessage('Please select a payment method')
+      onError('Please select a payment method')
+      return
+    }
+
+    // Validate required fields
+    if (!customerInfo.name || !customerInfo.email || !customerInfo.address) {
+      setMessage('Please fill in all required fields')
+      onError('Please fill in all required fields')
       return
     }
 
@@ -36,28 +58,20 @@ export default function CheckoutForm({ onSuccess, onError, isGuest, guestEmail, 
     setMessage('')
 
     try {
-      const { error, paymentIntent } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/checkout/success`,
-          receipt_email: user?.email,
-        },
-        redirect: 'if_required',
-      })
-
-      if (error) {
-        if (error.type === 'card_error' || error.type === 'validation_error') {
-          setMessage(error.message || 'Payment failed')
-          onError(error.message || 'Payment failed')
+      if (selectedPaymentMethod === 'cod') {
+        // For COD, we don't need payment gateway interaction
+        setMessage('Order placed successfully! You will pay on delivery.')
+        onSuccess(selectedPaymentMethod, `cod-${Date.now()}`)
+      } else if (onPaymentInitiate) {
+        // For online payment methods, initiate payment
+        const result = await onPaymentInitiate(selectedPaymentMethod)
+        
+        if (result.success && result.paymentUrl) {
+          // Redirect to payment gateway
+          window.location.href = result.paymentUrl
         } else {
-          setMessage('An unexpected error occurred')
-          onError('An unexpected error occurred')
+          throw new Error(result.error || 'Failed to initiate payment')
         }
-      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-        setMessage('Payment succeeded!')
-        onSuccess()
-      } else {
-        setMessage('Payment processing...')
       }
     } catch (err) {
       console.error('Payment error:', err)
@@ -71,61 +85,122 @@ export default function CheckoutForm({ onSuccess, onError, isGuest, guestEmail, 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Guest Email */}
-      {isGuest && (
-        <div>
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Contact Information
-          </h3>
+      {/* Contact Information */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">
+          Contact Information
+        </h3>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="guest-email" className="block text-sm font-medium text-gray-700 mb-2">
-              Email address *
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+              Full Name *
             </label>
             <input
-              id="guest-email"
+              id="name"
+              type="text"
+              required
+              value={customerInfo.name}
+              onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              placeholder="Enter your full name"
+            />
+          </div>
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address *
+            </label>
+            <input
+              id="email"
               type="email"
               required
-              value={guestEmail || ''}
-              onChange={(e) => onGuestEmailChange?.(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              value={customerInfo.email}
+              onChange={(e) => {
+                setCustomerInfo({ ...customerInfo, email: e.target.value })
+                onGuestEmailChange?.(e.target.value)
+              }}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               placeholder="Enter your email address"
             />
-            <p className="mt-1 text-xs text-gray-500">
-              We'll send your order confirmation to this email
-            </p>
+          </div>
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              value={customerInfo.phone}
+              onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              placeholder="Enter your phone number"
+            />
           </div>
         </div>
-      )}
+      </div>
       
       {/* Shipping Address */}
       <div>
         <h3 className="text-lg font-medium text-gray-900 mb-4">
           Shipping Address
         </h3>
-        <AddressElement
-          options={{
-            mode: 'shipping',
-            allowedCountries: ['US', 'CA'],
-          }}
-        />
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
+              Street Address *
+            </label>
+            <input
+              id="address"
+              type="text"
+              required
+              value={customerInfo.address}
+              onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              placeholder="Enter your street address"
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
+                City
+              </label>
+              <input
+                id="city"
+                type="text"
+                value={customerInfo.city}
+                onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                placeholder="Enter your city"
+              />
+            </div>
+            <div>
+              <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700 mb-2">
+                Postal Code
+              </label>
+              <input
+                id="postalCode"
+                type="text"
+                value={customerInfo.postalCode}
+                onChange={(e) => setCustomerInfo({ ...customerInfo, postalCode: e.target.value })}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                placeholder="Enter postal code"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Payment Details */}
-      <div>
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
-          Payment Details
-        </h3>
-        <PaymentElement
-          options={{
-            layout: 'tabs',
-          }}
-        />
-      </div>
+      {/* Payment Method Selection */}
+      <PaymentMethodSelector
+        selectedMethod={selectedPaymentMethod}
+        onMethodSelect={setSelectedPaymentMethod}
+        orderTotal={orderTotal}
+        disabled={isLoading}
+      />
 
       {/* Error Message */}
       {message && (
         <div className={`p-4 rounded-md ${
-          message.includes('succeeded') 
+          message.includes('succeeded') || message.includes('successfully')
             ? 'bg-green-50 text-green-800 border border-green-200' 
             : 'bg-red-50 text-red-800 border border-red-200'
         }`}>
@@ -136,12 +211,15 @@ export default function CheckoutForm({ onSuccess, onError, isGuest, guestEmail, 
       {/* Submit Button */}
       <Button
         type="submit"
-        disabled={isLoading || !stripe || !elements}
+        disabled={isLoading || !selectedPaymentMethod}
         loading={isLoading}
         className="w-full"
         size="lg"
       >
-        {isLoading ? 'Processing...' : 'Complete Payment'}
+        {isLoading ? 'Processing...' : 
+         selectedPaymentMethod === 'cod' ? 'Place Order (COD)' :
+         selectedPaymentMethod ? `Pay with ${selectedPaymentMethod.charAt(0).toUpperCase() + selectedPaymentMethod.slice(1)}` :
+         'Select Payment Method'}
       </Button>
 
       {/* Payment Security Info */}
@@ -150,13 +228,13 @@ export default function CheckoutForm({ onSuccess, onError, isGuest, guestEmail, 
           <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
           </svg>
-          Your payment information is encrypted and secure
+          Your information is encrypted and secure
         </div>
         <div className="flex items-center">
           <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
-          Protected by Stripe's advanced fraud detection
+          Multiple secure payment options available
         </div>
       </div>
     </form>

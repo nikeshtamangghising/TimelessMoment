@@ -42,7 +42,8 @@ export default function CartItem({ item }: CartItemProps) {
     removeItem(item.productId)
   }
 
-  const itemTotal = item.product.price * item.quantity
+  const effectivePrice = item.product.discountPrice || item.product.price
+  const itemTotal = effectivePrice * item.quantity
 
   return (
     <div className="flex items-center space-x-4">
@@ -76,9 +77,20 @@ export default function CartItem({ item }: CartItemProps) {
               {item.product.category?.name || 'Uncategorized'}
             </p>
             
-            <p className="mt-1 text-sm font-medium text-gray-900">
-              {formatPrice(item.product.price)}
-            </p>
+            <div className="mt-1 text-sm font-medium text-gray-900">
+              {item.product.discountPrice ? (
+                <div className="flex items-center space-x-2">
+                  <span className="text-red-600">
+                    {formatPrice(item.product.discountPrice)}
+                  </span>
+                  <span className="text-gray-500 line-through text-xs">
+                    {formatPrice(item.product.price)}
+                  </span>
+                </div>
+              ) : (
+                <span>{formatPrice(item.product.price)}</span>
+              )}
+            </div>
 
             {/* Inventory Warning */}
             {item.product.inventory <= 5 && (

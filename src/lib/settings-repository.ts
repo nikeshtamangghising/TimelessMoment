@@ -20,7 +20,23 @@ export class SettingsRepository {
 
   // Get a setting value by key with default fallback
   static async getValue(key: string, defaultValue: any = null): Promise<any> {
-    const setting = await this.get(key)
+    let setting = await this.get(key)
+    
+    // If setting doesn't exist and we have a default, create it
+    if (!setting && defaultValue !== null) {
+      try {
+        console.log(`Setting '${key}' not found, creating with default value:`, defaultValue)
+        setting = await this.set(key, defaultValue, {
+          description: `Auto-generated setting for ${key}`,
+          category: 'auto',
+          isPublic: true
+        })
+      } catch (error) {
+        console.error(`Failed to create setting '${key}':`, error)
+        return defaultValue
+      }
+    }
+    
     if (!setting) return defaultValue
 
     switch (setting.type) {

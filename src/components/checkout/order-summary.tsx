@@ -144,12 +144,12 @@ export default function OrderSummary({ items }: OrderSummaryProps) {
                   </Link>
                 </h4>
                 <p className="text-sm text-gray-500">
-                  {item.product.category}
+                  {item.product.category?.name || 'Uncategorized'}
                 </p>
               </div>
               
               <div className="text-sm font-medium text-gray-900">
-                {formatPrice(item.product.price * item.quantity)}
+                {formatPrice((item.product.discountPrice || item.product.price) * item.quantity)}
               </div>
             </div>
           ))}

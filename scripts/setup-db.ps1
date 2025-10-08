@@ -34,4 +34,4 @@ Write-Host "🌱 Seeding database with sample data..." -ForegroundColor Blue
 npm run db:seed
 
 Write-Host "✅ Database setup complete!" -ForegroundColor Green
-Write-Host "🔗 Database URL: postgresql://postgres:postgres@localhost:5432/ecommerce" -ForegroundColor Cyan
+Write-Host '🔗 Database URL: postgresql://postgres:postgres@localhost:5432/ecommerce' -ForegroundColor Cyan

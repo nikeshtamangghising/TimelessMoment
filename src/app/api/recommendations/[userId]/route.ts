@@ -4,7 +4,7 @@ import RecommendationEngine from '@/lib/recommendation-engine';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }
+  { params }: { params: { userId: string } }
 ) {
   try {
     const { userId } = await params;

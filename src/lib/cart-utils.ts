@@ -4,7 +4,8 @@ import { SettingsRepository } from './settings-repository'
 
 export function calculateCartTotal(items: CartItem[]): number {
   return items.reduce((total, item) => {
-    return total + (item.product.price * item.quantity)
+    const price = item.product.discountPrice || item.product.price
+    return total + (price * item.quantity)
   }, 0)
 }
 
