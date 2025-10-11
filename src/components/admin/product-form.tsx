@@ -74,16 +74,27 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
     fetchOptions()
   }, [])
 
-  // Auto-generate slug from name
+  // Auto-generate slug from name with improved logic
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
+  
   useEffect(() => {
-    if (formData.name && !product) {
-      const slug = formData.name
+    // Only auto-generate slug if:
+    // 1. There's a name
+    // 2. User hasn't manually edited the slug
+    // 3. Either it's a new product OR the slug is empty/matches the original product name pattern
+    if (formData.name && !slugManuallyEdited) {
+      const generatedSlug = formData.name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '')
-      setFormData(prev => ({ ...prev, slug }))
+      
+      // For new products, always generate slug
+      // For existing products, only update if slug field is empty or seems auto-generated
+      if (!product || !formData.slug || formData.slug === product?.slug) {
+        setFormData(prev => ({ ...prev, slug: generatedSlug }))
+      }
     }
-  }, [formData.name, product])
+  }, [formData.name, product, slugManuallyEdited])
 
   // Auto-generate SKU from name if not exists (works for both new and existing products)
   useEffect(() => {
@@ -98,6 +109,12 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
 
   const handleInputChange = (field: string, value: string | boolean | object) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+    
+    // Track if slug was manually edited
+    if (field === 'slug') {
+      setSlugManuallyEdited(true)
+    }
+    
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
@@ -149,6 +166,10 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
       newErrors.slug = 'Slug is required'
     } else if (!/^[a-z0-9-]+$/.test(formData.slug)) {
       newErrors.slug = 'Slug must contain only lowercase letters, numbers, and hyphens'
+    } else if (formData.slug.startsWith('-') || formData.slug.endsWith('-')) {
+      newErrors.slug = 'Slug cannot start or end with a hyphen'
+    } else if (formData.slug.includes('--')) {
+      newErrors.slug = 'Slug cannot contain consecutive hyphens'
     }
     
     if (!formData.sku.trim()) {
@@ -173,6 +194,44 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
     return Object.keys(newErrors).length === 0
   }
 
+  // Check if slug already exists (for better UX)
+  const checkSlugExists = async (slug: string) => {
+    if (!slug || (product && slug === product.slug)) return false
+    
+    try {
+      const response = await fetch(`/api/products/slug/${encodeURIComponent(slug)}`)
+      if (response.ok) {
+        const data = await response.json()
+        return data.exists
+      }
+      return false
+    } catch (error) {
+      return false
+    }
+  }
+
+  // Add useEffect to check slug when it changes
+  useEffect(() => {
+    const checkSlug = async () => {
+      if (formData.slug && (!product || formData.slug !== product.slug)) {
+        const exists = await checkSlugExists(formData.slug)
+        if (exists) {
+          setErrors(prev => ({
+            ...prev,
+            slug: 'A product with this slug already exists. Please use a different slug.'
+          }))
+        } else if (errors.slug?.includes('already exists')) {
+          // Clear the error if it was previously set
+          const newErrors = { ...errors }
+          delete newErrors.slug
+          setErrors(newErrors)
+        }
+      }
+    }
+    
+    checkSlug()
+  }, [formData.slug, product, errors])
+
   const generateSKU = () => {
     if (formData.name) {
       const sku = formData.name
@@ -180,6 +239,26 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
         .replace(/[^A-Z0-9]+/g, '')
         .substring(0, 10) + '-' + Date.now().toString().slice(-4)
       setFormData(prev => ({ ...prev, sku }))
+    }
+  }
+
+  const generateSlug = () => {
+    if (formData.name) {
+      let slug = formData.name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, '') // Remove special chars except spaces and hyphens
+        .replace(/[\s_]+/g, '-') // Replace spaces and underscores with hyphens
+        .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+        .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+      
+      // If slug is empty after cleaning, generate a fallback
+      if (!slug) {
+        slug = 'product-' + Date.now()
+      }
+      
+      setFormData(prev => ({ ...prev, slug }))
+      setSlugManuallyEdited(false) // Allow auto-generation again
     }
   }
 
@@ -208,6 +287,14 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
       await onSubmit(submitData)
     } catch (error) {
       console.error('Form submission error:', error)
+      // Parse error message to provide better feedback
+      let errorMessage = 'Failed to submit form. Please try again.'
+      if (error instanceof Error) {
+        errorMessage = error.message
+      }
+      
+      // Show error to user
+      alert(errorMessage)
     }
   }
 
@@ -223,7 +310,7 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
 
   const categoryOptions = categories.map(cat => ({
     value: cat.id,
-    label: cat.parent ? `${cat.parent.name} > ${cat.name}` : cat.name
+    label: cat.name // Simplified since we don't have parent category information here
   }))
 
   const brandOptions = [
@@ -376,14 +463,34 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
                 <p className="mt-1 text-sm text-gray-500">Stock Keeping Unit (auto-generated if empty)</p>
               </div>
 
-              <Input
-                label="Slug"
-                value={formData.slug}
-                onChange={(e) => handleInputChange('slug', e.target.value)}
-                error={errors.slug}
-                helperText="URL-friendly version (auto-generated if empty)"
-                required
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Slug <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={formData.slug}
+                    onChange={(e) => handleInputChange('slug', e.target.value)}
+                    className={`flex-1 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
+                      errors.slug ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="product-slug"
+                  />
+                  <button
+                    type="button"
+                    onClick={generateSlug}
+                    className="px-3 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 whitespace-nowrap"
+                    title="Generate slug from product name"
+                  >
+                    Generate
+                  </button>
+                </div>
+                {errors.slug && (
+                  <p className="mt-1 text-sm text-red-600">{errors.slug}</p>
+                )}
+                <p className="mt-1 text-sm text-gray-500">URL-friendly version (auto-generated from name)</p>
+              </div>
             </div>
 
             <Input

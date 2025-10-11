@@ -23,7 +23,7 @@ import {
 export class ProductRepository {
   async create(data: CreateProductInput): Promise<Product> {
     const product = await prisma.product.create({
-      data,
+      data: data as any,
     })
 
     // Invalidate related caches
@@ -33,117 +33,180 @@ export class ProductRepository {
   }
 
   async findById(id: string): Promise<Product | null> {
-    const cacheKey = generateProductCacheKey(id)
+    // TEMPORARY FIX: Disable caching to see if that resolves the issue
+    // const cacheKey = generateProductCacheKey(id)
+    // 
+    // return getCachedData(
+    //   cacheKey,
+    //   () => prisma.product.findUnique({
+    //     where: { id },
+    //     include: {
+    //       category: true,
+    //       brand: true,
+    //     },
+    //   }),
+    //   {
+    //     memoryTtl: CACHE_DURATIONS.MEDIUM,
+    //     nextjsTags: [CACHE_TAGS.PRODUCT, `${CACHE_TAGS.PRODUCT}:${id}`],
+    //     nextjsRevalidate: CACHE_DURATIONS.LONG,
+    //   }
+    // )
     
-    return getCachedData(
-      cacheKey,
-      () => prisma.product.findUnique({
-        where: { id },
-        include: {
-          category: true,
-          brand: true,
-        },
-      }),
-      {
-        memoryTtl: CACHE_DURATIONS.MEDIUM,
-        nextjsTags: [CACHE_TAGS.PRODUCT, `${CACHE_TAGS.PRODUCT}:${id}`],
-        nextjsRevalidate: CACHE_DURATIONS.LONG,
-      }
-    )
+    // Direct database call without caching
+    return prisma.product.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        brand: true,
+      },
+    })
   }
 
   async findBySlug(slug: string): Promise<Product | null> {
-    const cacheKey = `product:slug:${slug}`
+    // TEMPORARY FIX: Disable caching to see if that resolves the issue
+    // const cacheKey = `product:slug:${slug}`
+    // 
+    // return getCachedData(
+    //   cacheKey,
+    //   () => prisma.product.findUnique({
+    //     where: { slug },
+    //     include: {
+    //       category: true,
+    //       brand: true,
+    //     },
+    //   }),
+    //   {
+    //     memoryTtl: CACHE_DURATIONS.MEDIUM,
+    //     nextjsTags: [CACHE_TAGS.PRODUCT, `${CACHE_TAGS.PRODUCT}:slug:${slug}`],
+    //     nextjsRevalidate: CACHE_DURATIONS.LONG,
+    //   }
+    // )
     
-    return getCachedData(
-      cacheKey,
-      () => prisma.product.findUnique({
-        where: { slug },
-        include: {
-          category: true,
-          brand: true,
-        },
-      }),
-      {
-        memoryTtl: CACHE_DURATIONS.MEDIUM,
-        nextjsTags: [CACHE_TAGS.PRODUCT, `${CACHE_TAGS.PRODUCT}:slug:${slug}`],
-        nextjsRevalidate: CACHE_DURATIONS.LONG,
-      }
-    )
+    // Direct database call without caching
+    return prisma.product.findUnique({
+      where: { slug },
+      include: {
+        category: true,
+        brand: true,
+      },
+    })
   }
 
   async findBySku(sku: string): Promise<Product | null> {
-    const cacheKey = `product:sku:${sku}`
+    // TEMPORARY FIX: Disable caching to see if that resolves the issue
+    // const cacheKey = `product:sku:${sku}`
+    // 
+    // return getCachedData(
+    //   cacheKey,
+    //   () => prisma.product.findUnique({
+    //     where: { sku },
+    //     include: {
+    //     category: true,
+    //       brand: true,
+    //     },
+    //   }),
+    //   {
+    //     memoryTtl: CACHE_DURATIONS.MEDIUM,
+    //     nextjsTags: [CACHE_TAGS.PRODUCT, `${CACHE_TAGS.PRODUCT}:sku:${sku}`],
+    //     nextjsRevalidate: CACHE_DURATIONS.LONG,
+    //   }
+    // )
     
-    return getCachedData(
-      cacheKey,
-      () => prisma.product.findUnique({
-        where: { sku },
-        include: {
-          category: true,
-          brand: true,
-        },
-      }),
-      {
-        memoryTtl: CACHE_DURATIONS.MEDIUM,
-        nextjsTags: [CACHE_TAGS.PRODUCT, `${CACHE_TAGS.PRODUCT}:sku:${sku}`],
-        nextjsRevalidate: CACHE_DURATIONS.LONG,
-      }
-    )
+    // Direct database call without caching
+    return prisma.product.findUnique({
+      where: { sku },
+      include: {
+        category: true,
+        brand: true,
+      },
+    })
   }
 
   async findMany(
     filters: ProductFiltersInput = {},
     pagination: PaginationInput = { page: 1, limit: 10 }
   ): Promise<PaginatedResponse<Product>> {
-    const cacheKey = generateProductsCacheKey({ ...filters, ...pagination })
+    // TEMPORARY FIX: Disable caching to see if that resolves the issue
+    // const cacheKey = generateProductsCacheKey({ ...filters, ...pagination })
+    // 
+    // return getCachedData(
+    //   cacheKey,
+    //   async () => {
+    //     const { page, limit } = pagination
+    //     const skip = (page - 1) * limit
+    //
+    //     const where = this.buildWhereClause(filters)
+    //
+    //     const orderBy = this.buildOrderBy(filters.sort)
+    //     
+    //     const [products, total] = await Promise.all([
+    //       prisma.product.findMany({
+    //         where,
+    //         skip,
+    //         take: limit,
+    //         include: {
+    //           category: true,
+    //           brand: true,
+    //         },
+    //         orderBy,
+    //       }),
+    //       prisma.product.count({ where }),
+    //     ])
+    //
+    //     return {
+    //       data: products,
+    //       pagination: {
+    //         page,
+    //         limit,
+    //         total,
+    //         totalPages: Math.ceil(total / limit),
+    //       },
+    //     }
+    //   },
+    //   {
+    //     memoryTtl: CACHE_DURATIONS.SHORT,
+    //     nextjsTags: [CACHE_TAGS.PRODUCTS],
+    //     nextjsRevalidate: CACHE_DURATIONS.MEDIUM,
+    //   }
+    // )
     
-    return getCachedData(
-      cacheKey,
-      async () => {
-        const { page, limit } = pagination
-        const skip = (page - 1) * limit
+    // Direct database call without caching
+    const { page, limit } = pagination
+    const skip = (page - 1) * limit
 
-        const where = this.buildWhereClause(filters)
+    const where = this.buildWhereClause(filters)
 
-        const orderBy = this.buildOrderBy(filters.sort)
-        
-        const [products, total] = await Promise.all([
-          prisma.product.findMany({
-            where,
-            skip,
-            take: limit,
-            include: {
-              category: true,
-              brand: true,
-            },
-            orderBy,
-          }),
-          prisma.product.count({ where }),
-        ])
+    const orderBy = this.buildOrderBy(filters.sort)
+    
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          category: true,
+          brand: true,
+        },
+        orderBy: orderBy as any,
+      }),
+      prisma.product.count({ where }),
+    ])
 
-        return {
-          data: products,
-          pagination: {
-            page,
-            limit,
-            total,
-            totalPages: Math.ceil(total / limit),
-          },
-        }
+    return {
+      data: products,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
-      {
-        memoryTtl: CACHE_DURATIONS.SHORT,
-        nextjsTags: [CACHE_TAGS.PRODUCTS],
-        nextjsRevalidate: CACHE_DURATIONS.MEDIUM,
-      }
-    )
+    }
   }
 
   async update(id: string, data: UpdateProductInput): Promise<Product> {
     const product = await prisma.product.update({
       where: { id },
-      data,
+      data: data as any,
     })
 
     // Invalidate related caches
@@ -184,30 +247,47 @@ export class ProductRepository {
   }
 
   async getCategories(): Promise<string[]> {
-    return getCachedData(
-      'categories',
-      async () => {
-        const result = await prisma.category.findMany({
-          where: { 
-            isActive: true,
-            products: {
-              some: {
-                isActive: true
-              }
-            }
-          },
-          select: { name: true },
-          orderBy: { name: 'asc' }
-        })
-
-        return result.map(item => item.name)
+    // TEMPORARY FIX: Disable caching to see if that resolves the issue
+    // return getCachedData(
+    //   'categories',
+    //   async () => {
+    //     const result = await prisma.category.findMany({
+    //       where: { 
+    //         isActive: true,
+    //         products: {
+    //           some: {
+    //             isActive: true
+    //           }
+    //         }
+    //       },
+    //       select: { name: true },
+    //       orderBy: { name: 'asc' }
+    //     })
+    //
+    //     return result.map(item => item.name)
+    //   },
+    //   {
+    //     memoryTtl: CACHE_DURATIONS.LONG,
+    //     nextjsTags: [CACHE_TAGS.CATEGORIES],
+    //     nextjsRevalidate: CACHE_DURATIONS.VERY_LONG,
+    //   }
+    // )
+    
+    // Direct database call without caching
+    const result = await prisma.category.findMany({
+      where: { 
+        isActive: true,
+        products: {
+          some: {
+            isActive: true
+          }
+        }
       },
-      {
-        memoryTtl: CACHE_DURATIONS.LONG,
-        nextjsTags: [CACHE_TAGS.CATEGORIES],
-        nextjsRevalidate: CACHE_DURATIONS.VERY_LONG,
-      }
-    )
+      select: { name: true },
+      orderBy: { name: 'asc' }
+    })
+
+    return result.map(item => item.name)
   }
 
   async getLowStockProducts(threshold: number = 10): Promise<Product[]> {
@@ -223,237 +303,136 @@ export class ProductRepository {
   }
 
   async getFeaturedProducts(limit: number = 8): Promise<Product[]> {
-    return getCachedData(
-      `featured-products:${limit}`,
-      () => prisma.product.findMany({
-        where: { 
-          isActive: true,
-          isFeatured: true,
-          inventory: { gt: 0 }
-        },
-        include: {
-          category: true,
-          brand: true,
-        },
-        orderBy: [
-          { createdAt: 'desc' },
-          { name: 'asc' }
-        ],
-        take: limit,
-      }),
-      {
-        memoryTtl: CACHE_DURATIONS.MEDIUM,
-        nextjsTags: [CACHE_TAGS.PRODUCTS, 'featured-products'],
-        nextjsRevalidate: CACHE_DURATIONS.MEDIUM,
-      }
-    )
-  }
-
-  async getPopularProducts(limit: number = 6): Promise<Product[]> {
-    return getCachedData(
-      `popular-products:${limit}`,
-      () => prisma.product.findMany({
-        where: { 
-          isActive: true,
-          inventory: { gt: 0 }
-        },
-        include: {
-          category: true,
-          brand: true,
-        },
-        // In a real app, you'd order by view count, sales, etc.
-        // For now, we'll use a combination of factors
-        orderBy: [
-          { price: 'desc' }, // Higher priced items as "popular"
-          { createdAt: 'desc' }
-        ],
-        take: limit,
-      }),
-      {
-        memoryTtl: CACHE_DURATIONS.MEDIUM,
-        nextjsTags: [CACHE_TAGS.PRODUCTS, 'popular-products'],
-        nextjsRevalidate: CACHE_DURATIONS.MEDIUM,
-      }
-    )
-  }
-
-  async getNewArrivals(limit: number = 6): Promise<Product[]> {
-    return getCachedData(
-      `new-arrivals:${limit}`,
-      () => prisma.product.findMany({
-        where: { 
-          isActive: true,
-          isNewArrival: true,
-          inventory: { gt: 0 }
-        },
-        include: {
-          category: true,
-          brand: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-      }),
-      {
-        memoryTtl: CACHE_DURATIONS.SHORT,
-        nextjsTags: [CACHE_TAGS.PRODUCTS, 'new-arrivals'],
-        nextjsRevalidate: CACHE_DURATIONS.MEDIUM,
-      }
-    )
-  }
-
-  async getTrendingProducts(limit: number = 8): Promise<Product[]> {
-    return getCachedData(
-      `trending-products:${limit}`,
-      () => prisma.product.findMany({
-        where: { 
-          isActive: true,
-          inventory: { gt: 0 }
-        },
-        include: {
-          category: true,
-          brand: true,
-        },
-        // In a real app, you'd have analytics data to determine trending
-        // For now, we'll use recent products with good inventory
-        orderBy: [
-          { inventory: 'desc' },
-          { createdAt: 'desc' }
-        ],
-        take: limit,
-      }),
-      {
-        memoryTtl: CACHE_DURATIONS.MEDIUM,
-        nextjsTags: [CACHE_TAGS.PRODUCTS, 'trending-products'],
-        nextjsRevalidate: CACHE_DURATIONS.MEDIUM,
-      }
-    )
-  }
-
-  async getPersonalizedRecommendations(userId: string, limit: number = 8): Promise<Product[]> {
-    // In a real app, this would use ML algorithms, user behavior, purchase history, etc.
-    // For now, we'll implement a simple recommendation based on user's order history
-    
-    return getCachedData(
-      `recommendations:${userId}:${limit}`,
-      async () => {
-        // Get user's order history to understand preferences
-        const userOrders = await prisma.order.findMany({
-          where: { userId },
-          include: {
-            items: {
-              include: {
-                product: true
-              }
-            }
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 10, // Last 10 orders
-        })
-
-        // Extract category IDs from user's purchase history
-        const purchasedCategoryIds = new Set<string>()
-        userOrders.forEach(order => {
-          order.items.forEach(item => {
-            if (item.product) {
-              purchasedCategoryIds.add(item.product.categoryId)
-            }
-          })
-        })
-
-        // Get products from preferred categories
-        if (purchasedCategoryIds.size > 0) {
-          return prisma.product.findMany({
-            where: {
-              isActive: true,
-              inventory: { gt: 0 },
-              categoryId: { in: Array.from(purchasedCategoryIds) },
-              // Exclude products user already bought
-              NOT: {
-                id: {
-                  in: userOrders.flatMap(order => 
-                    order.items.map(item => item.productId)
-                  )
-                }
-              }
-            },
-            include: {
-              category: true,
-              brand: true,
-            },
-            orderBy: [
-              { createdAt: 'desc' },
-              { price: 'asc' }
-            ],
-            take: limit,
-          })
-        }
-
-        // Fallback to trending products if no purchase history
-        return this.getTrendingProducts(limit)
+    return prisma.product.findMany({
+      where: {
+        isFeatured: true,
+        isActive: true,
       },
-      {
-        memoryTtl: CACHE_DURATIONS.SHORT, // Shorter cache for personalized content
-        nextjsTags: [CACHE_TAGS.PRODUCTS, `recommendations:${userId}`],
-        nextjsRevalidate: CACHE_DURATIONS.SHORT,
-      }
-    )
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+    })
   }
 
-  async getProductsByCategory(category: string, limit: number = 12): Promise<Product[]> {
-    return getCachedData(
-      `category-products:${category}:${limit}`,
-      () => prisma.product.findMany({
-        where: {
-          category: {
-            name: category
-          },
-          isActive: true,
-          inventory: { gt: 0 }
-        },
-        include: {
-          category: true,
-          brand: true,
-        },
-        orderBy: [
-          { createdAt: 'desc' },
-          { name: 'asc' }
+  async getNewArrivals(limit: number = 8): Promise<Product[]> {
+    return prisma.product.findMany({
+      where: {
+        isNewArrival: true,
+        isActive: true,
+      },
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+    })
+  }
+
+  async getRelatedProducts(productId: string, categoryId: string, limit: number = 4): Promise<Product[]> {
+    return prisma.product.findMany({
+      where: {
+        id: { not: productId },
+        categoryId,
+        isActive: true,
+      },
+      take: limit,
+      orderBy: { viewCount: 'desc' },
+    })
+  }
+
+  async searchProducts(query: string, limit: number = 10): Promise<Product[]> {
+    return prisma.product.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { description: { contains: query, mode: 'insensitive' } },
+          { tags: { has: query } },
         ],
-        take: limit,
-      }),
-      {
-        memoryTtl: CACHE_DURATIONS.MEDIUM,
-        nextjsTags: [CACHE_TAGS.PRODUCTS, `category:${category}`],
-        nextjsRevalidate: CACHE_DURATIONS.MEDIUM,
-      }
-    )
+      },
+      take: limit,
+      orderBy: { viewCount: 'desc' },
+    })
+  }
+
+  async incrementViewCount(productId: string): Promise<void> {
+    await prisma.product.update({
+      where: { id: productId },
+      data: {
+        viewCount: { increment: 1 },
+        lastScoreUpdate: new Date(),
+      },
+    })
+  }
+
+  async updatePopularityScores(): Promise<void> {
+    // Update popularity scores for all products
+    // This could be called periodically via cron job
+    const products = await prisma.product.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        viewCount: true,
+        orderCount: true,
+        favoriteCount: true,
+        cartCount: true,
+        purchaseCount: true,
+        ratingAvg: true,
+        ratingCount: true,
+        lastScoreUpdate: true,
+      },
+    })
+
+    // Calculate and update popularity scores
+    for (const product of products) {
+      // Simple popularity algorithm (can be made more sophisticated)
+      const popularityScore = 
+        (product.viewCount * 0.1) +
+        (product.orderCount * 2) +
+        (product.favoriteCount * 1.5) +
+        (product.cartCount * 0.5) +
+        (product.purchaseCount * 3) +
+        ((product.ratingAvg || 0) * product.ratingCount * 0.5)
+      
+      await prisma.product.update({
+        where: { id: product.id },
+        data: {
+          popularityScore,
+          lastScoreUpdate: new Date(),
+        },
+      })
+    }
+  }
+
+  async getPopularProducts(limit: number = 8): Promise<Product[]> {
+    return prisma.product.findMany({
+      where: {
+        isActive: true,
+      },
+      take: limit,
+      orderBy: { popularityScore: 'desc' },
+    })
   }
 
   private buildWhereClause(filters: ProductFiltersInput) {
-    const where: any = {}
+    const where: any = {
+      isActive: true,
+    }
 
     if (filters.category) {
-      where.category = {
-        name: filters.category
-      }
+      where.categoryId = filters.category
+    }
+
+    if (filters.minPrice !== undefined) {
+      where.price = { gte: filters.minPrice }
+    }
+
+    if (filters.maxPrice !== undefined) {
+      where.price = where.price ? { ...where.price, lte: filters.maxPrice } : { lte: filters.maxPrice }
     }
 
     if (filters.search) {
       where.OR = [
         { name: { contains: filters.search, mode: 'insensitive' } },
         { description: { contains: filters.search, mode: 'insensitive' } },
+        { tags: { has: filters.search } },
       ]
-    }
-
-    if (filters.minPrice !== undefined) {
-      where.price = { ...where.price, gte: filters.minPrice }
-    }
-
-    if (filters.maxPrice !== undefined) {
-      where.price = { ...where.price, lte: filters.maxPrice }
-    }
-
-    if (filters.isActive !== undefined) {
-      where.isActive = filters.isActive
     }
 
     return where
@@ -461,27 +440,25 @@ export class ProductRepository {
 
   private buildOrderBy(sort?: string) {
     switch (sort) {
+      case 'price-asc':
+        return { price: 'asc' as const }
+      case 'price-desc':
+        return { price: 'desc' as const }
+      case 'name-asc':
+        return { name: 'asc' as const }
+      case 'name-desc':
+        return { name: 'desc' as const }
       case 'newest':
-        return { createdAt: 'desc' }
-      case 'price-low':
-        return { price: 'asc' }
-      case 'price-high':
-        return { price: 'desc' }
-      case 'rating':
-        return { ratingAvg: 'desc' }
+        return { createdAt: 'desc' as const }
       case 'popular':
-        // In a real app, this would be based on view count, sales, etc.
-        return [{ inventory: 'desc' }, { createdAt: 'desc' }]
+        return { popularityScore: 'desc' as const }
+      case 'rating':
+        return { ratingAvg: 'desc' as const }
       default:
-        return { createdAt: 'desc' }
+        return { createdAt: 'desc' as const }
     }
   }
 }
 
-// Export singleton instance
+// Create and export a singleton instance
 export const productRepository = new ProductRepository()
-
-// Export function to get repository instance
-export function getProductRepository(): ProductRepository {
-  return productRepository
-}

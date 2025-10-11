@@ -14,16 +14,40 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { PaymentMethod } from '@/lib/payment-gateways'
 import Loading from '@/components/ui/loading'
 
+interface CustomerInfo {
+  name: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  postalCode: string
+}
+
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, clearCart } = useCartStore()
+  const [mounted, setMounted] = useState(false)
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [orderTotal, setOrderTotal] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>('')
   const [guestEmail, setGuestEmail] = useState<string>('')
+  const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    postalCode: ''
+  })
 
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+
     // Redirect if cart is empty
     if (items.length === 0) {
       router.push('/cart')
@@ -34,7 +58,7 @@ export default function CheckoutPage() {
     if (!authLoading && items.length > 0) {
       calculateOrderTotal()
     }
-  }, [authLoading, items, router])
+  }, [mounted, authLoading, items, router])
 
   const calculateOrderTotal = async () => {
     setLoading(true)
@@ -46,7 +70,12 @@ export default function CheckoutPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({
+          items: items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+        }),
       })
 
       if (!response.ok) {
@@ -67,6 +96,16 @@ export default function CheckoutPage() {
 
   const handlePaymentInitiate = async (method: PaymentMethod) => {
     try {
+      // Prepare shipping address data
+      const shippingAddress = {
+        fullName: customerInfo.name,
+        email: customerInfo.email,
+        phone: customerInfo.phone,
+        address: customerInfo.address,
+        city: customerInfo.city,
+        postalCode: customerInfo.postalCode,
+      }
+
       const response = await fetch('/api/checkout/initiate-payment', {
         method: 'POST',
         headers: {
@@ -79,6 +118,7 @@ export default function CheckoutPage() {
             quantity: item.quantity,
           })),
           guestEmail: !isAuthenticated ? guestEmail : undefined,
+          shippingAddress: !isAuthenticated ? shippingAddress : undefined,
         }),
       })
 
@@ -110,9 +150,47 @@ export default function CheckoutPage() {
     }
   }
 
-  const handlePaymentSuccess = (paymentMethod: PaymentMethod, transactionId?: string) => {
-    // Clear cart after successful payment
+  const handlePaymentSuccess = async (paymentMethod: PaymentMethod, transactionId?: string) => {
+    try {
+      // For COD, create an order immediately before clearing the cart
+      if (paymentMethod === 'cod') {
+        // Prepare shipping address data
+        const shippingAddress = {
+          fullName: customerInfo.name,
+          email: customerInfo.email,
+          phone: customerInfo.phone,
+          address: customerInfo.address,
+          city: customerInfo.city,
+          postalCode: customerInfo.postalCode,
+        }
+
+        const response = await fetch('/api/orders/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: items.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              price: (item.product.discountPrice || item.product.price),
+            })),
+            total: items.reduce((sum, item) => sum + (item.product.discountPrice || item.product.price) * item.quantity, 0),
+            shippingAddress: !isAuthenticated ? shippingAddress : undefined,
+          })
+        })
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}))
+          throw new Error(err.error || 'Failed to create order')
+        }
+      }
+    } catch (err) {
+      console.error('Order creation failed:', err)
+      // Do not clear the cart if order creation failed
+      return
+    }
+
+    // Clear cart after successful order/payment
     clearCart()
+
     // Redirect to success page with payment details
     const params = new URLSearchParams({
       method: paymentMethod,
@@ -121,7 +199,7 @@ export default function CheckoutPage() {
     router.push(`/checkout/success?${params.toString()}`)
   }
 
-  if (authLoading || loading) {
+  if (!mounted || authLoading || loading) {
     return (
       <MainLayout>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -208,6 +286,8 @@ export default function CheckoutPage() {
                   guestEmail={guestEmail}
                   onGuestEmailChange={setGuestEmail}
                   onPaymentInitiate={handlePaymentInitiate}
+                  customerInfo={customerInfo}
+                  onCustomerInfoChange={setCustomerInfo}
                 />
               </CardContent>
             </Card>

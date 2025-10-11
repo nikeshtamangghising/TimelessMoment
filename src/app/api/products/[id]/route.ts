@@ -15,9 +15,22 @@ export async function GET(
 ) {
   try {
     const { id } = await params
+    console.log('Fetching product with ID:', id)
+    
+    // Validate the ID format
+    if (!id) {
+      console.log('Invalid product ID provided')
+      return NextResponse.json(
+        { error: 'Invalid product ID' },
+        { status: 400 }
+      )
+    }
+    
     const product = await productRepository.findById(id)
+    console.log('Product lookup result:', product ? 'Found' : 'Not found')
 
     if (!product) {
+      console.log('Product not found for ID:', id)
       return NextResponse.json(
         { error: 'Product not found' },
         { status: 404 }
@@ -53,6 +66,9 @@ export const PUT = createAdminHandler<RouteParams>(async (
       paramsPromise
     ])
     
+    console.log('Update request for product ID:', params.id)
+    console.log('Update data:', body)
+    
     const validationResult = updateProductSchema.safeParse(body)
     if (!validationResult.success) {
       return NextResponse.json(
@@ -72,6 +88,8 @@ export const PUT = createAdminHandler<RouteParams>(async (
         { status: 404 }
       )
     }
+    
+    console.log('Existing product found:', existingProduct.id, existingProduct.name)
 
     // Check if slug is being updated and if it conflicts
     if (validationResult.data.slug && validationResult.data.slug !== existingProduct.slug) {
@@ -96,6 +114,7 @@ export const PUT = createAdminHandler<RouteParams>(async (
     }
 
     const updatedProduct = await productRepository.update(params.id, validationResult.data)
+    console.log('Product updated successfully:', updatedProduct.id, updatedProduct.name)
 
     return NextResponse.json({
       message: 'Product updated successfully',

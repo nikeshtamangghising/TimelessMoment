@@ -27,7 +27,10 @@ export default function ProductModal({ product, isOpen, onClose }: ProductModalP
   if (!product) return null
 
   const handleAddToCart = async () => {
-    const success = await addToCart(product, quantity)
+    // Create a deep copy of the product to avoid reference issues
+    const productCopy = JSON.parse(JSON.stringify(product))
+    
+    const success = await addToCart(productCopy, quantity)
     if (success) {
       openCart()
       onClose()

@@ -6,6 +6,15 @@ import { PaymentMethod } from '@/lib/payment-gateways'
 import PaymentMethodSelector from './payment-method-selector'
 import Button from '@/components/ui/button'
 
+interface CustomerInfo {
+  name: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  postalCode: string
+}
+
 interface CheckoutFormProps {
   onSuccess: (paymentMethod: PaymentMethod, transactionId?: string) => void
   onError: (error: string) => void
@@ -14,6 +23,8 @@ interface CheckoutFormProps {
   guestEmail?: string
   onGuestEmailChange?: (email: string) => void
   onPaymentInitiate?: (method: PaymentMethod) => Promise<{ success: boolean; paymentUrl?: string; error?: string }>
+  customerInfo?: CustomerInfo
+  onCustomerInfoChange?: (info: CustomerInfo) => void
 }
 
 export default function CheckoutForm({ 
@@ -23,13 +34,15 @@ export default function CheckoutForm({
   isGuest, 
   guestEmail, 
   onGuestEmailChange,
-  onPaymentInitiate 
+  onPaymentInitiate,
+  customerInfo: externalCustomerInfo,
+  onCustomerInfoChange
 }: CheckoutFormProps) {
   const { user } = useAuth()
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState<string>('')
-  const [customerInfo, setCustomerInfo] = useState({
+  const [internalCustomerInfo, setInternalCustomerInfo] = useState<CustomerInfo>({
     name: user?.name || '',
     email: user?.email || guestEmail || '',
     phone: '',
@@ -37,6 +50,10 @@ export default function CheckoutForm({
     city: '',
     postalCode: ''
   })
+
+  // Use external customer info if provided, otherwise use internal state
+  const customerInfo = externalCustomerInfo || internalCustomerInfo
+  const setCustomerInfo = onCustomerInfoChange || setInternalCustomerInfo
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()

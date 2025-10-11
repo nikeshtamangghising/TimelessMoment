@@ -52,12 +52,18 @@ export default function CartSummary() {
       }
       
       // Use API endpoint to get accurate calculations with database settings
+      // Send minimal payload to match API schema
       const response = await fetch('/api/cart/summary', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({
+          items: items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+        }),
       })
       
       console.log('Response status:', response.status)

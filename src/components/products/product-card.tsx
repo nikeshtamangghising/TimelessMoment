@@ -28,11 +28,12 @@ export default function ProductCard({
   trackViews = true
 }: ProductCardProps) {
   const { data: session } = useSession()
-  const { addToCart, isLoading: cartLoading } = useCart()
+  const { addToCart } = useCart() // Removed cartLoading from destructuring
   const { openCart } = useCartStore()
   const { isInFavorites, toggleFavorite, isOperationLoading } = useFavorites()
   const cardRef = useRef<HTMLDivElement>(null)
   const [isImageLoaded, setIsImageLoaded] = useState(false)
+  const [isAdding, setIsAdding] = useState(false) // Local loading state for this product
 
   // Set up view tracking
   useEffect(() => {
@@ -53,18 +54,26 @@ export default function ProductCard({
   }, [product.id, session?.user?.id, trackViews])
 
   const handleAddToCart = async () => {
+    // Create a deep copy of the product to avoid reference issues
+    const productCopy = JSON.parse(JSON.stringify(product))
+    
     if (onAddToCart) {
-      onAddToCart(product.id)
+      onAddToCart(productCopy.id)
     } else {
-      const success = await addToCart(product, 1)
-      if (success) {
-        // Track cart activity
-        trackActivity({
-          productId: product.id,
-          activityType: 'CART_ADD',
-          userId: session?.user?.id,
-        })
-        openCart()
+      setIsAdding(true) // Set local loading state
+      try {
+        const success = await addToCart(productCopy, 1)
+        if (success) {
+          // Track cart activity
+          trackActivity({
+            productId: productCopy.id,
+            activityType: 'CART_ADD',
+            userId: session?.user?.id,
+          })
+          openCart()
+        }
+      } finally {
+        setIsAdding(false) // Reset local loading state
       }
     }
   }
@@ -81,7 +90,8 @@ export default function ProductCard({
     await toggleFavorite(product.id)
   }
 
-  const isButtonLoading = loading || cartLoading
+  // Use local loading state instead of global cart loading state
+  const isButtonLoading = loading || isAdding
   const isFavoriteLoading = isOperationLoading(product.id)
   const isFavorited = isInFavorites(product.id)
 

@@ -8,6 +8,9 @@ import { orderRepository } from '@/lib/order-repository'
 import { EmailService } from '@/lib/email-service'
 import { prisma } from '@/lib/db'
 
+// In-memory storage for session data (in production, use Redis or database)
+const paymentSessions = new Map<string, any>()
+
 const initiatePaymentSchema = z.object({
   method: z.enum(['esewa', 'khalti', 'cod']),
   items: z.array(z.object({
@@ -15,6 +18,14 @@ const initiatePaymentSchema = z.object({
     quantity: z.number().positive(),
   })).min(1, 'Cart must have at least one item'),
   guestEmail: z.string().email().optional(),
+  shippingAddress: z.object({
+    fullName: z.string(),
+    email: z.string().email(),
+    phone: z.string().optional(),
+    address: z.string(),
+    city: z.string(),
+    postalCode: z.string(),
+  }).optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -32,7 +43,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { method, items, guestEmail } = validationResult.data
+    const { method, items, guestEmail, shippingAddress } = validationResult.data
     
     // Check if user is authenticated (optional for guest checkout)
     const token = await getToken({ req: request })
@@ -122,20 +133,10 @@ export async function POST(request: NextRequest) {
           price: item.product.discountPrice || item.product.price,
         }))
 
-        const orderData = {
-          userId: userId || null,
-          guestEmail: isGuest ? guestEmail : null,
-          total: summary.total,
-          status: 'PENDING' as const,
-          paymentMethod: 'cod' as const,
-          transactionId: paymentResult.transactionId,
-          items: orderItems,
-        }
-
         // Create order in database
-        // Note: For guest users, we'll create a temporary user record or use a default guest user
+        // Note: For guest users, we'll create a guest user or use a system guest user ID
         let actualUserId = userId
-        if (!userId && isGuest) {
+        if (!userId && isGuest && !guestEmail) {
           // For guest orders, we'll need to create a guest user or use a system guest user ID
           // For now, let's skip guest orders and require authentication
           return NextResponse.json(
@@ -147,12 +148,13 @@ export async function POST(request: NextRequest) {
         const order = await prisma.order.create({
           data: {
             id: orderId,
-            userId: actualUserId!,
-            total: orderData.total,
-            status: orderData.status,
-            stripePaymentIntentId: orderData.transactionId, // Store transaction ID here for now
+            userId: actualUserId || null,
+            total: summary.total,
+            status: 'PENDING' as const,
+            stripePaymentIntentId: paymentResult.transactionId, // Store transaction ID here for now
+            shippingAddress: shippingAddress ? shippingAddress : undefined,
             items: {
-              create: orderData.items,
+              create: orderItems,
             },
           },
           include: {
@@ -181,11 +183,12 @@ export async function POST(request: NextRequest) {
         const userEmail = isGuest ? guestEmail : token?.email
         if (userEmail) {
           try {
+            // Create a minimal user object for the email service
             const user = {
               id: userId || 'guest',
               name: token?.name || 'Guest Customer',
               email: userEmail,
-            }
+            } as any // Type assertion to bypass strict type checking
 
             await EmailService.sendOrderConfirmation({
               order,
@@ -224,15 +227,28 @@ export async function POST(request: NextRequest) {
       orderId,
       userId: userId || null,
       guestEmail: isGuest ? guestEmail : null,
-      items: items,
-      cartItems,
+      cartItems: cartItems.map(item => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        price: item.product.discountPrice || item.product.price,
+      })),
       method,
       amount: summary.total,
-      transactionId: paymentResult.transactionId,
+      shippingAddress: shippingAddress || null,
     }
 
-    // TODO: Store session data in Redis or database for retrieval after payment verification
-    // For now, we'll include it in the response for frontend storage
+    // Store session data in memory for retrieval after payment verification
+    paymentSessions.set(orderId, {
+      userId: userId || null,
+      guestEmail: isGuest ? guestEmail : null,
+      cartItems: cartItems.map(item => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        price: item.product.discountPrice || item.product.price,
+      })),
+      amount: summary.total,
+      shippingAddress: shippingAddress || null,
+    })
 
     return NextResponse.json({
       success: true,

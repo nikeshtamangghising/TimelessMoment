@@ -22,8 +22,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setError(null)
 
     try {
+      // Create a deep copy of the product to avoid reference issues
+      const productCopy = JSON.parse(JSON.stringify(product))
+      
       // Check product availability
-      const response = await fetch(`/api/products/${product.id}`)
+      const response = await fetch(`/api/products/${productCopy.id}`)
       if (!response.ok) {
         throw new Error('Product not found')
       }

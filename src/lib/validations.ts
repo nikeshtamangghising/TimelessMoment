@@ -70,10 +70,29 @@ export const createOrderSchema = z.object({
   items: z.array(createOrderItemSchema).min(1, 'Order must have at least one item'),
   total: z.number().positive('Total must be positive'),
   stripePaymentIntentId: z.string().optional(),
+  shippingAddress: z.object({
+    fullName: z.string().min(1, 'Full name is required'),
+    email: z.string().email('Invalid email address'),
+    phone: z.string().optional(),
+    address: z.string().min(1, 'Address is required'),
+    city: z.string().min(1, 'City is required'),
+    postalCode: z.string().min(1, 'Postal code is required'),
+  }).optional(),
 })
 
 export const updateOrderSchema = z.object({
   status: z.enum(['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED']),
+})
+
+export const updateShippingAddressSchema = z.object({
+  shippingAddress: z.object({
+    fullName: z.string().min(1, 'Full name is required'),
+    email: z.string().email('Invalid email address'),
+    phone: z.string().optional(),
+    address: z.string().min(1, 'Address is required'),
+    city: z.string().min(1, 'City is required'),
+    postalCode: z.string().min(1, 'Postal code is required'),
+  }),
 })
 
 // Query validation schemas
@@ -134,6 +153,7 @@ export type CreateProductInput = z.infer<typeof createProductSchema>
 export type UpdateProductInput = z.infer<typeof updateProductSchema>
 export type CreateOrderInput = z.infer<typeof createOrderSchema>
 export type UpdateOrderInput = z.infer<typeof updateOrderSchema>
+export type UpdateShippingAddressInput = z.infer<typeof updateShippingAddressSchema>
 export type PaginationInput = z.infer<typeof paginationSchema>
 export type ProductFiltersInput = z.infer<typeof productFiltersSchema>
 export type AddToCartInput = z.infer<typeof addToCartSchema>

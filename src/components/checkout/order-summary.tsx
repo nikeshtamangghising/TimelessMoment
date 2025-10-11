@@ -30,6 +30,11 @@ export default function OrderSummary({ items }: OrderSummaryProps) {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (!items || items.length === 0) {
+      setSummary(null)
+      setLoading(false)
+      return
+    }
     fetchCartSummary()
   }, [items])
 
@@ -39,12 +44,18 @@ export default function OrderSummary({ items }: OrderSummaryProps) {
       setError('')
       
       // Use API endpoint to get accurate calculations with database settings
+      // Send minimal payload to satisfy API schema and avoid mismatches
       const response = await fetch('/api/cart/summary', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({
+          items: items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+        }),
       })
       
       if (!response.ok) {

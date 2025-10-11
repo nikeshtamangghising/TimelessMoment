@@ -110,7 +110,6 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
   }
 
   useEffect(() => {
-    console.log('useEffect triggered with searchParams:', searchParams)
     fetchData()
   }, [searchParams.category, searchParams.search, searchParams.sort, searchParams.minPrice, searchParams.maxPrice, searchParams.page])
 
@@ -155,9 +154,6 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
       // Add cache busting
       params.set('_t', Date.now().toString())
       
-      console.log('API Call URL:', `/api/products?${params.toString()}`)
-      console.log('Current searchParams:', searchParams)
-      
       const productsResponse = await fetch(`/api/products?${params.toString()}`, {
         cache: 'no-store',
         headers: {
@@ -168,12 +164,6 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
         throw new Error('Failed to fetch products')
       }
       const productsResult = await productsResponse.json()
-      console.log('API Response:', productsResult)
-      console.log('Number of products returned:', productsResult.data?.length || 0)
-      if (productsResult.data?.length > 0) {
-        console.log('First product category:', productsResult.data[0].category?.name)
-        console.log('All product categories:', productsResult.data.map(p => p.category?.name))
-      }
       setProductsData(productsResult)
       
       // Set up load more functionality

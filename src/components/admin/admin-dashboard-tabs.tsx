@@ -21,6 +21,12 @@ import Button from '@/components/ui/button'
 import AdminDashboardContent from './admin-dashboard-content'
 import AdminSettingsTab from './admin-settings-tab'
 import AdminProductsTab from './admin-products-tab'
+import AdminBrandsTab from './admin-brands-tab'
+import AdminCategoriesTab from './admin-categories-tab'
+import AdminInventoryTab from './admin-inventory-tab'
+import AdminOrdersTab from './admin-orders-tab'
+import AdminCustomersTab from './admin-customers-tab'
+import AdminAnalyticsTab from './admin-analytics-tab'
 
 export type AdminTab = 'dashboard' | 'products' | 'categories' | 'brands' | 'inventory' | 'orders' | 'customers' | 'analytics' | 'settings'
 
@@ -58,61 +64,19 @@ export default function AdminDashboardTabs() {
       case 'settings':
         return <AdminSettingsTab />
       case 'products':
-        return (
-          <div className="text-center py-16">
-            <CubeIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Products Management</h3>
-            <p className="mt-2 text-gray-500">Products management interface will be implemented here.</p>
-          </div>
-        )
+        return <AdminProductsTab />
       case 'categories':
-        return (
-          <div className="text-center py-16">
-            <FolderIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Categories Management</h3>
-            <p className="mt-2 text-gray-500">Categories management interface will be implemented here.</p>
-          </div>
-        )
+        return <AdminCategoriesTab />
       case 'brands':
-        return (
-          <div className="text-center py-16">
-            <TagIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Brands Management</h3>
-            <p className="mt-2 text-gray-500">Brands management interface will be implemented here.</p>
-          </div>
-        )
+        return <AdminBrandsTab />
       case 'inventory':
-        return (
-          <div className="text-center py-16">
-            <ArchiveBoxIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Inventory Management</h3>
-            <p className="mt-2 text-gray-500">Inventory management interface will be implemented here.</p>
-          </div>
-        )
+        return <AdminInventoryTab />
       case 'orders':
-        return (
-          <div className="text-center py-16">
-            <ShoppingBagIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Orders Management</h3>
-            <p className="mt-2 text-gray-500">Orders management interface will be implemented here.</p>
-          </div>
-        )
+        return <AdminOrdersTab />
       case 'customers':
-        return (
-          <div className="text-center py-16">
-            <UsersIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Customers Management</h3>
-            <p className="mt-2 text-gray-500">Customers management interface will be implemented here.</p>
-          </div>
-        )
+        return <AdminCustomersTab />
       case 'analytics':
-        return (
-          <div className="text-center py-16">
-            <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Analytics Dashboard</h3>
-            <p className="mt-2 text-gray-500">Analytics dashboard will be implemented here.</p>
-          </div>
-        )
+        return <AdminAnalyticsTab />
       default:
         return <AdminDashboardContent />
     }

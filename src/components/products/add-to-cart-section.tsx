@@ -23,7 +23,10 @@ export default function AddToCartSection({ product }: AddToCartSectionProps) {
   }
 
   const handleAddToCart = async () => {
-    const success = await addToCart(product, quantity)
+    // Create a deep copy of the product to avoid reference issues
+    const productCopy = JSON.parse(JSON.stringify(product))
+    
+    const success = await addToCart(productCopy, quantity)
     if (success) {
       openCart()
       // Reset quantity to 1 after successful add

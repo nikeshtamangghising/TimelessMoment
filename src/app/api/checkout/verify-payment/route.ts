@@ -5,6 +5,9 @@ import { prisma } from '@/lib/db'
 import { productRepository } from '@/lib/product-repository'
 import { EmailService } from '@/lib/email-service'
 
+// In-memory storage for session data (in production, use Redis or database)
+const paymentSessions = new Map<string, any>()
+
 const verifyPaymentSchema = z.object({
   method: z.enum(['esewa', 'khalti', 'cod']),
   transactionId: z.string(),
@@ -20,6 +23,18 @@ const verifyPaymentSchema = z.object({
   }).optional(),
   codData: z.object({
     amount: z.number(),
+  }).optional(),
+  // Session data that should have been stored during payment initiation
+  sessionData: z.object({
+    userId: z.string().nullable(),
+    guestEmail: z.string().email().nullable(),
+    cartItems: z.array(z.object({
+      productId: z.string(),
+      quantity: z.number(),
+      price: z.number(),
+    })),
+    amount: z.number(),
+    shippingAddress: z.any().optional(), // Allow any JSON structure for shipping address
   }).optional(),
 })
 
@@ -38,7 +53,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { method, transactionId, orderId, esewaData, khaltiData, codData } = validationResult.data
+    const { method, transactionId, orderId, esewaData, khaltiData, codData, sessionData } = validationResult.data
 
     // Get payment gateway manager
     const paymentManager = getPaymentGatewayManager()
@@ -101,26 +116,114 @@ export async function POST(request: NextRequest) {
 
     // Payment verified successfully - now create the order
     try {
-      // TODO: In a real app, retrieve session data from Redis/DB
-      // For now, we'll extract necessary data from the verification result
+      // Get session data - either from request body or from in-memory storage
+      let orderSessionData = sessionData
       
-      // Note: This is a limitation of the current implementation.
-      // In production, you should store cart data during payment initiation
-      // and retrieve it here using the orderId.
+      // If not provided in request, try to get from in-memory storage
+      if (!orderSessionData && paymentSessions.has(orderId)) {
+        orderSessionData = paymentSessions.get(orderId)
+        // Remove from storage after retrieval
+        paymentSessions.delete(orderId)
+      }
       
-      console.warn('Order creation skipped: Session data not available')
-      console.warn('OrderId:', verificationResult.orderId)
-      console.warn('To fix this, implement session storage during payment initiation')
-      
-      // For now, return success but log the issue
+      // If we still don't have session data, we can't create the order
+      if (!orderSessionData) {
+        console.warn('Order creation skipped: Session data not available')
+        console.warn('OrderId:', verificationResult.orderId)
+        return NextResponse.json({
+          success: true,
+          orderId: verificationResult.orderId,
+          transactionId: verificationResult.transactionId,
+          amount: verificationResult.amount,
+          method: verificationResult.method,
+          warning: 'Order not created - session data unavailable',
+        })
+      }
+
+      // Create the order
+      const order = await prisma.$transaction(async (tx) => {
+        // Create the order
+        const newOrder = await tx.order.create({
+          data: {
+            id: orderId,
+            userId: orderSessionData.userId,
+            total: orderSessionData.amount,
+            status: 'PENDING',
+            stripePaymentIntentId: transactionId,
+            shippingAddress: orderSessionData.shippingAddress ? orderSessionData.shippingAddress : undefined,
+            items: {
+              create: orderSessionData.cartItems.map((item: any) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                price: item.price,
+              })),
+            },
+          },
+          include: {
+            items: {
+              include: {
+                product: true,
+              },
+            },
+            user: true,
+          },
+        })
+
+        // Update product inventory
+        for (const item of orderSessionData.cartItems) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: {
+              inventory: {
+                decrement: item.quantity
+              }
+            }
+          })
+
+          // Record inventory adjustment
+          await tx.inventoryAdjustment.create({
+            data: {
+              productId: item.productId,
+              quantity: -item.quantity,
+              type: 'ORDER_PLACED',
+              reason: `Inventory reduced for order ${newOrder.id}`,
+            }
+          })
+        }
+
+        return newOrder
+      })
+
+      // Send confirmation email if user email is available
+      const userEmail = orderSessionData.guestEmail || order.user?.email
+      if (userEmail) {
+        try {
+          await EmailService.sendOrderConfirmation({
+            order: order,
+            user: order.user || {
+              id: 'guest',
+              name: 'Guest Customer',
+              email: userEmail,
+            } as any,
+            orderItems: order.items.map(item => ({
+              product: item.product,
+              quantity: item.quantity,
+              price: item.price,
+            })),
+          })
+        } catch (emailError) {
+          console.error('Failed to send order confirmation email:', emailError)
+          // Don't fail the order if email fails
+        }
+      }
+
       return NextResponse.json({
         success: true,
-        orderId: verificationResult.orderId,
+        orderId: order.id,
         transactionId: verificationResult.transactionId,
         amount: verificationResult.amount,
         method: verificationResult.method,
-        paymentData: verificationResult.data,
-        warning: 'Order not created - session data unavailable',
+        orderCreated: true,
       })
 
     } catch (error) {

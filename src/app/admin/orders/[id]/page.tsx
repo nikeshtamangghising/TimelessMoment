@@ -4,9 +4,17 @@ import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowLeftIcon, ClockIcon, CheckCircleIcon, TruckIcon, XCircleIcon, PencilIcon } from '@heroicons/react/24/outline'
-import MainLayout from '@/components/layout/main-layout'
-import ProtectedRoute from '@/components/auth/protected-route'
+import { 
+  ArrowLeftIcon, 
+  ClockIcon, 
+  CheckCircleIcon, 
+  TruckIcon, 
+  XCircleIcon,
+  PencilIcon,
+  DocumentTextIcon
+} from '@heroicons/react/24/outline'
+import AdminLayout from '@/components/admin/admin-layout'
+import AdminProtectedRoute from '@/components/admin/admin-protected-route'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import Button from '@/components/ui/button'
 import Loading from '@/components/ui/loading'
@@ -14,7 +22,7 @@ import ShippingAddressForm from '@/components/orders/shipping-address-form'
 import { OrderWithItems } from '@/types'
 import { formatPrice } from '@/lib/cart-utils'
 
-interface OrderDetailPageProps {
+interface AdminOrderDetailPageProps {
   params: Promise<{
     id: string
   }>
@@ -25,12 +33,17 @@ interface OrderWithItemsAndShipping extends OrderWithItems {
   shippingAddress?: any;
 }
 
-export default function OrderDetailPage({ params }: OrderDetailPageProps) {
+export default function AdminOrderDetailPage({ params }: AdminOrderDetailPageProps) {
   const router = useRouter()
   const [order, setOrder] = useState<OrderWithItemsAndShipping | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>('')
   const [editingAddress, setEditingAddress] = useState(false)
+  const [showTrackingForm, setShowTrackingForm] = useState(false)
+  const [trackingData, setTrackingData] = useState({
+    status: 'PROCESSING',
+    message: ''
+  })
   const resolvedParams = use(params) // Unwrap the Promise to get the actual params
 
   useEffect(() => {
@@ -71,25 +84,37 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
         return {
           icon: <ClockIcon className="h-6 w-6 text-yellow-500" />,
           color: 'bg-yellow-100 text-yellow-800',
-          description: 'Your order is being processed'
+          description: 'Order is pending payment or confirmation'
         }
-      case 'PAID':
+      case 'PROCESSING':
         return {
           icon: <CheckCircleIcon className="h-6 w-6 text-blue-500" />,
           color: 'bg-blue-100 text-blue-800',
-          description: 'Payment confirmed, preparing for shipment'
+          description: 'Order is being processed and prepared for shipment'
         }
-      case 'FULFILLED':
+      case 'SHIPPED':
+        return {
+          icon: <TruckIcon className="h-6 w-6 text-purple-500" />,
+          color: 'bg-purple-100 text-purple-800',
+          description: 'Order has been shipped to customer'
+        }
+      case 'DELIVERED':
         return {
           icon: <TruckIcon className="h-6 w-6 text-green-500" />,
           color: 'bg-green-100 text-green-800',
-          description: 'Your order has been shipped'
+          description: 'Order has been delivered to customer'
         }
       case 'CANCELLED':
         return {
           icon: <XCircleIcon className="h-6 w-6 text-red-500" />,
           color: 'bg-red-100 text-red-800',
           description: 'This order has been cancelled'
+        }
+      case 'REFUNDED':
+        return {
+          icon: <XCircleIcon className="h-6 w-6 text-orange-500" />,
+          color: 'bg-orange-100 text-orange-800',
+          description: 'This order has been refunded'
         }
       default:
         return {
@@ -125,6 +150,28 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
     return subtotal >= 50 ? 0 : 9.99
   }
 
+  const handleStatusUpdate = async (newStatus: string) => {
+    try {
+      const response = await fetch(`/api/orders/${resolvedParams.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update order status')
+      }
+
+      // Refresh order data
+      fetchOrder()
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update order status'
+      alert(errorMessage)
+    }
+  }
+
   const handleAddressSave = (updatedAddress: any) => {
     if (order) {
       setOrder({
@@ -135,24 +182,54 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
     }
   }
 
+  const handleTrackingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    try {
+      const response = await fetch(`/api/orders/${resolvedParams.id}/tracking`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(trackingData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to add tracking information')
+      }
+
+      // Refresh order data
+      fetchOrder()
+      setShowTrackingForm(false)
+      setTrackingData({
+        status: 'PROCESSING',
+        message: ''
+      })
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add tracking information'
+      alert(errorMessage)
+    }
+  }
+
   if (loading) {
     return (
-      <MainLayout>
-        <ProtectedRoute>
+      <AdminProtectedRoute>
+        <AdminLayout>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex justify-center items-center py-16">
               <Loading size="lg" />
             </div>
           </div>
-        </ProtectedRoute>
-      </MainLayout>
+        </AdminLayout>
+      </AdminProtectedRoute>
     )
   }
 
   if (error || !order) {
     return (
-      <MainLayout>
-        <ProtectedRoute>
+      <AdminProtectedRoute>
+        <AdminLayout>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <Card>
               <CardContent className="p-8 text-center">
@@ -171,7 +248,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                   <Button onClick={() => router.back()}>
                     Go Back
                   </Button>
-                  <Link href="/orders">
+                  <Link href="/admin/orders">
                     <Button variant="outline">
                       View All Orders
                     </Button>
@@ -180,8 +257,8 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
               </CardContent>
             </Card>
           </div>
-        </ProtectedRoute>
-      </MainLayout>
+        </AdminLayout>
+      </AdminProtectedRoute>
     )
   }
 
@@ -194,12 +271,12 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const shippingAddress = order.shippingAddress || null
 
   return (
-    <MainLayout>
-      <ProtectedRoute>
+    <AdminProtectedRoute>
+      <AdminLayout>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="mb-8">
-            <Link href="/orders" className="inline-flex items-center text-indigo-600 hover:text-indigo-500 mb-4">
+            <Link href="/admin/orders" className="inline-flex items-center text-indigo-600 hover:text-indigo-500 mb-4">
               <ArrowLeftIcon className="h-4 w-4 mr-2" />
               Back to Orders
             </Link>
@@ -209,7 +286,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                   Order #{order.id.slice(-8).toUpperCase()}
                 </h1>
                 <p className="text-gray-600">
-                  Placed on {formatDate(order.createdAt.toString())}
+                  Placed on {formatDate(order.createdAt.toString())} by {order.user.name}
                 </p>
               </div>
               <div className="flex items-center">
@@ -336,7 +413,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                         </div>
                       ) : (
                         <div className="bg-gray-50 p-4 rounded-lg">
-                          <p className="text-gray-500 text-sm italic">Shipping address information was collected during checkout and will be used for delivery.</p>
+                          <p className="text-gray-500 text-sm italic">Shipping address information will be collected and displayed here in future updates.</p>
                         </div>
                       )}
                     </div>
@@ -400,6 +477,12 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                       <span className="text-gray-600">Order ID:</span>
                       <span className="font-mono text-gray-900">{order.id.slice(-8).toUpperCase()}</span>
                     </div>
+                    {order.trackingNumber && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Tracking Number:</span>
+                        <span className="font-mono text-gray-900">{order.trackingNumber}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-gray-600">Payment ID:</span>
                       <span className="font-mono text-gray-900">
@@ -422,26 +505,110 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 </CardContent>
               </Card>
 
+              {/* Status Update */}
+              <Card>
+                <CardHeader>
+                  <h2 className="text-lg font-medium text-gray-900">
+                    Update Order Status
+                  </h2>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <select
+                      value={order.status}
+                      onChange={(e) => handleStatusUpdate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                      <option value="PENDING">Pending</option>
+                      <option value="PROCESSING">Processing</option>
+                      <option value="SHIPPED">Shipped</option>
+                      <option value="DELIVERED">Delivered</option>
+                      <option value="CANCELLED">Cancelled</option>
+                      <option value="REFUNDED">Refunded</option>
+                    </select>
+                    <p className="text-xs text-gray-500">
+                      Current status: {order.status}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Tracking Information Form */}
+              {showTrackingForm && (
+                <Card>
+                  <CardHeader>
+                    <h2 className="text-lg font-medium text-gray-900">
+                      Add Tracking Information
+                    </h2>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleTrackingSubmit} className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Status
+                        </label>
+                        <select
+                          value={trackingData.status}
+                          onChange={(e) => setTrackingData({...trackingData, status: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        >
+                          <option value="PROCESSING">Processing</option>
+                          <option value="SHIPPED">Shipped</option>
+                          <option value="DELIVERED">Delivered</option>
+                          <option value="CANCELLED">Cancelled</option>
+                          <option value="REFUNDED">Refunded</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Message (Optional)
+                        </label>
+                        <textarea
+                          value={trackingData.message}
+                          onChange={(e) => setTrackingData({...trackingData, message: e.target.value})}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          placeholder="Enter tracking message..."
+                        />
+                      </div>
+                      
+                      <div className="flex space-x-3">
+                        <Button type="submit" className="flex-1">
+                          Add Tracking Info
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setShowTrackingForm(false)}
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Actions */}
               <div className="space-y-3">
-                {order.status === 'DELIVERED' && (
-                  <Button className="w-full">
-                    Reorder Items
-                  </Button>
-                )}
-                <Button variant="outline" className="w-full">
-                  Download Invoice
+                <Button 
+                  className="w-full flex items-center justify-center space-x-2"
+                  onClick={() => setShowTrackingForm(true)}
+                >
+                  <PencilIcon className="h-4 w-4" />
+                  <span>Add Tracking Information</span>
                 </Button>
-                <Link href="/contact" className="block">
-                  <Button variant="outline" className="w-full">
-                    Contact Support
-                  </Button>
-                </Link>
+                <Button variant="outline" className="w-full flex items-center justify-center space-x-2">
+                  <DocumentTextIcon className="h-4 w-4" />
+                  <span>Download Invoice</span>
+                </Button>
               </div>
             </div>
           </div>
         </div>
-      </ProtectedRoute>
-    </MainLayout>
+      </AdminLayout>
+    </AdminProtectedRoute>
   )
 }

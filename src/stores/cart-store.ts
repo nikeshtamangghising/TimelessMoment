@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { persist, createJSONStorage, StateStorage } from 'zustand/middleware'
 import { CartItem, Product } from '@/types'
 
 interface CartState {
@@ -20,6 +20,28 @@ interface CartState {
   getItemQuantity: (productId: string) => number
 }
 
+// Custom storage with migration
+const customStorage: StateStorage = {
+  getItem: (name: string) => {
+    const item = localStorage.getItem(name)
+    if (!item) return null
+    
+    try {
+      const parsed = JSON.parse(item)
+      return item
+    } catch (error) {
+      console.error('Error parsing cart from storage:', error)
+      return null
+    }
+  },
+  setItem: (name: string, value: string) => {
+    localStorage.setItem(name, value)
+  },
+  removeItem: (name: string) => {
+    localStorage.removeItem(name)
+  }
+}
+
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
@@ -27,30 +49,31 @@ export const useCartStore = create<CartState>()(
       isOpen: false,
 
       addItem: (product: Product, quantity = 1) => {
+        // Create a deep copy of the product to avoid reference issues
+        const productCopy = JSON.parse(JSON.stringify(product))
+        
         set((state) => {
-          const existingItem = state.items.find(item => item.productId === product.id)
+          // Make sure we're using the correct product ID
+          const productId = productCopy.id
           
-          if (existingItem) {
+          const existingItemIndex = state.items.findIndex(item => item.productId === productId)
+          
+          if (existingItemIndex !== -1) {
             // Update quantity of existing item
-            return {
-              items: state.items.map(item =>
-                item.productId === product.id
-                  ? { ...item, quantity: item.quantity + quantity }
-                  : item
-              )
+            const updatedItems = [...state.items]
+            updatedItems[existingItemIndex] = {
+              ...updatedItems[existingItemIndex],
+              quantity: updatedItems[existingItemIndex].quantity + quantity
             }
+            return { items: updatedItems }
           } else {
             // Add new item
-            return {
-              items: [
-                ...state.items,
-                {
-                  productId: product.id,
-                  quantity,
-                  product
-                }
-              ]
+            const newItem = {
+              productId: productId,
+              quantity,
+              product: productCopy
             }
+            return { items: [...state.items, newItem] }
           }
         })
       },
@@ -67,13 +90,20 @@ export const useCartStore = create<CartState>()(
           return
         }
 
-        set((state) => ({
-          items: state.items.map(item =>
-            item.productId === productId
-              ? { ...item, quantity }
-              : item
-          )
-        }))
+        set((state) => {
+          const itemIndex = state.items.findIndex(item => item.productId === productId)
+          
+          if (itemIndex !== -1) {
+            const updatedItems = [...state.items]
+            updatedItems[itemIndex] = {
+              ...updatedItems[itemIndex],
+              quantity
+            }
+            return { items: updatedItems }
+          }
+          
+          return { items: state.items }
+        })
       },
 
       clearCart: () => {
@@ -106,8 +136,36 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'cart-storage',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => customStorage),
       partialize: (state) => ({ items: state.items }), // Only persist items, not UI state
+      onRehydrateStorage: () => (state) => {
+        console.log('Cart store hydrated:', state)
+      },
+      migrate: (persistedState: any, version: number) => {
+        console.log('Migrating cart state:', persistedState, version)
+        // Ensure items array is properly structured
+        if (persistedState && persistedState.items) {
+          // Fix any potential reference issues
+          const fixedItems = persistedState.items.map((item: any) => {
+            // Ensure product has all required fields and proper structure
+            if (item.product) {
+              // Create a deep copy to ensure no reference issues
+              const fixedProduct = JSON.parse(JSON.stringify(item.product))
+              return {
+                ...item,
+                product: fixedProduct,
+                productId: item.productId || fixedProduct.id
+              }
+            }
+            return item
+          })
+          return {
+            ...persistedState,
+            items: fixedItems
+          }
+        }
+        return persistedState
+      }
     }
   )
 )

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { orderRepository } from '@/lib/order-repository'
-import { updateOrderSchema } from '@/lib/validations'
+import { updateOrderSchema, updateShippingAddressSchema } from '@/lib/validations'
 import { createAuthHandler, createAdminHandler } from '@/lib/auth-middleware'
 import { getServerSession } from '@/lib/auth'
 import { EmailService } from '@/lib/email-service'
@@ -58,7 +58,7 @@ export const GET = createAuthHandler<RouteParams>(async (
   }
 })
 
-export const PUT = createAdminHandler<RouteParams>(async (
+export const PUT = createAuthHandler<RouteParams>(async (
   request: NextRequest,
   context?: RouteParams
 ) => {
@@ -72,19 +72,9 @@ export const PUT = createAdminHandler<RouteParams>(async (
   const { params } = context
   try {
     const resolvedParams = await params
+    const session = await getServerSession()
     const body = await request.json()
     
-    const validationResult = updateOrderSchema.safeParse(body)
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { 
-          error: 'Validation failed',
-          details: validationResult.error.issues 
-        },
-        { status: 400 }
-      )
-    }
-
     // Check if order exists
     const existingOrder = await orderRepository.findById(resolvedParams.id)
     if (!existingOrder) {
@@ -94,41 +84,114 @@ export const PUT = createAdminHandler<RouteParams>(async (
       )
     }
 
-    const previousStatus = existingOrder.status
-    const newStatus = validationResult.data.status
+    // Check if user can update this order
+    const isAdmin = session?.user?.role === 'ADMIN'
+    const isOwner = existingOrder.userId === session?.user.id
 
-    const updatedOrder = await orderRepository.updateStatus(
-      resolvedParams.id, 
-      newStatus
-    )
-
-    // Send order status update email if status changed
-    if (previousStatus !== newStatus) {
-      try {
-        const user = await prisma.user.findUnique({
-          where: { id: existingOrder.userId }
-        })
-
-        if (user) {
-          await EmailService.sendOrderStatusUpdate({
-            order: updatedOrder,
-            user,
-            previousStatus,
-            newStatus
-          }, true) // Use queue
-
-          console.log(`Order status update email sent to ${user.email}`)
-        }
-      } catch (emailError) {
-        console.error('Failed to send order status update email:', emailError)
-        // Don't fail the order update if email fails
-      }
+    if (!isAdmin && !isOwner) {
+      return NextResponse.json(
+        { error: 'Access denied' },
+        { status: 403 }
+      )
     }
 
-    return NextResponse.json({
-      message: 'Order updated successfully',
-      order: updatedOrder
-    })
+    // Check if this is a status update or shipping address update
+    const isStatusUpdate = body.status !== undefined
+    const isShippingAddressUpdate = body.shippingAddress !== undefined
+
+    // Handle status update (admin only)
+    if (isStatusUpdate) {
+      if (!isAdmin) {
+        return NextResponse.json(
+          { error: 'Only administrators can update order status' },
+          { status: 403 }
+        )
+      }
+
+      const validationResult = updateOrderSchema.safeParse(body)
+      if (!validationResult.success) {
+        return NextResponse.json(
+          { 
+            error: 'Validation failed',
+            details: validationResult.error.issues 
+          },
+          { status: 400 }
+        )
+      }
+
+      const previousStatus = existingOrder.status
+      const newStatus = validationResult.data.status
+
+      const updatedOrder = await orderRepository.updateStatus(
+        resolvedParams.id, 
+        newStatus
+      )
+
+      // Send order status update email if status changed
+      if (previousStatus !== newStatus) {
+        try {
+          const user = await prisma.user.findUnique({
+            where: { id: existingOrder.userId }
+          })
+
+          if (user) {
+            await EmailService.sendOrderStatusUpdate({
+              order: updatedOrder,
+              user,
+              previousStatus,
+              newStatus
+            }, true) // Use queue
+
+            console.log(`Order status update email sent to ${user.email}`)
+          }
+        } catch (emailError) {
+          console.error('Failed to send order status update email:', emailError)
+          // Don't fail the order update if email fails
+        }
+      }
+
+      return NextResponse.json({
+        message: 'Order updated successfully',
+        order: updatedOrder
+      })
+    }
+
+    // Handle shipping address update (owner or admin, only for pending orders)
+    if (isShippingAddressUpdate) {
+      // Only allow updating shipping address for pending orders
+      if (existingOrder.status !== 'PENDING') {
+        return NextResponse.json(
+          { error: 'Shipping address can only be updated for pending orders' },
+          { status: 400 }
+        )
+      }
+
+      const validationResult = updateShippingAddressSchema.safeParse(body)
+      if (!validationResult.success) {
+        return NextResponse.json(
+          { 
+            error: 'Validation failed',
+            details: validationResult.error.issues 
+          },
+          { status: 400 }
+        )
+      }
+
+      const updatedOrder = await orderRepository.updateShippingAddress(
+        resolvedParams.id, 
+        validationResult.data
+      )
+
+      return NextResponse.json({
+        message: 'Shipping address updated successfully',
+        order: updatedOrder
+      })
+    }
+
+    return NextResponse.json(
+      { error: 'Invalid update request' },
+      { status: 400 }
+    )
 
   } catch (error) {
     console.error('Error updating order:', error)
@@ -178,11 +241,11 @@ export const DELETE = createAdminHandler<RouteParams>(async (
       )
     }
 
-    await orderRepository.deleteOrder(resolvedParams.id)
-
-    return NextResponse.json({
-      message: 'Order deleted successfully'
-    })
+    // Order deletion is not implemented yet
+    return NextResponse.json(
+      { error: 'Order deletion is not supported' },
+      { status: 400 }
+    )
 
   } catch (error) {
     console.error('Error deleting order:', error)

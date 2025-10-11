@@ -13,13 +13,11 @@ export type ProductWithCategory = Product & {
   brand?: Brand | null
 }
 
-export type ProductWithOrderItems = Product & {
-  orderItems: OrderItem[]
-}
-
 export type OrderWithItems = Order & {
   items: (OrderItem & {
-    product: Product
+    product: Product & {
+      category?: Category
+    }
   })[]
   user: User
 }

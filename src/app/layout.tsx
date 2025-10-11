@@ -80,7 +80,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <head>
         {/* PWA Meta Tags */}
         <meta name="application-name" content="E-Shop" />
@@ -96,13 +96,10 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
         
-        {/* Favicon */}
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-        <link rel="shortcut icon" href="/favicon.ico" />
+        {/* Favicon - use manifest icons and fallback to placeholder if missing */}
+        <link rel="icon" href="/placeholder-product.svg" />
         
-        {/* Preload critical resources */}
-        <link rel="preload" as="font" href="/fonts/inter.woff2" type="font/woff2" crossOrigin="anonymous" />
+        {/* Preload critical resources (fonts served via next/font) */}
         
         {/* DNS Prefetch for external domains */}
         <link rel="dns-prefetch" href="//js.stripe.com" />
