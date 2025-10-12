@@ -162,3 +162,5 @@ export type InventoryUpdateInput = z.infer<typeof inventoryUpdateSchema>
 export type BulkInventoryUpdateInput = z.infer<typeof bulkInventoryUpdateSchema>
 export type InventoryAdjustmentInput = z.infer<typeof inventoryAdjustmentSchema>
 export type InventoryHistoryFiltersInput = z.infer<typeof inventoryHistoryFiltersSchema>
+export type CreateAddressInput = z.infer<typeof createAddressSchema>
+export type UpdateAddressInput = z.infer<typeof updateAddressSchema>

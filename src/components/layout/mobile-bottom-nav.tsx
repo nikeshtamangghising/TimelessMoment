@@ -25,10 +25,22 @@ export default function MobileBottomNav() {
   const { getTotalItems, openCart } = useCartStore()
   const { isAuthenticated } = useAuth()
   const [isClient, setIsClient] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
-  // Only show cart count after hydration to prevent mismatches
+  // Check if we're on mobile device
   useEffect(() => {
     setIsClient(true)
+    
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768) // md breakpoint
+    }
+    
+    checkIsMobile()
+    window.addEventListener('resize', checkIsMobile)
+    
+    return () => {
+      window.removeEventListener('resize', checkIsMobile)
+    }
   }, [])
 
   const cartItemCount = isClient ? getTotalItems() : 0
@@ -72,8 +84,13 @@ export default function MobileBottomNav() {
     }
   ]
 
+  // Only render on mobile devices
+  if (!isClient || !isMobile) {
+    return null
+  }
+
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
       <div className="flex">
         {navigation.map((item) => {
           const Icon = item.isActive ? item.iconActive : item.icon

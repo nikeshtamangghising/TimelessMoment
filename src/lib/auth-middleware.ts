@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getToken } from 'next-auth/jwt'
+import { getServerSession } from 'next-auth'
+import { authOptions } from './auth'
 
 export async function withAuth<T = any>(
   request: NextRequest,
   handler: (request: NextRequest, context?: T) => Promise<NextResponse>,
   context?: T
 ) {
-  const token = await getToken({ req: request })
+  const session = await getServerSession(authOptions)
 
-  if (!token) {
+  if (!session?.user) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }
@@ -23,16 +24,16 @@ export async function withAdminAuth<T = any>(
   handler: (request: NextRequest, context?: T) => Promise<NextResponse>,
   context?: T
 ) {
-  const token = await getToken({ req: request })
+  const session = await getServerSession(authOptions)
 
-  if (!token) {
+  if (!session?.user) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }
     )
   }
 
-  if (token.role !== 'ADMIN') {
+  if (session.user.role !== 'ADMIN') {
     return NextResponse.json(
       { error: 'Forbidden - Admin access required' },
       { status: 403 }

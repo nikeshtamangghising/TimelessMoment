@@ -97,6 +97,93 @@ export class OrderRepository {
     return order as unknown as OrderWithItems
   }
 
+  async createGuestOrder(data: {
+    guestEmail: string
+    guestName: string
+    items: { productId: string; quantity: number; price: number }[]
+    total: number
+    shippingAddress: any
+    stripePaymentIntentId?: string
+  }): Promise<OrderWithItems> {
+    // First, validate inventory availability
+    for (const item of data.items) {
+      const product = await prisma.product.findUnique({
+        where: { id: item.productId },
+        select: { inventory: true, name: true }
+      })
+      
+      if (!product) {
+        throw new Error(`Product ${item.productId} not found`)
+      }
+      
+      if (product.inventory < item.quantity) {
+        throw new Error(`Insufficient inventory for product ${product.name}. Available: ${product.inventory}, Requested: ${item.quantity}`)
+      }
+    }
+
+    // Create guest order in a transaction with inventory updates
+    const order = await prisma.$transaction(async (tx) => {
+      // Create the guest order
+      const newOrder = await tx.order.create({
+        data: {
+          userId: null, // No user for guest orders
+          guestEmail: data.guestEmail,
+          guestName: data.guestName,
+          isGuestOrder: true,
+          total: data.total,
+          stripePaymentIntentId: data.stripePaymentIntentId,
+          status: 'PENDING',
+          shippingAddress: data.shippingAddress,
+          items: {
+            create: data.items.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              price: item.price
+            })),
+          },
+        } as any, // Type assertion to bypass Prisma type checking
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+          user: true,
+        },
+      })
+
+      // Update inventory levels and record adjustments
+      for (const item of data.items) {
+        // Decrease product inventory
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            inventory: {
+              decrement: item.quantity
+            }
+          }
+        })
+
+        // Record inventory adjustment
+        await tx.inventoryAdjustment.create({
+          data: {
+            productId: item.productId,
+            quantity: -item.quantity,
+            type: 'ORDER_PLACED',
+            reason: `Inventory reduced for guest order ${newOrder.id}`,
+          }
+        })
+      }
+
+      return newOrder
+    })
+
+    // Invalidate related caches
+    await invalidateOrder(order.id)
+
+    return order as unknown as OrderWithItems
+  }
+
   async findById(id: string): Promise<OrderWithItems | null> {
     const cacheKey = generateOrderCacheKey(id)
     
@@ -152,6 +239,54 @@ export class OrderRepository {
         },
       }),
       prisma.order.count({ where: { userId } }),
+    ])
+
+    return {
+      data: orders,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    }
+  }
+
+  async findByGuestEmail(
+    guestEmail: string,
+    pagination: PaginationInput = { page: 1, limit: 10 }
+  ): Promise<PaginatedResponse<OrderWithItems>> {
+    const { page, limit } = pagination
+    const skip = (page - 1) * limit
+
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where: { 
+          guestEmail,
+          isGuestOrder: true 
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          items: {
+            include: {
+              product: {
+                include: {
+                  category: true,
+                },
+              },
+            },
+          },
+          user: true,
+        },
+      }),
+      prisma.order.count({ 
+        where: { 
+          guestEmail,
+          isGuestOrder: true 
+        } 
+      }),
     ])
 
     return {

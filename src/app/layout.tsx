@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import AuthSessionProvider from '@/components/providers/session-provider'
 import { CartProvider } from '@/contexts/cart-context'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -63,7 +65,7 @@ export const metadata: Metadata = {
     google: process.env.GOOGLE_SITE_VERIFICATION,
   },
   category: 'ecommerce',
-  classification: 'E-commerce Platform',
+  classification: 'E-Commerce Platform',
   referrer: 'origin-when-cross-origin',
   applicationName: 'E-Shop',
   appleWebApp: {
@@ -74,11 +76,13 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const session = await getServerSession(authOptions)
+
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <head>
@@ -106,7 +110,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="//api.stripe.com" />
       </head>
       <body className={inter.className}>
-        <AuthSessionProvider>
+        <AuthSessionProvider session={session}>
           <CartProvider>
             {children}
           </CartProvider>

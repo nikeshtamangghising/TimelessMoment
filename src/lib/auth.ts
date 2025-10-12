@@ -1,13 +1,12 @@
 import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import { PrismaAdapter } from '@next-auth/prisma-adapter'
-import { prisma } from './db'
 import { getUserByEmail } from './db-utils'
 import bcrypt from 'bcryptjs'
 
 export const authOptions: NextAuthOptions = {
   // Note: PrismaAdapter not compatible with CredentialsProvider + JWT sessions
   // adapter: PrismaAdapter(prisma),
+  secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-development',
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -89,12 +88,25 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/auth/signin',
   },
+  // Fix for Next.js 15 - explicitly set the base path
+  basePath: '/api/auth',
   debug: process.env.NODE_ENV === 'development',
+  logger: {
+    error: (code, metadata) => {
+      console.error('NextAuth Error:', code, metadata);
+    },
+    warn: (code) => {
+      console.warn('NextAuth Warning:', code);
+    },
+    debug: (code, metadata) => {
+      console.log('NextAuth Debug:', code, metadata);
+    },
+  },
 }
 
 // Helper function to get server session
 export async function getServerSession() {
-  const { getServerSession } = await import('next-auth/next')
+  const { getServerSession } = await import('next-auth')
   return getServerSession(authOptions)
 }
 

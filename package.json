@@ -31,7 +31,7 @@
     "docker:prod:down": "docker-compose -f docker-compose.prod.yml down",
     "docker:build": "docker build -t ecommerce-platform .",
     "docker:db:migrate": "docker-compose exec app-dev npx prisma migrate dev",
-    "docker:db:reset": "docker-compose exec app-dev npx prisma migrate reset"
+    "cron:orders": "node scripts/process-orders.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.8",

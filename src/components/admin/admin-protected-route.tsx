@@ -51,6 +51,17 @@ export default function AdminProtectedRoute({ children }: AdminProtectedRoutePro
     }
   }, [isAuthenticated, isAdmin, isLoading, router])
 
+  // Additional useEffect to handle edge cases where the above doesn't catch
+  useEffect(() => {
+    if (!isLoading && (!isAuthenticated || !isAdmin)) {
+      if (!isAuthenticated) {
+        router.push('/auth/signin?redirect=/admin')
+      } else if (!isAdmin) {
+        router.push('/')
+      }
+    }
+  }, [isAuthenticated, isAdmin, isLoading, router])
+
   // Prevent hydration mismatch
   if (!mounted) {
     return null
@@ -79,10 +90,9 @@ export default function AdminProtectedRoute({ children }: AdminProtectedRoutePro
     )
   }
 
-  // Final check before rendering
+  // Final check before rendering - if we reach here, something went wrong
+  // Just return null and let the useEffect handle the redirect
   if (!isAuthenticated || !isAdmin) {
-    // This should not happen due to the useEffect above, but just in case
-    router.push('/auth/signin?redirect=/admin')
     return null
   }
 

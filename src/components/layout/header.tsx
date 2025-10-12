@@ -7,12 +7,14 @@ import { useAuth } from '@/hooks/use-auth'
 import { signOut } from 'next-auth/react'
 import Button from '@/components/ui/button'
 import { UserIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
+import ProfileDropdown from './profile-dropdown'
 import CartIcon from '@/components/cart/cart-icon'
 import SearchAutocomplete from '@/components/search/search-autocomplete'
 
 export default function Header() {
   const { user, isAuthenticated, isAdmin } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
 
   const handleSignOut = () => {
     signOut({ callbackUrl: '/' })
@@ -20,6 +22,10 @@ export default function Header() {
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen)
+    // Close profile dropdown when opening mobile menu
+    if (!isMobileMenuOpen) {
+      setIsProfileDropdownOpen(false)
+    }
   }
 
 
@@ -47,12 +53,19 @@ export default function Header() {
             >
               Categories
             </Link>
-            {isAuthenticated && (
+            {isAuthenticated ? (
               <Link
                 href="/orders"
                 className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium"
               >
                 My Orders
+              </Link>
+            ) : (
+              <Link
+                href="/guest-orders"
+                className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium"
+              >
+                Track Orders
               </Link>
             )}
             {isAdmin && (
@@ -85,22 +98,44 @@ export default function Header() {
             </button>
 
             {/* Desktop User menu */}
-            <div className="hidden md:flex md:items-center md:space-x-3">
+            <div className="hidden md:flex md:items-center md:space-x-3 relative">
               {isAuthenticated ? (
                 <>
-                  <div className="flex items-center space-x-2">
-                    <UserIcon className="h-5 w-5 text-gray-400" />
+                  {/* Profile Icon Button */}
+                  <button
+                    onClick={() => {
+                      setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                      // Close mobile menu when opening profile dropdown
+                      if (!isProfileDropdownOpen) {
+                        setIsMobileMenuOpen(false)
+                      }
+                    }}
+                    className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-medium text-indigo-600">
+                        {user?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase()}
+                      </span>
+                    </div>
                     <span className="text-sm text-gray-700 hidden lg:block">
                       {user?.name}
                     </span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSignOut}
-                  >
-                    Sign Out
-                  </Button>
+                    <svg
+                      className={`w-4 h-4 text-gray-400 transition-transform ${isProfileDropdownOpen ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {/* Profile Dropdown */}
+                  <ProfileDropdown
+                    user={user!}
+                    isOpen={isProfileDropdownOpen}
+                    onClose={() => setIsProfileDropdownOpen(false)}
+                  />
                 </>
               ) : (
                 <div className="flex items-center space-x-2">
@@ -139,13 +174,21 @@ export default function Header() {
             >
               Categories
             </Link>
-            {isAuthenticated && (
+            {isAuthenticated ? (
               <Link
                 href="/orders"
                 className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-indigo-600 hover:bg-gray-50 rounded-md transition-colors"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 My Orders
+              </Link>
+            ) : (
+              <Link
+                href="/guest-orders"
+                className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-indigo-600 hover:bg-gray-50 rounded-md transition-colors"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Track Orders
               </Link>
             )}
             {isAdmin && (
@@ -162,21 +205,43 @@ export default function Header() {
             <div className="border-t border-gray-200 pt-3 mt-3">
               {isAuthenticated ? (
                 <>
-                  <div className="flex items-center px-3 py-2">
-                    <UserIcon className="h-5 w-5 text-gray-400 mr-2" />
-                    <span className="text-sm text-gray-700">
-                      {user?.name}
-                    </span>
-                  </div>
                   <button
                     onClick={() => {
-                      handleSignOut()
-                      setIsMobileMenuOpen(false)
+                      setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                      // Close mobile menu when opening profile dropdown
+                      if (!isProfileDropdownOpen) {
+                        setIsMobileMenuOpen(false)
+                      }
                     }}
-                    className="block w-full text-left px-3 py-2 text-base font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    className="flex items-center w-full px-3 py-2 text-left"
                   >
-                    Sign Out
+                    <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+                      <span className="text-sm font-medium text-indigo-600">
+                        {user?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                      <p className="text-xs text-gray-500">{user?.email}</p>
+                    </div>
+                    <svg
+                      className={`w-4 h-4 text-gray-400 transition-transform ${isProfileDropdownOpen ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                   </button>
+
+                  {/* Mobile Profile Dropdown */}
+                  <div className="mt-2">
+                    <ProfileDropdown
+                      user={user!}
+                      isOpen={isProfileDropdownOpen}
+                      onClose={() => setIsProfileDropdownOpen(false)}
+                    />
+                  </div>
                 </>
               ) : (
                 <div className="space-y-1">

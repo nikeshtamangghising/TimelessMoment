@@ -1,7 +1,7 @@
-import { User, Product, Order, OrderItem, Role, OrderStatus, InventoryChangeType, Category, Brand } from '@prisma/client'
+import { User, Product, Order, OrderItem, Role, OrderStatus, InventoryChangeType, Category, Brand, Address, AddressType } from '@prisma/client'
 
 // Re-export Prisma types
-export type { User, Product, Order, OrderItem, Role, OrderStatus, InventoryChangeType, Category, Brand }
+export type { User, Product, Order, OrderItem, Role, OrderStatus, InventoryChangeType, Category, Brand, Address, AddressType }
 
 // Extended types with relations
 export type UserWithOrders = User & {
@@ -19,7 +19,7 @@ export type OrderWithItems = Order & {
       category?: Category
     }
   })[]
-  user: User
+  user?: User | null
 }
 
 export type OrderItemWithProduct = OrderItem & {
@@ -67,6 +67,25 @@ export type CreateOrderData = {
     price: number
   }[]
   total: number
+}
+
+export type CreateGuestOrderData = {
+  guestEmail: string
+  guestName: string
+  items: {
+    productId: string
+    quantity: number
+    price: number
+  }[]
+  total: number
+  shippingAddress: {
+    fullName: string
+    email: string
+    phone?: string
+    address: string
+    city: string
+    postalCode: string
+  }
 }
 
 // Filter and pagination types

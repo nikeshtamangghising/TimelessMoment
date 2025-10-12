@@ -4,6 +4,7 @@ import { getPaymentGatewayManager, parseESewaCallback, parseKhaltiCallback } fro
 import { prisma } from '@/lib/db'
 import { productRepository } from '@/lib/product-repository'
 import { EmailService } from '@/lib/email-service'
+import { orderProcessingService } from '@/lib/order-processing-service'
 
 // In-memory storage for session data (in production, use Redis or database)
 const paymentSessions = new Map<string, any>()
@@ -193,6 +194,14 @@ export async function POST(request: NextRequest) {
 
         return newOrder
       })
+
+      // Start order processing workflow
+      try {
+        await orderProcessingService.processOrderLifecycle(order.id)
+      } catch (processingError) {
+        console.error('Failed to start order processing:', processingError)
+        // Don't fail the order if processing fails
+      }
 
       // Send confirmation email if user email is available
       const userEmail = orderSessionData.guestEmail || order.user?.email

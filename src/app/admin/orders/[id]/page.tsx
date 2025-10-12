@@ -30,7 +30,7 @@ interface AdminOrderDetailPageProps {
 
 // Extend the OrderWithItems type to include shippingAddress
 interface OrderWithItemsAndShipping extends OrderWithItems {
-  shippingAddress?: any;
+  shippingAddress: any | null;
 }
 
 export default function AdminOrderDetailPage({ params }: AdminOrderDetailPageProps) {

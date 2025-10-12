@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createAuthHandler } from '@/lib/auth-middleware'
 import { getServerSession } from '@/lib/auth'
 import { orderRepository } from '@/lib/order-repository'
+import { orderProcessingService } from '@/lib/order-processing-service'
 
 const createOrderRequestSchema = z.object({
   items: z.array(z.object({
@@ -19,6 +20,7 @@ const createOrderRequestSchema = z.object({
     city: z.string(),
     postalCode: z.string(),
   }).optional(),
+  paymentTransactionId: z.string().optional(), // Optional payment/transaction ID
 })
 
 export const POST = createAuthHandler(async (request: NextRequest) => {
@@ -37,14 +39,26 @@ export const POST = createAuthHandler(async (request: NextRequest) => {
       )
     }
 
-    const { items, total, shippingAddress } = parse.data
+    const { items, total, shippingAddress, paymentTransactionId } = parse.data
+
+    // Generate a payment transaction ID if not provided (for demo/test orders)
+    const finalPaymentTransactionId = paymentTransactionId || `direct-order-${session.user.id}-${Date.now()}`
 
     const order = await orderRepository.create({
       userId: session.user.id,
       items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
       total,
       shippingAddress: shippingAddress ? shippingAddress : undefined,
+      stripePaymentIntentId: finalPaymentTransactionId,
     })
+
+    // Start order processing workflow
+    try {
+      await orderProcessingService.processOrderLifecycle(order.id)
+    } catch (processingError) {
+      console.error('Failed to start order processing:', processingError)
+      // Don't fail the order if processing fails
+    }
 
     return NextResponse.json({ success: true, order })
 

@@ -43,6 +43,8 @@ export default function OrderSummary({ items }: OrderSummaryProps) {
       setLoading(true)
       setError('')
       
+      console.log('Sending cart items to API:', items)
+      
       // Use API endpoint to get accurate calculations with database settings
       // Send minimal payload to satisfy API schema and avoid mismatches
       const response = await fetch('/api/cart/summary', {
@@ -58,23 +60,48 @@ export default function OrderSummary({ items }: OrderSummaryProps) {
         }),
       })
       
+      console.log('Cart summary API response status:', response.status)
+      console.log('Cart summary API response headers:', Object.fromEntries(response.headers.entries()))
+      
       if (!response.ok) {
-        throw new Error('Failed to calculate order summary')
+        const errorText = await response.text()
+        console.error('Cart summary API error response:', errorText)
+        throw new Error(`Failed to calculate order summary: ${response.status} ${response.statusText} - ${errorText}`)
       }
       
       const data = await response.json()
+      console.log('Cart summary API response data:', data)
       setSummary(data.summary)
     } catch (err) {
       console.error('Error calculating cart summary:', err)
-      setError('Failed to calculate order total')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to calculate order total'
+      setError(errorMessage)
       
       // Fallback to hardcoded values if API call fails
-      const fallbackSummary = getCartSummary(items)
-      setSummary({
-        ...fallbackSummary,
-        taxRate: 0.13,
-        shippingRate: 200
-      })
+      try {
+        const fallbackSummary = getCartSummary(items)
+        setSummary({
+          ...fallbackSummary,
+          taxRate: 0.13,
+          shippingRate: 200
+        })
+      } catch (fallbackError) {
+        console.error('Error calculating fallback summary:', fallbackError)
+        // Set a minimal summary if even fallback fails
+        const itemsCount = items.reduce((total, item) => total + item.quantity, 0)
+        const subtotal = items.reduce((total, item) => total + (item.product.discountPrice || item.product.price) * item.quantity, 0)
+        setSummary({
+          subtotal,
+          shipping: 200,
+          tax: subtotal * 0.13,
+          total: subtotal + 200 + (subtotal * 0.13),
+          itemsCount,
+          freeShippingThreshold: 2000,
+          freeShippingRemaining: Math.max(0, 2000 - subtotal),
+          taxRate: 0.13,
+          shippingRate: 200
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -104,7 +131,8 @@ export default function OrderSummary({ items }: OrderSummaryProps) {
           </h2>
         </CardHeader>
         <CardContent className="text-center py-8">
-          <p className="text-red-600 text-sm">{error}</p>
+          <p className="text-red-600 text-sm mb-4">{error}</p>
+          <p className="text-gray-600 text-sm mb-4">Displaying estimated totals</p>
           <button
             onClick={fetchCartSummary}
             className="mt-2 text-indigo-600 hover:text-indigo-500 text-sm"
@@ -155,7 +183,7 @@ export default function OrderSummary({ items }: OrderSummaryProps) {
                   </Link>
                 </h4>
                 <p className="text-sm text-gray-500">
-                  {item.product.category?.name || 'Uncategorized'}
+                  {(item.product as any).category?.name || (item.product as any).category || 'Uncategorized'}
                 </p>
               </div>
               
