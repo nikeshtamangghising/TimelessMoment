@@ -81,6 +81,15 @@ export function createDynamicComponent<T = any>(
 export function preloadCriticalComponents(): void {
   if (typeof window === 'undefined') return
 
+  // Only preload if user is likely to use these components
+  const shouldPreload = () => {
+    // Check if user is on a page where these components might be used
+    const path = window.location.pathname
+    return path.includes('/cart') || path.includes('/product') || path.includes('/admin')
+  }
+
+  if (!shouldPreload()) return
+
   // Preload components that are likely to be used soon
   const criticalComponents = [
     () => import('@/components/cart/cart-sidebar'),
@@ -88,19 +97,19 @@ export function preloadCriticalComponents(): void {
   ]
 
   criticalComponents.forEach(importFn => {
-    // Preload with low priority
+    // Preload with low priority and only after a delay
     if ('requestIdleCallback' in window) {
       window.requestIdleCallback(() => {
         importFn().catch(() => {
           // Ignore preload errors
         })
-      })
+      }, { timeout: 5000 })
     } else {
       setTimeout(() => {
         importFn().catch(() => {
           // Ignore preload errors
         })
-      }, 2000)
+      }, 3000)
     }
   })
 }

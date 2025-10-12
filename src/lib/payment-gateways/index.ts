@@ -1,5 +1,6 @@
 import { ESewaGateway, getESewaGateway, ESewaPaymentData } from './esewa'
 import { KhaltiGateway, getKhaltiGateway, KhaltiPaymentData } from './khalti'
+import { formatCurrency } from '@/lib/currency'
 
 export type PaymentMethod = 'esewa' | 'khalti' | 'cod'
 
@@ -254,12 +255,8 @@ export * from './esewa'
 export * from './khalti'
 
 // Helper functions
-export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-NP', {
-    style: 'currency',
-    currency: 'NPR',
-    minimumFractionDigits: 2,
-  }).format(amount)
+export const formatCurrencyAmount = (amount: number): string => {
+  return formatCurrency(amount, 'NPR')
 }
 
 export const getAvailablePaymentMethods = (): PaymentMethod[] => {

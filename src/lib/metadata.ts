@@ -29,7 +29,7 @@ export function generateMetadata(config: MetadataConfig): Metadata {
     url,
     type = 'website',
     price,
-    currency = 'USD',
+    currency = 'NPR',
     availability = 'in_stock',
   } = config;
 

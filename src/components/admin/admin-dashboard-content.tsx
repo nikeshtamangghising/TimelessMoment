@@ -7,10 +7,18 @@ import {
   UsersIcon, 
   CubeIcon,
   ArrowUpIcon,
-  ArrowDownIcon
+  ArrowDownIcon,
+  ChartBarIcon,
+  ClockIcon,
+  ExclamationTriangleIcon,
+  EyeIcon,
+  PlusIcon,
+  TrendingUpIcon,
+  TrendingDownIcon
 } from '@heroicons/react/24/outline'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import Loading from '@/components/ui/loading'
+import Button from '@/components/ui/button'
 import { formatPrice } from '@/lib/cart-utils'
 
 interface DashboardStats {
@@ -22,6 +30,27 @@ interface DashboardStats {
   ordersChange: number
   customersChange: number
   productsChange: number
+  ordersByStatus?: Array<{
+    status: string
+    count: number
+  }>
+  averageOrderValue?: number
+}
+
+interface LowStockProduct {
+  id: string
+  name: string
+  inventory: number
+  lowStockThreshold: number
+}
+
+interface PendingOrder {
+  id: string
+  customerName: string
+  total: number
+  status: string
+  createdAt: string
+  itemsCount: number
 }
 
 interface RecentOrder {
@@ -32,9 +61,15 @@ interface RecentOrder {
   createdAt: string
 }
 
-export default function AdminDashboardContent() {
+interface AdminDashboardContentProps {
+  onTabChange?: (tab: string) => void
+}
+
+export default function AdminDashboardContent({ onTabChange }: AdminDashboardContentProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
+  const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>([])
+  const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>('')
 
@@ -47,23 +82,29 @@ export default function AdminDashboardContent() {
     setError('')
 
     try {
-      // Fetch dashboard statistics
-      const [statsResponse, ordersResponse] = await Promise.all([
+      // Fetch dashboard statistics and additional data
+      const [statsResponse, ordersResponse, lowStockResponse, pendingOrdersResponse] = await Promise.all([
         fetch('/api/admin/dashboard/stats'),
-        fetch('/api/orders?limit=5')
+        fetch('/api/orders?limit=5'),
+        fetch('/api/inventory/low-stock'),
+        fetch('/api/orders?status=PENDING&limit=5')
       ])
 
-      if (!statsResponse.ok || !ordersResponse.ok) {
+      if (!statsResponse.ok) {
         throw new Error('Failed to fetch dashboard data')
       }
 
-      const [statsData, ordersData] = await Promise.all([
+      const [statsData, ordersData, lowStockData, pendingOrdersData] = await Promise.all([
         statsResponse.json(),
-        ordersResponse.json()
+        ordersResponse.ok ? ordersResponse.json() : { data: [] },
+        lowStockResponse.ok ? lowStockResponse.json() : { data: [] },
+        pendingOrdersResponse.ok ? pendingOrdersResponse.json() : { data: [] }
       ])
 
       setStats(statsData)
       setRecentOrders(ordersData.data || [])
+      setLowStockProducts(lowStockData.data || [])
+      setPendingOrders(pendingOrdersData.data || [])
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard'
       setError(errorMessage)
@@ -101,6 +142,12 @@ export default function AdminDashboardContent() {
     }
   }
 
+  const handleQuickAction = (tab: string) => {
+    if (onTabChange) {
+      onTabChange(tab)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-16">
@@ -129,9 +176,22 @@ export default function AdminDashboardContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Welcome back! Here&apos;s what&apos;s happening with your store.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600">Welcome back! Here&apos;s what&apos;s happening with your store.</p>
+        </div>
+        <div className="flex items-center space-x-3">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={fetchDashboardData}
+            disabled={loading}
+          >
+            <ClockIcon className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -255,12 +315,74 @@ export default function AdminDashboardContent() {
         </div>
       )}
 
+      {/* Additional Insights */}
+      {stats && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Average Order Value */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <ChartBarIcon className="h-8 w-8 text-indigo-600" />
+                </div>
+                <div className="ml-4 flex-1">
+                  <p className="text-sm font-medium text-gray-500">Average Order Value</p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {formatPrice(stats.averageOrderValue || 0)}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Per order</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Low Stock Alert */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <ExclamationTriangleIcon className="h-8 w-8 text-orange-600" />
+                </div>
+                <div className="ml-4 flex-1">
+                  <p className="text-sm font-medium text-gray-500">Low Stock Items</p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {lowStockProducts.length}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Need attention</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Pending Orders */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <ClockIcon className="h-8 w-8 text-yellow-600" />
+                </div>
+                <div className="ml-4 flex-1">
+                  <p className="text-sm font-medium text-gray-500">Pending Orders</p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {pendingOrders.length}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Awaiting processing</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Recent Orders */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-medium text-gray-900">Recent Orders</h2>
-            <button className="text-sm text-indigo-600 hover:text-indigo-500">
+            <button 
+              className="text-sm text-indigo-600 hover:text-indigo-500"
+              onClick={() => handleQuickAction('orders')}
+            >
               View all orders →
             </button>
           </div>
@@ -297,29 +419,95 @@ export default function AdminDashboardContent() {
         </CardContent>
       </Card>
 
+      {/* Low Stock Products */}
+      {lowStockProducts.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-gray-900">Low Stock Alert</h2>
+              <div className="flex items-center space-x-2">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                  {lowStockProducts.length} items
+                </span>
+                <button 
+                  className="text-sm text-indigo-600 hover:text-indigo-500"
+                  onClick={() => handleQuickAction('inventory')}
+                >
+                  Manage →
+                </button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {lowStockProducts.slice(0, 5).map((product) => (
+                <div key={product.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{product.name}</p>
+                    <p className="text-xs text-gray-500">Threshold: {product.lowStockThreshold}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-orange-600">{product.inventory} left</p>
+                    <p className="text-xs text-gray-500">Stock</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <Card 
+          className="hover:shadow-lg transition-shadow cursor-pointer group"
+          onClick={() => handleQuickAction('products')}
+        >
           <CardContent className="p-6 text-center">
-            <CubeIcon className="h-12 w-12 text-indigo-600 mx-auto mb-4" />
+            <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
+              <PlusIcon className="h-6 w-6 text-indigo-600" />
+            </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Add Product</h3>
-            <p className="text-gray-500">Add a new product to your inventory</p>
+            <p className="text-gray-500 text-sm">Add a new product to your inventory</p>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+        <Card 
+          className="hover:shadow-lg transition-shadow cursor-pointer group"
+          onClick={() => handleQuickAction('orders')}
+        >
           <CardContent className="p-6 text-center">
-            <ShoppingBagIcon className="h-12 w-12 text-green-600 mx-auto mb-4" />
+            <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
+              <ShoppingBagIcon className="h-6 w-6 text-green-600" />
+            </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Manage Orders</h3>
-            <p className="text-gray-500">View and update order statuses</p>
+            <p className="text-gray-500 text-sm">View and update order statuses</p>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+        <Card 
+          className="hover:shadow-lg transition-shadow cursor-pointer group"
+          onClick={() => handleQuickAction('customers')}
+        >
           <CardContent className="p-6 text-center">
-            <UsersIcon className="h-12 w-12 text-purple-600 mx-auto mb-4" />
+            <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
+              <UsersIcon className="h-6 w-6 text-purple-600" />
+            </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">View Customers</h3>
-            <p className="text-gray-500">Manage customer accounts and data</p>
+            <p className="text-gray-500 text-sm">Manage customer accounts and data</p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="hover:shadow-lg transition-shadow cursor-pointer group"
+          onClick={() => handleQuickAction('analytics')}
+        >
+          <CardContent className="p-6 text-center">
+            <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+              <ChartBarIcon className="h-6 w-6 text-blue-600" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">View Analytics</h3>
+            <p className="text-gray-500 text-sm">Detailed insights and reports</p>
           </CardContent>
         </Card>
       </div>

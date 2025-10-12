@@ -26,8 +26,9 @@ export const createProductSchema = z.object({
   description: z.string().min(1, 'Product description is required'),
   shortDescription: z.string().optional(),
   price: z.number().positive('Price must be positive'),
+  purchasePrice: z.number().positive('Purchase price must be positive').optional().nullable(),
   discountPrice: z.number().positive('Discount price must be positive').optional().nullable(),
-  currency: z.string().min(3, 'Currency code is required').max(3).default('USD'),
+  currency: z.string().min(3, 'Currency code is required').max(3).default('NPR'),
   images: z.array(
     z.string()
       .min(1, 'Image path cannot be empty')
@@ -108,6 +109,8 @@ export const productFiltersSchema = z.object({
   search: z.string().optional(),
   isActive: z.boolean().optional(),
   sort: z.enum(['newest', 'price-low', 'price-high', 'rating', 'popular']).optional(),
+  lowStock: z.boolean().optional(),
+  outOfStock: z.boolean().optional(),
 })
 
 // Cart validation schemas

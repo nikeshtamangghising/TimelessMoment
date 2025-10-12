@@ -17,12 +17,36 @@ const nextConfig = {
         net: false,
         tls: false,
       };
+      
+      // Optimize chunk loading
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          chunks: 'all',
+          cacheGroups: {
+            vendor: {
+              test: /[\\/]node_modules[\\/]/,
+              name: 'vendors',
+              chunks: 'all',
+            },
+            admin: {
+              test: /[\\/]src[\\/]components[\\/]admin[\\/]/,
+              name: 'admin',
+              chunks: 'all',
+            },
+          },
+        },
+      };
     }
 
     return config;
   },
   experimental: {
     optimizePackageImports: ['@heroicons/react'],
+    // Reduce preload warnings by optimizing resource loading
+    optimizeCss: true,
+    // Disable automatic preloading for better control
+    disableOptimizedLoading: false,
   },
   // React 18 specific optimizations
   reactStrictMode: true,

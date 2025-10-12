@@ -517,9 +517,9 @@ export default function CheckoutPage() {
                           <div className="text-xs text-gray-500">Cash on Delivery</div>
                         </div>
                         <span className="text-2xl font-bold text-green-700">
-                          {new Intl.NumberFormat('en-US', {
+                          {new Intl.NumberFormat('en-NP', {
                             style: 'currency',
-                            currency: 'USD',
+                            currency: 'NPR',
                           }).format(orderTotal)}
                         </span>
                       </div>

@@ -38,6 +38,11 @@ interface AnalyticsStats {
     description: string
     timestamp: string
   }>
+  salesData: Array<{
+    period: string
+    revenue: number
+    orders: number
+  }>
 }
 
 interface SalesData {
@@ -48,7 +53,6 @@ interface SalesData {
 
 export default function AdminAnalyticsTab() {
   const [stats, setStats] = useState<AnalyticsStats | null>(null)
-  const [salesData, setSalesData] = useState<SalesData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>('')
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d')
@@ -62,42 +66,14 @@ export default function AdminAnalyticsTab() {
     setError('')
 
     try {
-      // Mock data - replace with actual API call to /api/admin/analytics
-      const mockStats: AnalyticsStats = {
-        totalRevenue: 45280.50,
-        totalOrders: 324,
-        totalCustomers: 178,
-        totalProducts: 89,
-        revenueChange: 12.5,
-        ordersChange: 8.3,
-        customersChange: 15.2,
-        productsChange: 4.1,
-        averageOrderValue: 139.75,
-        conversionRate: 3.2,
-        topSellingProducts: [
-          { id: '1', name: 'Premium Headphones', sales: 45, revenue: 6750 },
-          { id: '2', name: 'Wireless Mouse', sales: 38, revenue: 2280 },
-          { id: '3', name: 'Mechanical Keyboard', sales: 32, revenue: 4800 },
-          { id: '4', name: 'USB-C Cable', sales: 67, revenue: 1340 },
-          { id: '5', name: 'Phone Case', sales: 28, revenue: 840 }
-        ],
-        recentActivity: [
-          { id: '1', type: 'order', description: 'New order #ORD-001 placed', timestamp: '2023-12-15T10:30:00Z' },
-          { id: '2', type: 'customer', description: 'New customer registered: John Doe', timestamp: '2023-12-15T09:15:00Z' },
-          { id: '3', type: 'product', description: 'Product "Wireless Earbuds" low on stock', timestamp: '2023-12-15T08:45:00Z' },
-          { id: '4', type: 'order', description: 'Order #ORD-002 shipped', timestamp: '2023-12-14T16:20:00Z' }
-        ]
+      const response = await fetch(`/api/admin/analytics?timeRange=${timeRange}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch analytics data')
       }
 
-      const mockSalesData: SalesData[] = [
-        { period: 'Week 1', revenue: 8450, orders: 62 },
-        { period: 'Week 2', revenue: 12340, orders: 88 },
-        { period: 'Week 3', revenue: 9870, orders: 71 },
-        { period: 'Week 4', revenue: 14620, orders: 103 }
-      ]
-
-      setStats(mockStats)
-      setSalesData(mockSalesData)
+      const data: AnalyticsStats = await response.json()
+      setStats(data)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load analytics'
       setError(errorMessage)
@@ -281,7 +257,7 @@ export default function AdminAnalyticsTab() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {salesData.map((period, index) => (
+                  {stats.salesData.map((period, index) => (
                     <div key={period.period} className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <div className="w-3 h-3 bg-indigo-500 rounded-full"></div>
@@ -355,7 +331,7 @@ export default function AdminAnalyticsTab() {
               <CardContent className="p-6 text-center">
                 <ChartBarIcon className="h-12 w-12 text-green-600 mx-auto mb-4" />
                 <h3 className="text-2xl font-bold text-gray-900">
-                  {formatPrice(stats.totalRevenue / stats.totalOrders)}
+                  {formatPrice(stats.averageOrderValue)}
                 </h3>
                 <p className="text-sm text-gray-500">Average Order Value</p>
               </CardContent>

@@ -5,6 +5,7 @@ import AuthSessionProvider from '@/components/providers/session-provider'
 import { CartProvider } from '@/contexts/cart-context'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import ChunkErrorHandler from '@/components/chunk-error-handler'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -110,6 +111,7 @@ export default async function RootLayout({
         <link rel="dns-prefetch" href="//api.stripe.com" />
       </head>
       <body className={inter.className}>
+        <ChunkErrorHandler />
         <AuthSessionProvider session={session}>
           <CartProvider>
             {children}

@@ -16,7 +16,7 @@ export default function CartReferenceDebug() {
       shortDescription: `Short description ${productNumber}`,
       price: 100 + productNumber * 10,
       discountPrice: null,
-      currency: 'USD',
+      currency: 'NPR',
       images: ['/placeholder-product.jpg'],
       inventory: 10,
       lowStockThreshold: 2,

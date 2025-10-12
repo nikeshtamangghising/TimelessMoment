@@ -17,7 +17,7 @@ export default function CartDebugSimple() {
       shortDescription: `Short description ${testCount + 1}`,
       price: 100 + testCount * 10,
       discountPrice: null,
-      currency: 'USD',
+      currency: 'NPR',
       images: ['/placeholder-product.jpg'],
       inventory: 10,
       lowStockThreshold: 2,

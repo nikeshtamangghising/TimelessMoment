@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import Button from '@/components/ui/button'
 import Input from '@/components/ui/input'
 import Loading from '@/components/ui/loading'
+import { formatCurrency } from '@/lib/currency'
 
 type Customer = {
   id: string
@@ -22,6 +23,18 @@ type Customer = {
   totalSpent: number
   isActive: boolean
   lastOrderDate?: string
+  role: string
+  emailVerified?: string
+}
+
+type CustomersResponse = {
+  data: Customer[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
 }
 
 export default function AdminCustomersTab() {
@@ -31,10 +44,14 @@ export default function AdminCustomersTab() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [currentPage, setCurrentPage] = useState(1)
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  })
 
   useEffect(() => {
-    // For now, we'll use mock data since there's no customer API yet
-    // In a real implementation, you would fetch from /api/customers
     fetchCustomers()
   }, [currentPage, searchQuery, statusFilter])
 
@@ -43,51 +60,24 @@ export default function AdminCustomersTab() {
     setError('')
 
     try {
-      // Mock data - replace with actual API call
-      const mockCustomers: Customer[] = [
-        {
-          id: '1',
-          name: 'John Doe',
-          email: 'john@example.com',
-          joinedAt: '2023-01-15T10:00:00Z',
-          totalOrders: 12,
-          totalSpent: 1240.50,
-          isActive: true,
-          lastOrderDate: '2023-12-01T14:30:00Z'
-        },
-        {
-          id: '2',
-          name: 'Jane Smith',
-          email: 'jane@example.com',
-          joinedAt: '2023-02-20T09:15:00Z',
-          totalOrders: 8,
-          totalSpent: 890.25,
-          isActive: true,
-          lastOrderDate: '2023-11-28T16:20:00Z'
-        },
-        {
-          id: '3',
-          name: 'Mike Johnson',
-          email: 'mike@example.com',
-          joinedAt: '2023-03-10T11:45:00Z',
-          totalOrders: 0,
-          totalSpent: 0,
-          isActive: false
-        }
-      ]
-
-      // Apply filters
-      const filteredCustomers = mockCustomers.filter(customer => {
-        const matchesSearch = customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                             customer.email.toLowerCase().includes(searchQuery.toLowerCase())
-        const matchesStatus = statusFilter === 'all' || 
-                             (statusFilter === 'active' && customer.isActive) ||
-                             (statusFilter === 'inactive' && !customer.isActive)
-        
-        return matchesSearch && matchesStatus
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: '10',
+        search: searchQuery,
+        status: statusFilter,
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
       })
 
-      setCustomers(filteredCustomers)
+      const response = await fetch(`/api/customers?${params}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch customers')
+      }
+
+      const data: CustomersResponse = await response.json()
+      setCustomers(data.data)
+      setPagination(data.pagination)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load customers'
       setError(errorMessage)
@@ -111,10 +101,7 @@ export default function AdminCustomersTab() {
   }
 
   const formatPrice = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount)
+    return formatCurrency(amount, 'NPR')
   }
 
   return (
@@ -304,12 +291,58 @@ export default function AdminCustomersTab() {
         </CardContent>
       </Card>
 
+      {/* Pagination */}
+      {pagination.totalPages > 1 && (
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} customers
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                    const pageNum = i + 1
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                      >
+                        {pageNum}
+                      </Button>
+                    )
+                  })}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(pagination.totalPages, prev + 1))}
+                  disabled={currentPage === pagination.totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Customer Insights */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardContent className="p-6 text-center">
             <UsersIcon className="h-12 w-12 text-indigo-600 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-gray-900">{customers.length}</h3>
+            <h3 className="text-2xl font-bold text-gray-900">{pagination.total}</h3>
             <p className="text-sm text-gray-500">Total Customers</p>
           </CardContent>
         </Card>
@@ -320,7 +353,7 @@ export default function AdminCustomersTab() {
             <h3 className="text-2xl font-bold text-gray-900">
               {customers.filter(c => c.isActive).length}
             </h3>
-            <p className="text-sm text-gray-500">Active Customers</p>
+            <p className="text-sm text-gray-500">Active (This Page)</p>
           </CardContent>
         </Card>
 
@@ -330,7 +363,7 @@ export default function AdminCustomersTab() {
             <h3 className="text-2xl font-bold text-gray-900">
               {formatPrice(customers.reduce((sum, c) => sum + c.totalSpent, 0))}
             </h3>
-            <p className="text-sm text-gray-500">Total Customer Value</p>
+            <p className="text-sm text-gray-500">Value (This Page)</p>
           </CardContent>
         </Card>
       </div>

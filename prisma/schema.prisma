@@ -83,6 +83,7 @@ model Product {
   description          String               @db.Text
   shortDescription     String?              // For cards and listings
   price                Float
+  purchasePrice        Float?               // The cost of acquiring the product
   discountPrice        Float?               // For sale pricing
   currency             String               @default("NPR")
   images               String[]

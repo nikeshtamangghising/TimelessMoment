@@ -80,8 +80,26 @@ export default function RecommendationsSection() {
     )
   }
 
-  if (error || !recommendations) {
-    return null // Don't show section if there's an error or no recommendations
+  if (error) {
+    return (
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">Failed to load recommendations: {error}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (!recommendations) {
+    return null // Don't show section if no recommendations
   }
 
   return (

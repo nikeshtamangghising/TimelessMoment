@@ -1,4 +1,4 @@
-import { prisma } from './db'
+import { prisma, Prisma } from './db'
 import { 
   CreateProductInput, 
   UpdateProductInput, 
@@ -433,6 +433,16 @@ export class ProductRepository {
         { description: { contains: filters.search, mode: 'insensitive' } },
         { tags: { has: filters.search } },
       ]
+    }
+
+    if (filters.lowStock) {
+      where.AND = where.AND || [];
+      where.AND.push({ inventory: { gt: 0 } });
+      where.AND.push({ inventory: { lte: Prisma.raw('"lowStockThreshold"') } });
+    }
+
+    if (filters.outOfStock) {
+      where.inventory = 0;
     }
 
     return where

@@ -45,13 +45,13 @@ describe('Metadata Generation', () => {
         description: 'Test product description',
         type: 'product',
         price: 99.99,
-        currency: 'USD',
+        currency: 'NPR',
         availability: 'in_stock',
       })
 
       expect(metadata.openGraph?.type).toBe('product')
       expect(metadata.other?.['product:price:amount']).toBe('99.99')
-      expect(metadata.other?.['product:price:currency']).toBe('USD')
+      expect(metadata.other?.['product:price:currency']).toBe('NPR')
       expect(metadata.other?.['product:availability']).toBe('in_stock')
     })
 

@@ -17,16 +17,45 @@ import {
 } from '@heroicons/react/24/outline'
 import { signOut } from 'next-auth/react'
 import { useAuth } from '@/hooks/use-auth'
+import dynamic from 'next/dynamic'
 import Button from '@/components/ui/button'
-import AdminDashboardContent from './admin-dashboard-content'
-import AdminSettingsTab from './admin-settings-tab'
-import AdminProductsTab from './admin-products-tab'
-import AdminBrandsTab from './admin-brands-tab'
-import AdminCategoriesTab from './admin-categories-tab'
-import AdminInventoryTab from './admin-inventory-tab'
-import AdminOrdersTab from './admin-orders-tab'
-import AdminCustomersTab from './admin-customers-tab'
-import AdminAnalyticsTab from './admin-analytics-tab'
+
+// Dynamic imports to prevent chunk loading errors
+const AdminDashboardContent = dynamic(() => import('./admin-dashboard-content'), {
+  loading: () => <div className="flex justify-center items-center py-16">Loading dashboard...</div>
+})
+
+const AdminSettingsTab = dynamic(() => import('./admin-settings-tab'), {
+  loading: () => <div className="flex justify-center items-center py-16">Loading settings...</div>
+})
+
+const AdminProductsTab = dynamic(() => import('./admin-products-tab'), {
+  loading: () => <div className="flex justify-center items-center py-16">Loading products...</div>
+})
+
+const AdminBrandsTab = dynamic(() => import('./admin-brands-tab'), {
+  loading: () => <div className="flex justify-center items-center py-16">Loading brands...</div>
+})
+
+const AdminCategoriesTab = dynamic(() => import('./admin-categories-tab'), {
+  loading: () => <div className="flex justify-center items-center py-16">Loading categories...</div>
+})
+
+const AdminInventoryTab = dynamic(() => import('./admin-inventory-tab'), {
+  loading: () => <div className="flex justify-center items-center py-16">Loading inventory...</div>
+})
+
+const AdminOrdersTab = dynamic(() => import('./admin-orders-tab'), {
+  loading: () => <div className="flex justify-center items-center py-16">Loading orders...</div>
+})
+
+const AdminCustomersTab = dynamic(() => import('./admin-customers-tab'), {
+  loading: () => <div className="flex justify-center items-center py-16">Loading customers...</div>
+})
+
+const AdminAnalyticsTab = dynamic(() => import('./admin-analytics-tab'), {
+  loading: () => <div className="flex justify-center items-center py-16">Loading analytics...</div>
+})
 
 export type AdminTab = 'dashboard' | 'products' | 'categories' | 'brands' | 'inventory' | 'orders' | 'customers' | 'analytics' | 'settings'
 
@@ -60,7 +89,7 @@ export default function AdminDashboardTabs() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <AdminDashboardContent />
+        return <AdminDashboardContent onTabChange={setActiveTab} />
       case 'settings':
         return <AdminSettingsTab />
       case 'products':
@@ -78,7 +107,7 @@ export default function AdminDashboardTabs() {
       case 'analytics':
         return <AdminAnalyticsTab />
       default:
-        return <AdminDashboardContent />
+        return <AdminDashboardContent onTabChange={setActiveTab} />
     }
   }
 
@@ -115,18 +144,21 @@ export default function AdminDashboardTabs() {
                         setActiveTab(tab.id)
                         setSidebarOpen(false)
                       }}
-                      className={`w-full group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      className={`w-full group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                         isActive
-                          ? 'bg-indigo-100 text-indigo-700'
-                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                          ? 'bg-indigo-100 text-indigo-700 shadow-sm'
+                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 hover:shadow-sm'
                       }`}
                     >
                       <tab.icon
-                        className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                        className={`mr-3 h-5 w-5 flex-shrink-0 transition-colors ${
                           isActive ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'
                         }`}
                       />
-                      {tab.name}
+                      <span className="flex-1 text-left">{tab.name}</span>
+                      {isActive && (
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                      )}
                     </button>
                   )
                 })}
@@ -183,18 +215,21 @@ export default function AdminDashboardTabs() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  className={`w-full group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                     isActive
-                      ? 'bg-indigo-100 text-indigo-700'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-indigo-100 text-indigo-700 shadow-sm'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 hover:shadow-sm'
                   }`}
                 >
                   <tab.icon
-                    className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                    className={`mr-3 h-5 w-5 flex-shrink-0 transition-colors ${
                       isActive ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'
                     }`}
                   />
-                  {tab.name}
+                  <span className="flex-1 text-left">{tab.name}</span>
+                  {isActive && (
+                    <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                  )}
                 </button>
               )
             })}

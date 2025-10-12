@@ -257,11 +257,16 @@ export class RecommendationEngine {
     userId?: string,
     limits = { personalized: 12, popular: 12, trending: 12 }
   ): Promise<ProductRecommendations> {
-    const [personalized, popular, trending] = await Promise.all([
-      userId ? this.getPersonalizedRecommendations(userId, limits.personalized) : [],
-      this.getPopularProducts(limits.popular),
-      this.getTrendingProducts(limits.trending),
-    ]);
+    const popular = await this.getPopularProducts(limits.popular);
+    const trending = await this.getTrendingProducts(limits.trending);
+
+    let personalized: RecommendationScore[];
+    if (userId && userId !== 'guest') {
+      personalized = await this.getPersonalizedRecommendations(userId, limits.personalized);
+    } else {
+      // For guest users, use popular products as a fallback for the personalized section
+      personalized = popular.slice(0, limits.personalized).map(p => ({ ...p, reason: 'personalized' as const }));
+    }
 
     return {
       personalized,
