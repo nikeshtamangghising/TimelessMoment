@@ -9,7 +9,7 @@ export default function Footer() {
           <div className="col-span-1 md:col-span-2">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Rijal Decors Valley</h3>
             <p className="text-gray-600 mb-4">
-              Rijal Decors & Interior Pvt. Ltd specializes in home and office decor, offering a range of resin sculptures and figurines such as deer, elephants, eagles, chef holders, and stock market bull and bear sets. Products are marketed for both aesthetic and gifting purposes, with items like welcome sign boards and wine holders indicating a focus on decorative utility. The company operates daily from 9:00 to 17:00. While specific customer reviews and ratings are not available in the provided context, the product lineup suggests an emphasis on affordable, artistic decor with some items priced as low as NPR 999. There is no information on customer service quality or delivery options.
+              Rijal Decors & Interior Pvt. Ltd offers affordable, artistic home and office decor — from resin sculptures (deer, elephants, eagles) to chef and wine holders, welcome sign boards, and stock market bull & bear sets — perfect for aesthetics or gifting. Open daily 9:00–17:00.
             </p>
           </div>
 
