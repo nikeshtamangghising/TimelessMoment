@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { createAdminHandler } from '@/lib/auth-middleware'
-import { z } from 'zod'
-
-const inventoryAdjustmentSchema = z.object({
-  productId: z.string().min(1, 'Product ID is required'),
-  quantity: z.number().int('Quantity must be an integer'),
-  type: z.enum(['MANUAL_ADJUSTMENT', 'RESTOCK', 'OTHER']),
-  reason: z.string().min(1, 'Reason is required'),
-})
+import { inventoryAdjustmentSchema } from '@/lib/validations'
 
 export const POST = createAdminHandler(async (request: NextRequest) => {
   try {
@@ -63,8 +56,6 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
         quantity,
         type,
         reason,
-        previousQuantity: product.inventory,
-        newQuantity: newInventory,
         createdBy: 'admin' // In a real app, this would be the user ID
       }
     })
@@ -77,8 +68,6 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
         quantity: adjustment.quantity,
         type: adjustment.type,
         reason: adjustment.reason,
-        previousQuantity: adjustment.previousQuantity,
-        newQuantity: adjustment.newQuantity,
         createdAt: adjustment.createdAt
       },
       product: updatedProduct

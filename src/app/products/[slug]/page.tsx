@@ -11,6 +11,9 @@ import { generateProductMetadata } from '@/lib/metadata'
 import { generateProductSchema, generateBreadcrumbSchema, combineSchemas } from '@/lib/structured-data'
 import StructuredData from '@/components/seo/structured-data'
 import AddToCartSection from '@/components/products/add-to-cart-section'
+import ProductRatingDisplay from '@/components/products/product-rating-display'
+import ProductTabs from '@/components/products/product-tabs'
+import RecommendedProducts from '@/components/products/recommended-products'
 
 interface ProductPageProps {
   params: {
@@ -137,6 +140,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 {product.name}
               </h1>
               
+              {/* Rating Display */}
+              <div className="mb-4">
+                <ProductRatingDisplay productId={product.id} />
+              </div>
+              
               <div className="flex items-center space-x-4 mb-4">
                 <span className="text-3xl font-bold text-indigo-600">
                   ${product.price.toFixed(2)}
@@ -236,6 +244,16 @@ export default async function ProductPage({ params }: ProductPageProps) {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Product Tabs - Specifications and Reviews */}
+        <div className="mt-12">
+          <ProductTabs product={product} />
+        </div>
+
+        {/* Recommended Products */}
+        <div className="mt-12">
+          <RecommendedProducts productId={product.id} />
         </div>
       </div>
     </MainLayout>
