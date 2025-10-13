@@ -84,7 +84,7 @@ export default function Footer() {
 
         <div className="mt-8 pt-8 border-t border-gray-200">
           <p className="text-center text-gray-400 text-sm">
-            © 2024 Rijal Decors Valley. All rights reserved. Powered by Sanam International PVT LTD. Built with Next.js 14.
+            © 2024 Rijal Decors Valley. All rights reserved. Powered by Sanam International PVT LTD.
           </p>
         </div>
       </div>
