@@ -27,6 +27,30 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env.production
+.env.production.local
+
+# Production files that should not be committed
+*.log
+*.log.*
+backups/
+.DS_Store
+Thumbs.db
+
+# Security and sensitive files
+*.key
+*.pem
+*.p12
+*.crt
+secrets/
+ssl/
+
+# Production artifacts
+dist/
+build/
+.output/
+.vercel/
+.netlify/
 
 # vercel
 .vercel

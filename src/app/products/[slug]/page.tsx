@@ -34,20 +34,11 @@ async function getProduct(slug: string): Promise<Product | null> {
 }
 
 // Generate static params for popular products
+// Temporarily disabled to prevent build issues without database
 export async function generateStaticParams() {
-  try {
-    const products = await productRepository.findMany(
-      { isActive: true },
-      { page: 1, limit: 100 } // Pre-generate top 100 products
-    )
-    
-    return products.data.map((product) => ({
-      slug: product.slug,
-    }))
-  } catch (error) {
-    console.error('Error generating static params:', error)
-    return []
-  }
+  // Return empty array to disable static generation during build
+  // In production with database, enable this for better performance
+  return []
 }
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {

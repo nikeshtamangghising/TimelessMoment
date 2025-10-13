@@ -472,3 +472,6 @@ export class ProductRepository {
 
 // Create and export a singleton instance
 export const productRepository = new ProductRepository()
+
+// Export singleton getter function for consistency with other repositories
+export const getProductRepository = () => productRepository

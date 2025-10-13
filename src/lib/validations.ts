@@ -149,6 +149,20 @@ export const inventoryHistoryFiltersSchema = z.object({
   dateTo: z.string().datetime().optional(),
 })
 
+// Address validation schemas
+export const createAddressSchema = z.object({
+  fullName: z.string().min(1, 'Full name is required'),
+  address: z.string().min(1, 'Address is required'),
+  city: z.string().min(1, 'City is required'),
+  state: z.string().optional(),
+  postalCode: z.string().min(1, 'Postal code is required'),
+  country: z.string().default('Nepal'),
+  phone: z.string().optional(),
+  isDefault: z.boolean().default(false),
+})
+
+export const updateAddressSchema = createAddressSchema.partial()
+
 // Type exports
 export type CreateUserInput = z.infer<typeof createUserSchema>
 export type UpdateUserInput = z.infer<typeof updateUserSchema>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { PaymentMethod, getAvailablePaymentMethods, getPaymentMethodInfo, formatCurrency } from '@/lib/payment-gateways'
+import { PaymentMethod, getAvailablePaymentMethods, getPaymentMethodInfo, formatCurrencyAmount } from '@/lib/payment-gateways'
 
 interface PaymentMethodSelectorProps {
   selectedMethod: PaymentMethod | null
@@ -120,7 +120,7 @@ export default function PaymentMethodSelector({
                   <div className="flex justify-between text-sm">
                     <span className="text-indigo-700">Order Total:</span>
                     <span className="font-semibold text-indigo-900">
-                      {formatCurrency(orderTotal)}
+                      {formatCurrencyAmount(orderTotal)}
                     </span>
                   </div>
                   {method === 'cod' && (
