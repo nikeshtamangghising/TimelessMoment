@@ -113,8 +113,82 @@ export const PUT = createAdminHandler<RouteParams>(async (
       }
     }
 
-    const updatedProduct = await productRepository.update(params.id, validationResult.data)
+    // Normalize update data to backfill missing/derived fields without overwriting intentional nulls
+    const incoming = validationResult.data as any
+
+    // If name provided but slug missing, regenerate slug
+    if (incoming.name && !incoming.slug) {
+      incoming.slug = incoming.name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/[\s_]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '')
+    }
+
+    // Default currency if unset
+    if (incoming.currency === undefined || incoming.currency === null) {
+      incoming.currency = existingProduct.currency || 'NPR'
+    }
+
+    // Arrays default
+    if (incoming.images === undefined || incoming.images === null) {
+      incoming.images = existingProduct.images || []
+    }
+    if (incoming.tags === undefined || incoming.tags === null) {
+      incoming.tags = (existingProduct as any).tags || []
+    }
+
+    // Meta fallbacks if still empty
+    if ((incoming.metaTitle === undefined || incoming.metaTitle === null) && (incoming.name || existingProduct.name)) {
+      incoming.metaTitle = incoming.name || existingProduct.name
+    }
+    if ((incoming.metaDescription === undefined || incoming.metaDescription === null)) {
+      const base = incoming.shortDescription || existingProduct.shortDescription || incoming.description || existingProduct.description || ''
+      incoming.metaDescription = String(base).slice(0, 160)
+    }
+
+    // Ensure discountPrice < price when both provided
+    if (incoming.discountPrice !== undefined && incoming.price !== undefined) {
+      const dp = Number(incoming.discountPrice)
+      const p = Number(incoming.price)
+      if (!isNaN(dp) && !isNaN(p) && dp >= p) {
+        incoming.discountPrice = null
+      }
+    }
+
+    const updatedProduct = await productRepository.update(params.id, incoming)
     console.log('Product updated successfully:', updatedProduct.id, updatedProduct.name)
+
+    // Upsert attributes if provided on raw body
+    try {
+      const raw = body as any
+      const attrs: { name: string; value: string }[] = []
+      if (typeof raw.material === 'string') {
+        if (raw.material.trim()) attrs.push({ name: 'Material', value: raw.material.trim() })
+        else {
+          // remove existing if empty
+          await prisma.productAttribute.deleteMany({ where: { productId: params.id, name: 'Material' } })
+        }
+      }
+      if (typeof raw.color === 'string') {
+        if (raw.color.trim()) attrs.push({ name: 'Color', value: raw.color.trim() })
+        else {
+          await prisma.productAttribute.deleteMany({ where: { productId: params.id, name: 'Color' } })
+        }
+      }
+      if (attrs.length > 0) {
+        await prisma.productAttribute.deleteMany({
+          where: { productId: params.id, name: { in: attrs.map(a => a.name) } }
+        })
+        for (const attr of attrs) {
+          await prisma.productAttribute.create({ data: { productId: params.id, name: attr.name, value: attr.value } })
+        }
+      }
+    } catch (e) {
+      console.warn('Attribute upsert skipped:', e)
+    }
 
     return NextResponse.json({
       message: 'Product updated successfully',

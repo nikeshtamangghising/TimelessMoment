@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import RecommendationEngine from '@/lib/recommendation-engine';
 
 export async function GET(
   request: NextRequest,
@@ -28,19 +29,33 @@ export async function GET(
       }
     }
 
-    // Get popular products
-    const popularProducts = await prisma.product.findMany({
+    // Get popular products - compute score on the fly so latest counts are reflected
+    const popularRaw = await prisma.product.findMany({
       where: { isActive: true },
-      orderBy: { popularityScore: 'desc' },
-      take: popularLimit,
-      select: { id: true, popularityScore: true },
-    });
+      take: popularLimit * 4, // fetch more then rank by computed score
+      select: {
+        id: true,
+        viewCount: true,
+        cartCount: true,
+        favoriteCount: true,
+        orderCount: true,
+        createdAt: true,
+      },
+    })
 
-    const popular = popularProducts.map(p => ({
+    const popularScored = popularRaw.map(p => ({
       productId: p.id,
-      score: p.popularityScore || 0,
+      score: RecommendationEngine.calculatePopularityScore({
+        viewCount: p.viewCount || 0,
+        cartCount: p.cartCount || 0,
+        favoriteCount: p.favoriteCount || 0,
+        orderCount: p.orderCount || 0,
+        createdAt: p.createdAt,
+      }),
       reason: 'popular' as const,
-    }));
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, popularLimit)
 
     // Get trending products (recent activity)
     let trending = [];
@@ -84,14 +99,23 @@ export async function GET(
     }
 
     // For personalized, use popular products as fallback for guest users
-    const personalized = popular.slice(0, personalizedLimit).map(p => ({ 
-      ...p, 
-      reason: 'personalized' as const 
-    }));
+    let personalized = [] as Array<{ productId: string; score: number; reason: 'personalized' }>
+    if (userId && userId !== 'guest') {
+      try {
+        const personalizedScores = await RecommendationEngine.getPersonalizedRecommendations(userId, personalizedLimit)
+        personalized = personalizedScores
+      } catch (e) {
+        // Fallback to popular if personalized fails for any reason
+        personalized = popularScored.slice(0, personalizedLimit).map(p => ({ ...p, reason: 'personalized' as const }))
+      }
+    } else {
+      // Guest fallback
+      personalized = popularScored.slice(0, personalizedLimit).map(p => ({ ...p, reason: 'personalized' as const }))
+    }
 
     const recommendations = {
       personalized,
-      popular,
+      popular: popularScored,
       trending,
     };
 
@@ -111,7 +135,10 @@ export async function GET(
       generatedAt: new Date().toISOString(),
     };
 
-    return NextResponse.json(result);
+    const res = NextResponse.json(result)
+    // Cache API responses briefly at the edge/CDN; clients can still SWR
+    res.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600')
+    return res;
   } catch (error) {
     console.error('Error fetching recommendations:', error);
     return NextResponse.json(

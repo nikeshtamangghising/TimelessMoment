@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import RecommendationEngine from '@/lib/recommendation-engine';
 import ActivityTracker from '@/lib/activity-tracker';
+import { recalculateAllProductMetrics } from '@/lib/product-metrics';
 
 // This endpoint should be called by a cron job service
 // Vercel Cron, GitHub Actions, or external cron service
@@ -19,6 +20,9 @@ export async function POST(request: NextRequest) {
 
     console.log('Starting product score update job...');
     const startTime = Date.now();
+
+    // Recalculate raw metrics (favorites, carts, orders, purchases, views) before scores
+    await recalculateAllProductMetrics();
 
     // Update all product popularity scores
     await RecommendationEngine.updateAllProductScores();

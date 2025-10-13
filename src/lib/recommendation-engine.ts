@@ -13,12 +13,19 @@ export interface ProductRecommendations {
 }
 
 export class RecommendationEngine {
-  private static readonly WEIGHTS = {
-    VIEW: 1,
-    CART_ADD: 3,
-    FAVORITE: 5,
-    ORDER: 10,
-  };
+  // Allow weights to be configured via environment variables
+  private static getWeights() {
+    const parse = (envName: string, fallback: number) => {
+      const v = parseFloat(process.env[envName] || '')
+      return Number.isFinite(v) ? v : fallback
+    }
+    return {
+      VIEW: parse('RECO_WEIGHT_VIEW', 1),
+      CART_ADD: parse('RECO_WEIGHT_CART', 3),
+      FAVORITE: parse('RECO_WEIGHT_FAVORITE', 5),
+      ORDER: parse('RECO_WEIGHT_ORDER', 10),
+    }
+  }
 
   private static readonly RECENCY_BOOST = 1.5;
   private static readonly TRENDING_DAYS = 7;
@@ -33,11 +40,12 @@ export class RecommendationEngine {
     orderCount: number;
     createdAt: Date;
   }): number {
+    const W = this.getWeights()
     const baseScore = 
-      (product.viewCount * this.WEIGHTS.VIEW) +
-      (product.cartCount * this.WEIGHTS.CART_ADD) +
-      (product.favoriteCount * this.WEIGHTS.FAVORITE) +
-      (product.orderCount * this.WEIGHTS.ORDER);
+      (product.viewCount * W.VIEW) +
+      (product.cartCount * W.CART_ADD) +
+      (product.favoriteCount * W.FAVORITE) +
+      (product.orderCount * W.ORDER);
 
     // Apply recency boost for new products (within 7 days)
     const now = new Date();
@@ -173,7 +181,7 @@ export class RecommendationEngine {
 
     const categoryIds = userInterests.map(i => i.categoryId);
     
-    const recommendations = await prisma.product.findMany({
+    const candidates = await prisma.product.findMany({
       where: {
         categoryId: { in: categoryIds },
         isActive: true,
@@ -182,19 +190,31 @@ export class RecommendationEngine {
       select: {
         id: true,
         categoryId: true,
-        popularityScore: true,
+        viewCount: true,
+        cartCount: true,
+        favoriteCount: true,
+        orderCount: true,
+        createdAt: true,
       },
-      take: limit * 2, // Get more to allow for scoring and filtering
+      take: limit * 4, // Get more to allow for scoring and filtering
     });
 
-    // Calculate personalized scores
-    const scoredRecommendations = recommendations.map(product => {
+    // Calculate personalized scores using live counters + interest multiplier
+    const scoredRecommendations = candidates.map(product => {
+      const baseScore = this.calculatePopularityScore({
+        viewCount: product.viewCount || 0,
+        cartCount: product.cartCount || 0,
+        favoriteCount: product.favoriteCount || 0,
+        orderCount: product.orderCount || 0,
+        createdAt: product.createdAt,
+      })
+
       const userInterest = userInterests.find(ui => ui.categoryId === product.categoryId);
-      const interestMultiplier = userInterest ? (userInterest.interestScore / 100) : 1;
+      const interestMultiplier = userInterest ? Math.max(1, userInterest.interestScore / 100) : 1;
       
       return {
         productId: product.id,
-        score: product.popularityScore * interestMultiplier,
+        score: baseScore * interestMultiplier,
         reason: 'personalized' as const,
       };
     });

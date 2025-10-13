@@ -58,6 +58,7 @@ export class ProductRepository {
       include: {
         category: true,
         brand: true,
+        attributes: true,
       },
     })
   }
@@ -88,6 +89,7 @@ export class ProductRepository {
       include: {
         category: true,
         brand: true,
+        attributes: true,
       },
     })
   }
@@ -461,6 +463,10 @@ export class ProductRepository {
       case 'newest':
         return { createdAt: 'desc' as const }
       case 'popular':
+        return { popularityScore: 'desc' as const }
+      case 'trending':
+        // Approximate trending by popularity score for listing purposes
+        // (True trending is computed in recommendations API based on recent activity)
         return { popularityScore: 'desc' as const }
       case 'rating':
         return { ratingAvg: 'desc' as const }

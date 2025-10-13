@@ -70,8 +70,74 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
       )
     }
 
-    // Check if slug already exists
-    const existingProduct = await productRepository.findBySlug(validationResult.data.slug)
+    // Normalize and backfill optional/derived fields to avoid nulls
+    const input = validationResult.data as any
+
+    // Slug fallback from name
+    if (!input.slug && input.name) {
+      input.slug = input.name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/[\s_]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '') || `product-${Date.now()}`
+    }
+
+    // Currency default
+    if (!input.currency) {
+      input.currency = 'NPR'
+    }
+
+    // Arrays default
+    input.images = Array.isArray(input.images) ? input.images : []
+    input.tags = Array.isArray(input.tags) ? input.tags : (input.tags ? [String(input.tags)] : [])
+
+    // Short description fallback
+    if (!input.shortDescription && input.description) {
+      input.shortDescription = String(input.description).slice(0, 180)
+    }
+
+    // Meta fallbacks
+    if (!input.metaTitle && input.name) {
+      input.metaTitle = input.name
+    }
+    if (!input.metaDescription && (input.shortDescription || input.description)) {
+      input.metaDescription = (input.shortDescription || input.description).slice(0, 160)
+    }
+
+    // SKU fallback (simple)
+    if (!input.sku && input.name) {
+      input.sku = input.name.toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 10) + '-' + Date.now().toString().slice(-4)
+    }
+
+    // Ensure discountPrice < price
+    if (input.discountPrice !== undefined && input.discountPrice !== null) {
+      const dp = Number(input.discountPrice)
+      const p = Number(input.price)
+      if (!isNaN(dp) && !isNaN(p) && dp >= p) {
+        // If discount is not less than price, drop the discount
+        input.discountPrice = null
+      }
+    }
+
+    // Dimensions shape: allow null or object with numeric fields
+    if (input.dimensions && typeof input.dimensions === 'object') {
+      const d = input.dimensions
+      const clean = {
+        length: d.length ? Number(d.length) : undefined,
+        width: d.width ? Number(d.width) : undefined,
+        height: d.height ? Number(d.height) : undefined,
+      }
+      if (!clean.length && !clean.width && !clean.height) {
+        input.dimensions = null
+      } else {
+        input.dimensions = clean
+      }
+    }
+
+    // Check if slug already exists (after normalization)
+    const existingProduct = await productRepository.findBySlug(input.slug)
     if (existingProduct) {
       return NextResponse.json(
         { error: 'A product with this slug already exists' },
@@ -79,7 +145,29 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
       )
     }
 
-    const product = await productRepository.create(validationResult.data)
+    const product = await productRepository.create(input)
+
+    // After creation, upsert Material and Color attributes if provided on raw body
+    try {
+      const raw = body as any
+      const attrs: { name: string; value: string }[] = []
+      if (typeof raw.material === 'string' && raw.material.trim()) {
+        attrs.push({ name: 'Material', value: raw.material.trim() })
+      }
+      if (typeof raw.color === 'string' && raw.color.trim()) {
+        attrs.push({ name: 'Color', value: raw.color.trim() })
+      }
+      if (attrs.length > 0) {
+        await prisma.productAttribute.deleteMany({
+          where: { productId: product.id, name: { in: attrs.map(a => a.name) } }
+        })
+        for (const attr of attrs) {
+          await prisma.productAttribute.create({ data: { productId: product.id, name: attr.name, value: attr.value } })
+        }
+      }
+    } catch (e) {
+      console.warn('Attribute upsert skipped:', e)
+    }
 
     return NextResponse.json(
       { 

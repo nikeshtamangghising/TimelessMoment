@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import ActivityTracker from './activity-tracker';
+import { ActivityTracker } from './activity-tracker';
 
 export interface CartItem {
   id: string;
@@ -71,7 +71,7 @@ export class CartRepository {
             productId,
             ...(userId ? { userId } : { sessionId }),
           },
-        });
+        })
 
         let cartItem;
 
@@ -179,18 +179,37 @@ export class CartRepository {
       throw new Error(`Only ${existingItem.product.inventory} items available in stock`);
     }
 
-    const updatedItem = await prisma.cart.update({
-      where: { id: cartItemId },
-      data: { 
-        quantity,
-        updatedAt: new Date(),
-      },
-      include: {
-        product: {
-          include: { category: true },
+    const updatedItem = await prisma.$transaction(async (tx) => {
+      // Update the cart item quantity
+      const item = await tx.cart.update({
+        where: { id: cartItemId },
+        data: { 
+          quantity,
+          updatedAt: new Date(),
         },
-      },
-    });
+        include: {
+          product: true,
+        },
+      })
+
+      // Track activity for add events (when increasing quantity)
+      if (quantity > existingItem.quantity) {
+        await ActivityTracker.trackActivity({
+          userId: 'userId' in identifier ? identifier.userId : undefined,
+          sessionId: 'sessionId' in identifier ? identifier.sessionId : undefined,
+          productId: item.productId,
+          activityType: 'CART_ADD',
+        })
+      }
+
+      // Return with category included (consistent with previous return type)
+      return await tx.cart.findUnique({
+        where: { id: item.id },
+        include: {
+          product: { include: { category: true } },
+        },
+      })
+    })
 
     return updatedItem as CartItem;
   }

@@ -40,6 +40,8 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
     isActive: product?.isActive ?? true,
     isFeatured: (product as any)?.isFeatured ?? false,
     isNewArrival: (product as any)?.isNewArrival ?? false,
+    material: (() => { const attrs = ((product as any)?.attributes || []) as Array<{name:string,value:string}>; return attrs.find(a => a.name?.toLowerCase() === 'material')?.value || '' })(),
+    color: (() => { const attrs = ((product as any)?.attributes || []) as Array<{name:string,value:string}>; return attrs.find(a => a.name?.toLowerCase() === 'color')?.value || '' })(),
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [categories, setCategories] = useState<Category[]>([])
@@ -281,6 +283,9 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
       lowStockThreshold: parseInt(formData.lowStockThreshold),
       tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
       brandId: formData.brandId || null,
+      // Include attributes if provided
+      material: formData.material?.trim() ? formData.material.trim() : undefined,
+      color: formData.color?.trim() ? formData.color.trim() : undefined,
     }
 
     try {
@@ -430,6 +435,24 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
                 options={currencyOptions}
                 error={errors.currency}
                 required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Material"
+                value={formData.material}
+                onChange={(e) => handleInputChange('material', e.target.value)}
+                error={errors.material}
+                placeholder="e.g., Aluminum, Plastic"
+              />
+
+              <Input
+                label="Color"
+                value={formData.color}
+                onChange={(e) => handleInputChange('color', e.target.value)}
+                error={errors.color}
+                placeholder="e.g., Black, Silver"
               />
             </div>
 

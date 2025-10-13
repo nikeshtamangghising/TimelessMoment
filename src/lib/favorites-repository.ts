@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import ActivityTracker from './activity-tracker';
+import { ActivityTracker } from './activity-tracker';
 
 export interface FavoriteItem {
   id: string;
@@ -54,19 +54,29 @@ export class FavoritesRepository {
     }
 
     try {
-      const favorite = await prisma.favorite.create({
-        data: {
-          userId,
-          productId,
-        },
-        include: {
-          product: {
-            include: { category: true },
+      const favorite = await prisma.$transaction(async (tx) => {
+        const fav = await tx.favorite.create({
+          data: {
+            userId,
+            productId,
           },
-        },
+          include: {
+            product: {
+              include: { category: true },
+            },
+          },
+        })
+
+        // Increment product favoriteCount
+        await tx.product.update({
+          where: { id: productId },
+          data: { favoriteCount: { increment: 1 } },
+        })
+
+        return fav
       });
 
-      // Track activity
+      // Track activity (for personalization/trending); counters updated above
       await ActivityTracker.trackActivity({
         userId,
         productId,
@@ -97,9 +107,14 @@ export class FavoritesRepository {
       throw new Error('Product not found in favorites');
     }
 
-    await prisma.favorite.delete({
-      where: { id: favorite.id },
-    });
+    await prisma.$transaction(async (tx) => {
+      await tx.favorite.delete({ where: { id: favorite.id } })
+      // Decrement product favoriteCount
+      await tx.product.update({
+        where: { id: productId },
+        data: { favoriteCount: { decrement: 1 } },
+      })
+    })
   }
 
   /**

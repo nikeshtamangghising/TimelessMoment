@@ -112,10 +112,12 @@ export default function AdminCustomersTab() {
           <h1 className="text-2xl font-bold text-gray-900">Customer Management</h1>
           <p className="text-gray-600">Manage your customer accounts and data</p>
         </div>
-        <Button className="flex items-center space-x-2">
-          <UsersIcon className="h-4 w-4" />
-          <span>Export Customers</span>
-        </Button>
+        <a href="/api/customers/export" target="_blank" rel="noopener noreferrer">
+          <Button className="flex items-center space-x-2">
+            <UsersIcon className="h-4 w-4" />
+            <span>Export Customers</span>
+          </Button>
+        </a>
       </div>
 
       {/* Filters */}
@@ -259,9 +261,11 @@ export default function AdminCustomersTab() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end space-x-2">
-                          <Button variant="ghost" size="sm">
-                            <EyeIcon className="h-4 w-4" />
-                          </Button>
+                          <a href={`/admin/customers/${customer.id}`}>
+                            <Button variant="ghost" size="sm">
+                              <EyeIcon className="h-4 w-4" />
+                            </Button>
+                          </a>
                           <Button variant="ghost" size="sm">
                             <EnvelopeIcon className="h-4 w-4" />
                           </Button>

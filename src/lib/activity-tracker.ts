@@ -236,14 +236,13 @@ export class ActivityTracker {
    * Get the product counter field name for an activity type
    */
   private static getProductCounterField(activityType: ActivityType): string | null {
-    const fieldMap: Record<ActivityType, string> = {
+    // Only VIEW directly increments product counters here to avoid double-counting.
+    // Other counters (CART_ADD, FAVORITE, ORDER) are updated in their respective repositories/services.
+    const fieldMap: Partial<Record<ActivityType, string>> = {
       VIEW: 'viewCount',
-      CART_ADD: 'cartCount',
-      FAVORITE: 'favoriteCount',
-      ORDER: 'orderCount',
     };
 
-    return fieldMap[activityType] || null;
+    return (fieldMap as Record<ActivityType, string>)[activityType] || null;
   }
 
   /**

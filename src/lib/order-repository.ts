@@ -67,13 +67,15 @@ export class OrderRepository {
 
       // Update inventory levels and record adjustments
       for (const item of data.items) {
-        // Decrease product inventory
+        // Decrease product inventory and increment performance counters
         await tx.product.update({
           where: { id: item.productId },
           data: {
             inventory: {
               decrement: item.quantity
-            }
+            },
+            orderCount: { increment: 1 },
+            purchaseCount: { increment: item.quantity },
           }
         })
 
@@ -154,13 +156,15 @@ export class OrderRepository {
 
       // Update inventory levels and record adjustments
       for (const item of data.items) {
-        // Decrease product inventory
+        // Decrease product inventory and increment performance counters
         await tx.product.update({
           where: { id: item.productId },
           data: {
             inventory: {
               decrement: item.quantity
-            }
+            },
+            orderCount: { increment: 1 },
+            purchaseCount: { increment: item.quantity },
           }
         })
 

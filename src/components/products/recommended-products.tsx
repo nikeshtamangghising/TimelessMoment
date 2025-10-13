@@ -1,54 +1,120 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useSession } from 'next-auth/react'
 import { Product } from '@/types'
+import { formatCurrency, DEFAULT_CURRENCY } from '@/lib/currency'
 
 interface RecommendedProductsProps {
   productId: string
   className?: string
 }
 
+interface MixedRecommendationItem {
+  productId: string
+  score: number
+  reason: 'similar'|'popular'|'trending'|'personalized'
+  product: Product
+}
+
 interface RecommendationData {
   success: boolean
-  data: Product[]
+  data: MixedRecommendationItem[]
+  count: number
 }
 
 export default function RecommendedProducts({ productId, className = '' }: RecommendedProductsProps) {
-  const [recommendations, setRecommendations] = useState<Product[]>([])
+  const { data: session } = useSession()
+  const [items, setItems] = useState<MixedRecommendationItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [limit] = useState(8)
+  const [offset, setOffset] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+
+  const userId = session?.user?.id || 'guest'
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const fetchingRef = useRef(false)
+  const seenIdsRef = useRef<Set<string>>(new Set())
+  const abortRef = useRef<AbortController | null>(null)
+
+  const fetchPage = useCallback(async (nextOffset: number, append: boolean) => {
+    if (fetchingRef.current) return
+    fetchingRef.current = true
+    setLoading(true)
+
+    // Abort any in-flight request
+    if (abortRef.current) {
+      abortRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    try {
+      const params = new URLSearchParams({ userId, limit: String(limit), offset: String(nextOffset) })
+      const response = await fetch(`/api/products/${productId}/mixed-recommendations?${params.toString()}` , { signal: controller.signal })
+      if (!response.ok) {
+        throw new Error('Failed to load recommendations')
+      }
+      const data: RecommendationData = await response.json()
+      if (data.success) {
+        // Deduplicate on client side as a safety net
+        const deduped = data.data.filter(item => !seenIdsRef.current.has(item.productId))
+        deduped.forEach(item => seenIdsRef.current.add(item.productId))
+        setItems(prev => append ? [...prev, ...deduped] : deduped)
+        setHasMore(deduped.length >= limit)
+        setOffset(nextOffset)
+      } else {
+        setError('Failed to load recommendations')
+      }
+    } catch (err) {
+      if ((err as any)?.name === 'AbortError') {
+        // ignore aborts
+      } else {
+        console.error('Error fetching mixed recommendations:', err)
+        setError('Failed to load recommendations')
+      }
+    } finally {
+      setLoading(false)
+      fetchingRef.current = false
+    }
+  }, [productId, userId, limit])
 
   useEffect(() => {
-    const fetchRecommendations = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch(`/api/products/${productId}/recommendations`)
-        const data: RecommendationData = await response.json()
-        
-        if (data.success) {
-          setRecommendations(data.data)
-        } else {
-          setError('Failed to load recommendations')
+    // Reset when product or user changes
+    setItems([])
+    setOffset(0)
+    setHasMore(true)
+    setError(null)
+    seenIdsRef.current = new Set()
+    fetchPage(0, false)
+  }, [productId, userId, fetchPage])
+
+  useEffect(() => {
+    if (!sentinelRef.current) return
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && hasMore && !fetchingRef.current) {
+          const nextOffset = offset + limit
+          fetchPage(nextOffset, true)
         }
-      } catch (err) {
-        console.error('Error fetching recommendations:', err)
-        setError('Failed to load recommendations')
-      } finally {
-        setLoading(false)
-      }
-    }
+      })
+    }, { rootMargin: '200px 0px' })
 
-    fetchRecommendations()
-  }, [productId])
+    observer.observe(sentinelRef.current)
+    return () => observer.disconnect()
+  }, [offset, limit, hasMore, fetchPage])
 
-  if (loading) {
+  if ((loading && items.length === 0)) {
     return (
       <div className={`${className}`}>
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">You Might Also Like</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">You May Also Like</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, index) => (
+          {Array.from({ length: 4 }).map((_, index) => (
             <div key={index} className="animate-pulse">
               <div className="bg-gray-200 aspect-square rounded-lg mb-4"></div>
               <div className="h-4 bg-gray-200 rounded mb-2"></div>
@@ -60,15 +126,18 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
     )
   }
 
-  if (error || recommendations.length === 0) {
+  if (error || items.length === 0) {
     return null
   }
 
   return (
     <div className={`${className}`}>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">You Might Also Like</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">You May Also Like</h2>
+        <div className="text-sm text-gray-500">Mixed: Similar • Trending • Popular{session?.user ? ' • Personalized' : ''}</div>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {recommendations.map((product) => (
+        {items.map(({ product, reason }) => (
           <Link
             key={product.id}
             href={`/products/${product.slug}`}
@@ -84,17 +153,20 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
               />
             </div>
             <div className="p-4">
-              <h3 className="text-lg font-medium text-gray-900 group-hover:text-indigo-600 transition-colors duration-200 line-clamp-2">
-                {product.name}
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900 group-hover:text-indigo-600 transition-colors duration-200 line-clamp-2">
+                  {product.name}
+                </h3>
+                <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 uppercase tracking-wide">{reason}</span>
+              </div>
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-xl font-bold text-indigo-600">
-                  ${product.price.toFixed(2)}
+                  {formatCurrency(product.discountPrice || product.price, (product as any).currency || DEFAULT_CURRENCY)}
                 </span>
                 {product.ratingAvg && product.ratingCount > 0 && (
                   <div className="flex items-center">
                     <div className="flex items-center">
-                      {[...Array(5)].map((_, i) => (
+                      {Array.from({ length: 5 }).map((_, i) => (
                         <svg
                           key={i}
                           className={`w-4 h-4 ${
@@ -124,6 +196,12 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
           </Link>
         ))}
       </div>
+
+      {/* Infinite scroll sentinel */}
+      <div ref={sentinelRef} className="h-8" />
+      {loading && (
+        <div className="flex justify-center mt-4 text-sm text-gray-500">Loading more…</div>
+      )}
     </div>
   )
 }

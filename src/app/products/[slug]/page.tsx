@@ -14,6 +14,7 @@ import AddToCartSection from '@/components/products/add-to-cart-section'
 import ProductRatingDisplay from '@/components/products/product-rating-display'
 import ProductTabs from '@/components/products/product-tabs'
 import RecommendedProducts from '@/components/products/recommended-products'
+import { formatCurrency, DEFAULT_CURRENCY } from '@/lib/currency'
 
 interface ProductPageProps {
   params: {
@@ -59,6 +60,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   if (!product || !product.isActive) {
     notFound()
+  }
+
+  // Increment view count (best-effort)
+  try {
+    await productRepository.incrementViewCount(product.id)
+  } catch (e) {
+    console.warn('Failed to increment view count:', e)
   }
 
   const productWithCategory = product as any
@@ -137,9 +145,23 @@ export default async function ProductPage({ params }: ProductPageProps) {
               </div>
               
               <div className="flex items-center space-x-4 mb-4">
-                <span className="text-3xl font-bold text-indigo-600">
-                  ${product.price.toFixed(2)}
-                </span>
+                {product.discountPrice ? (
+                  <>
+                    <span className="text-3xl font-bold text-green-600">
+                      {formatCurrency(product.discountPrice, (product as any).currency || DEFAULT_CURRENCY)}
+                    </span>
+                    <span className="text-lg text-gray-500 line-through">
+                      {formatCurrency(product.price, (product as any).currency || DEFAULT_CURRENCY)}
+                    </span>
+                    <span className="text-sm bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">
+                      {Math.round(((product.price - (product.discountPrice as number)) / product.price) * 100)}% OFF
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-3xl font-bold text-indigo-600">
+                    {formatCurrency(product.price, (product as any).currency || DEFAULT_CURRENCY)}
+                  </span>
+                )}
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
                   {categoryName}
                 </span>
@@ -147,6 +169,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </div>
 
             <div>
+              {Boolean((product as any).shortDescription) && (
+                <>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Overview</h3>
+                  <p className="text-gray-700 leading-relaxed mb-4">
+                    {(product as any).shortDescription}
+                  </p>
+                </>
+              )}
               <h3 className="text-lg font-medium text-gray-900 mb-2">Description</h3>
               <p className="text-gray-600 leading-relaxed">
                 {product.description}
@@ -199,9 +229,37 @@ export default async function ProductPage({ params }: ProductPageProps) {
                     </span>
                   </div>
                   
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-gray-900">SKU:</span>
-                    <span className="text-sm text-gray-600">{product.id}</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-900">SKU:</span>
+                      <span className="text-gray-600">{(product as any).sku || product.id}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-900">Brand:</span>
+                      <span className="text-gray-600">{typeof (product as any).brand === 'object' ? (product as any).brand?.name || '—' : ((product as any).brand || '—')}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-900">Weight:</span>
+                      <span className="text-gray-600">{(product as any).weight ? `${(product as any).weight} kg` : '—'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-900">Dimensions:</span>
+                      <span className="text-gray-600">
+                        {(() => { const d = (product as any).dimensions || {}; return (d.length || d.width || d.height) ? `${d.length || '—'} × ${d.width || '—'} × ${d.height || '—'} cm` : '—' })()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-900">Material:</span>
+                      <span className="text-gray-600">{(() => { const attrs = ((product as any).attributes || []) as Array<{name:string,value:string}>; const attr = attrs.find(a => a.name?.toLowerCase() === 'material'); return attr?.value || '—' })()}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-900">Color:</span>
+                      <span className="text-gray-600">{(() => { const attrs = ((product as any).attributes || []) as Array<{name:string,value:string}>; const attr = attrs.find(a => a.name?.toLowerCase() === 'color'); return attr?.value || '—' })()}</span>
+                    </div>
+                    <div className="sm:col-span-2 flex justify-between items-center">
+                      <span className="font-medium text-gray-900">Tags:</span>
+                      <span className="text-gray-600">{((product as any).tags || []).join(', ') || '—'}</span>
+                    </div>
                   </div>
                 </div>
               </CardContent>

@@ -45,6 +45,8 @@ export default function CheckoutPage() {
   const [guestEmail, setGuestEmail] = useState<string>('')
   const [selectedAddress, setSelectedAddress] = useState<CheckoutAddress | null>(null)
   const [showAddressForm, setShowAddressForm] = useState(false)
+  // Track when an order has been placed to avoid redirecting to cart after clearing the cart
+  const [orderPlaced, setOrderPlaced] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -53,8 +55,8 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!mounted) return
 
-    // Redirect if cart is empty
-    if (items.length === 0) {
+    // Redirect if cart is empty (but not immediately after placing an order)
+    if (items.length === 0 && !orderPlaced) {
       router.push('/cart')
       return
     }
@@ -63,7 +65,7 @@ export default function CheckoutPage() {
     if (!authLoading && items.length > 0) {
       calculateOrderTotal()
     }
-  }, [mounted, authLoading, items, router])
+  }, [mounted, authLoading, items, router, orderPlaced])
 
   const calculateOrderTotal = async () => {
     setLoading(true)
@@ -196,15 +198,15 @@ export default function CheckoutPage() {
       return
     }
 
+    // Mark order as placed to suppress empty-cart redirect on this page
+    setOrderPlaced(true)
+
     // Clear cart after successful order/payment
     clearCart()
 
-    // Redirect to success page with payment details
-    const params = new URLSearchParams({
-      method: paymentMethod,
-      ...(transactionId && { transaction_id: transactionId }),
-    })
-    router.push(`/checkout/success?${params.toString()}`)
+    // Redirect to orders page (or guest orders) after placing order
+    const destination = isAuthenticated ? '/orders' : '/guest-orders'
+    router.push(destination)
   }
 
   const handleAddressSelect = (address: Address | null) => {

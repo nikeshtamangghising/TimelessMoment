@@ -67,32 +67,47 @@ export default function AdminInventoryTab() {
   const [showAddProductModal, setShowAddProductModal] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
+  const [threshold, setThreshold] = useState(10)
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [threshold])
 
   const fetchData = async () => {
     setLoading(true)
     setError('')
 
     try {
-      const [analyticsRes, lowStockRes, outOfStockRes] = await Promise.all([
-        fetch('/api/inventory/analytics'),
-        fetch('/api/products?lowStock=true&limit=10'),
-        fetch('/api/products?outOfStock=true&limit=10'),
-      ]);
+      // Use real summary API with threshold
+      const summaryRes = await fetch(`/api/inventory?threshold=${threshold}`)
+      if (!summaryRes.ok) {
+        throw new Error('Failed to fetch inventory summary')
+      }
+      const summary = await summaryRes.json()
 
-      if (!analyticsRes.ok || !lowStockRes.ok || !outOfStockRes.ok) {
-        throw new Error('Failed to fetch all inventory data');
+      // Build analytics from summary
+      const totalProducts: number = summary.totalProducts || 0
+      const totalInventoryValue: number = summary.totalInventoryWorth || 0
+      // Sum total units from categoryDistribution if available
+      let totalInventoryUnits = 0
+      if (summary.categoryDistribution) {
+        Object.values(summary.categoryDistribution as Record<string, any>).forEach((cat: any) => {
+          (cat.items || []).forEach((item: any) => {
+            totalInventoryUnits += item.inventory || 0
+          })
+        })
       }
 
-      const analyticsData = await analyticsRes.json();
-      const lowStockData = await lowStockRes.json();
-      const outOfStockData = await outOfStockRes.json();
+      const outOfStockProducts = summary.outOfStockCount || (summary.outOfStockProducts?.length || 0)
 
-      setAnalytics(analyticsData);
-      setLowStockProducts(lowStockData.data);
-      setOutOfStockProducts(outOfStockData.data);
+      setAnalytics({
+        totalProducts,
+        totalInventoryValue,
+        totalInventoryUnits,
+        outOfStockProducts,
+      })
+
+      setLowStockProducts(summary.lowStockProducts || [])
+      setOutOfStockProducts(summary.outOfStockProducts || [])
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load inventory data'
@@ -146,7 +161,25 @@ export default function AdminInventoryTab() {
           <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
           <p className="text-gray-600">Monitor and manage your product inventory</p>
         </div>
-        <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
+            <label className="text-sm text-gray-500">Low stock threshold</label>
+            <select
+              value={threshold}
+              onChange={(e) => setThreshold(parseInt(e.target.value) || 10)}
+              className="px-2 py-1 border border-gray-300 rounded-md text-sm"
+            >
+              {[5,10,15,20].map(v => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </div>
+          <a href={`/api/inventory/export?type=lowStock&threshold=${threshold}`} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" className="flex items-center space-x-2">
+              <ArrowPathIcon className="h-4 w-4" />
+              <span>Export Low Stock</span>
+            </Button>
+          </a>
           <Button
             variant="outline"
             onClick={handleRefresh}
