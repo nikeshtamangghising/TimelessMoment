@@ -36,7 +36,7 @@ describe('AdminLayout Component', () => {
       </AdminLayout>
     )
 
-    expect(screen.getByText('E-Shop Admin')).toBeInTheDocument()
+    expect(screen.getByText('Rijal Decors Valley Admin')).toBeInTheDocument()
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
     expect(screen.getByText('Products')).toBeInTheDocument()
     expect(screen.getByText('Orders')).toBeInTheDocument()

@@ -11,14 +11,14 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: {
-    default: 'E-Shop - Your Premium Online Store',
-    template: '%s | E-Shop'
+    default: 'Rijal Decors Valley - Your Premium Online Store',
+    template: '%s | Rijal Decors Valley'
   },
   description: 'Premium e-commerce platform with curated products, fast shipping, and exceptional customer service. Discover amazing products at great prices.',
   keywords: ['ecommerce', 'online shopping', 'products', 'retail', 'marketplace'],
-  authors: [{ name: 'E-Shop Team' }],
-  creator: 'E-Shop',
-  publisher: 'E-Shop',
+  authors: [{ name: 'Rijal Decors Valley Team' }],
+  creator: 'Rijal Decors Valley',
+  publisher: 'Rijal Decors Valley',
   formatDetection: {
     email: false,
     address: false,
@@ -32,23 +32,23 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: '/',
-    siteName: 'E-Shop',
-    title: 'E-Shop - Your Premium Online Store',
+    siteName: 'Rijal Decors Valley',
+    title: 'Rijal Decors Valley - Your Premium Online Store',
     description: 'Premium e-commerce platform with curated products and exceptional shopping experience',
     images: [
       {
         url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'E-Shop - Premium Online Shopping',
+        alt: 'Rijal Decors Valley - Premium Online Shopping',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'E-Shop - Your Premium Online Store',
+    title: 'Rijal Decors Valley - Your Premium Online Store',
     description: 'Premium e-commerce platform with curated products and exceptional shopping experience',
-    creator: '@eshop',
+    creator: '@rijaldecorsvalley',
     images: ['/og-image.jpg'],
   },
   robots: {
@@ -68,10 +68,10 @@ export const metadata: Metadata = {
   category: 'ecommerce',
   classification: 'E-Commerce Platform',
   referrer: 'origin-when-cross-origin',
-  applicationName: 'E-Shop',
+  applicationName: 'Rijal Decors Valley',
   appleWebApp: {
     capable: true,
-    title: 'E-Shop',
+    title: 'Rijal Decors Valley',
     statusBarStyle: 'default',
   },
   manifest: '/manifest.json',
@@ -88,10 +88,10 @@ export default async function RootLayout({
     <html lang="en" data-scroll-behavior="smooth">
       <head>
         {/* PWA Meta Tags */}
-        <meta name="application-name" content="E-Shop" />
+        <meta name="application-name" content="Rijal Decors Valley" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="E-Shop" />
+        <meta name="apple-mobile-web-app-title" content="Rijal Decors Valley" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#4f46e5" />

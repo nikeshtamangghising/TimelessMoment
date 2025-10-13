@@ -36,7 +36,7 @@ export default function Header() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="text-xl font-bold text-gray-900 hover:text-indigo-600">
-              E-Shop
+              Rijal Decors Valley
             </Link>
           </div>
 

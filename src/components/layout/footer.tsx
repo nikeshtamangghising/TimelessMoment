@@ -7,7 +7,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="col-span-1 md:col-span-2">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">E-Shop</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Rijal Decors Valley</h3>
             <p className="text-gray-600 mb-4">
               Your modern e-commerce platform built with Next.js 14. 
               Fast, secure, and responsive shopping experience.
@@ -84,7 +84,7 @@ export default function Footer() {
 
         <div className="mt-8 pt-8 border-t border-gray-200">
           <p className="text-center text-gray-400 text-sm">
-            © 2024 E-Shop. All rights reserved. Built with Next.js 14.
+            © 2024 Rijal Decors Valley. All rights reserved. Powered by Sanam International PVT LTD. Built with Next.js 14.
           </p>
         </div>
       </div>

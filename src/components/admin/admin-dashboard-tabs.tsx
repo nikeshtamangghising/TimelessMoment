@@ -122,7 +122,7 @@ export default function AdminDashboardTabs() {
               {/* Mobile header */}
               <div className="flex h-16 items-center justify-between px-4 border-b border-gray-200">
                 <div className="text-lg font-bold text-indigo-600">
-                  E-Shop Admin
+                  Rijal Decors Valley Admin
                 </div>
                 <button
                   onClick={() => setSidebarOpen(false)}
@@ -202,7 +202,7 @@ export default function AdminDashboardTabs() {
           {/* Desktop Logo */}
           <div className="flex h-16 items-center justify-center border-b border-gray-200">
             <div className="text-xl font-bold text-indigo-600">
-              E-Shop Admin
+              Rijal Decors Valley Admin
             </div>
           </div>
 
@@ -281,7 +281,7 @@ export default function AdminDashboardTabs() {
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex items-center">
               <div className="text-lg font-bold text-indigo-600">
-                E-Shop Admin
+                Rijal Decors Valley Admin
               </div>
             </div>
           </div>
