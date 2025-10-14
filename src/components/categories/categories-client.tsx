@@ -312,35 +312,6 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
           </ol>
         </nav>
 
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
-          <div className="px-6 py-8 text-center">
-            <h1 className="text-3xl font-bold text-gray-900 mb-3">
-              {searchParams.search ? (
-                <>
-                  <MagnifyingGlassIcon className="w-8 h-8 inline-block mr-3 text-indigo-600" />
-                  Search Results for "{searchParams.search}"
-                </>
-              ) : (
-                searchParams.category ? `${searchParams.category} Products` : 'All Products'
-              )}
-            </h1>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              {productsData ? 
-                `${productsData.pagination?.total || 0} products found` :
-                'Find exactly what you need with our advanced filtering options.'
-              }
-            </p>
-            {searchParams.search && (
-              <div className="mt-4 flex justify-center">
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
-                  <MagnifyingGlassIcon className="w-4 h-4 mr-2" />
-                  "{searchParams.search}"
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
 
         {/* Products View - always active now */}
         {productsData ? (
