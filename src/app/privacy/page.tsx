@@ -5,10 +5,10 @@ export const revalidate = 86400
 export default function PrivacyPage() {
   return (
     <MainLayout>
-      <section className="relative isolate overflow-hidden bg-gradient-to-br from-gray-900 via-indigo-900 to-indigo-800">
+      <section className="relative isolate overflow-hidden bg-gradient-to-br from-zinc-900 via-stone-900 to-amber-900">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">Privacy Policy</h1>
-          <p className="mt-3 text-indigo-100 max-w-3xl">
+          <p className="mt-3 text-amber-100 max-w-3xl">
             Your privacy matters. This policy explains what we collect, how we use it, and your rights.
           </p>
         </div>
@@ -17,7 +17,7 @@ export default function PrivacyPage() {
       <div className="-mt-8">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pb-16">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
-            <div className="prose prose-indigo max-w-none">
+            <div className="prose prose-stone max-w-none">
               <h2>1. Who we are</h2>
               <p>
                 Rijal Decors & Interior Pvt. Ltd ("we", "us", "our") provides home and office decor products

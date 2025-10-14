@@ -7,16 +7,16 @@ export default function ContactPage() {
   return (
     <MainLayout>
       {/* Hero */}
-      <section className="relative isolate overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-600">
+      <section className="relative isolate overflow-hidden bg-gradient-to-br from-zinc-900 via-stone-900 to-amber-900">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 text-center">
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">Get in touch</h1>
-          <p className="mt-3 text-indigo-100 max-w-2xl mx-auto">
+          <p className="mt-3 text-amber-100 max-w-2xl mx-auto">
             Questions about our decor or an existing order? We’re here to help, every day 9:00–17:00.
           </p>
           <div className="mt-6 flex items-center justify-center gap-3">
             <a
               href="mailto:info@rijaldecorsvalley.com?subject=Inquiry"
-              className="inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm ring-1 ring-white/10 hover:bg-indigo-50"
+              className="inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-amber-800 shadow-sm ring-1 ring-white/10 hover:bg-amber-50"
             >
               <EnvelopeIcon className="h-4 w-4 mr-2" /> Email Us
             </a>
@@ -39,7 +39,7 @@ export default function ContactPage() {
               {/* Company */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
                     <MapPinIcon className="h-5 w-5" />
                   </div>
                   <div>
@@ -49,12 +49,12 @@ export default function ContactPage() {
                 </div>
                 <div className="mt-4 grid grid-cols-1 gap-3">
                   <div className="flex items-center text-sm text-gray-700">
-                    <EnvelopeIcon className="h-4 w-4 mr-2 text-indigo-600" />
-                    <a href="mailto:info@rijaldecorsvalley.com" className="hover:text-indigo-700">info@rijaldecorsvalley.com</a>
+                    <EnvelopeIcon className="h-4 w-4 mr-2 text-amber-700" />
+                    <a href="mailto:info@rijaldecorsvalley.com" className="hover:text-amber-800">info@rijaldecorsvalley.com</a>
                   </div>
                   <div className="flex items-center text-sm text-gray-700">
-                    <PhoneIcon className="h-4 w-4 mr-2 text-indigo-600" />
-                    <a href="tel:+977-9800000000" className="hover:text-indigo-700">+977-9800000000</a>
+                    <PhoneIcon className="h-4 w-4 mr-2 text-amber-700" />
+                    <a href="tel:+977-9800000000" className="hover:text-amber-800">+977-9800000000</a>
                   </div>
                 </div>
               </div>
@@ -62,7 +62,7 @@ export default function ContactPage() {
               {/* Hours */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 mr-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-700 mr-3">
                     <ClockIcon className="h-5 w-5" />
                   </div>
                   <div>
@@ -75,7 +75,7 @@ export default function ContactPage() {
               {/* Address */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
                     <MapPinIcon className="h-5 w-5" />
                   </div>
                   <div className="flex-1">
@@ -90,7 +90,7 @@ export default function ContactPage() {
                         href="https://www.google.com/maps?q=Kalanki%2C%20Kathmandu%2044600"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                        className="inline-flex items-center text-sm font-medium text-amber-700 hover:text-amber-800"
                       >
                         Open in Google Maps <ArrowTopRightOnSquareIcon className="h-4 w-4 ml-1" />
                       </a>
