@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { memo, useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -20,7 +20,7 @@ interface ProductCardProps {
   trackViews?: boolean
 }
 
-export default function ProductCard({ 
+function ProductCard({ 
   product, 
   onAddToCart, 
   onProductClick, 
@@ -392,3 +392,25 @@ export default function ProductCard({
     </Card>
   )
 }
+
+// Memoize to avoid unnecessary re-renders when product data hasn't changed
+function areEqual(prev: Readonly<ProductCardProps>, next: Readonly<ProductCardProps>) {
+  const a = prev.product
+  const b = next.product
+  if (a.id !== b.id) return false
+  if (a.price !== b.price) return false
+  if ((a.discountPrice || null) !== (b.discountPrice || null)) return false
+  if (a.inventory !== b.inventory) return false
+  if ((a.currency || DEFAULT_CURRENCY) !== (b.currency || DEFAULT_CURRENCY)) return false
+  if ((a.category?.name || '') !== (b.category?.name || '')) return false
+  const aImg = Array.isArray(a.images) && a.images.length ? a.images[0] : ''
+  const bImg = Array.isArray(b.images) && b.images.length ? b.images[0] : ''
+  if (aImg !== bImg) return false
+  // For the rest (handlers, flags), assume stable usage; compare simple flags
+  if ((prev.loading || false) !== (next.loading || false)) return false
+  if ((prev.showFavoriteButton || true) !== (next.showFavoriteButton || true)) return false
+  if ((prev.trackViews || true) !== (next.trackViews || true)) return false
+  return true
+}
+
+export default memo(ProductCard, areEqual)

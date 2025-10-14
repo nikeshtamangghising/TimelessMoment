@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
@@ -223,10 +224,10 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
     }
   }, [searchParams.category, searchParams.search, searchParams.sort, searchParams.minPrice, searchParams.maxPrice, searchParams.page])
 
-  const handleProductClick = (product: ProductWithCategory) => {
+  const handleProductClick = useCallback((product: ProductWithCategory) => {
     setSelectedProduct(product)
     setIsModalOpen(true)
-  }
+  }, [])
 
   const handleCloseModal = () => {
     setIsModalOpen(false)
@@ -587,6 +588,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                           key={product.id}
                           product={product}
                           onProductClick={handleProductClick}
+                          trackViews={false}
                         />
                       ))}
                     </div>
@@ -596,9 +598,11 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                         <div key={product.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
                           <div className="flex items-center space-x-4">
                             <div className="w-20 h-20 flex-shrink-0">
-                              <img
+                              <Image
                                 src={product.images[0] || '/placeholder-product.jpg'}
                                 alt={product.name}
+                                fill
+                                sizes="(max-width: 768px) 25vw, 15vw"
                                 className="w-full h-full object-cover rounded-lg"
                               />
                             </div>
