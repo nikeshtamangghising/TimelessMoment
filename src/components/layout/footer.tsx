@@ -25,7 +25,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/about" className="text-gray-600 hover:text-gray-900">
+                <Link href="/contact" className="text-gray-600 hover:text-gray-900">
                   About Us
                 </Link>
               </li>
@@ -44,7 +44,7 @@ export default function Footer() {
             </h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/help" className="text-gray-600 hover:text-gray-900">
+                <Link href="/contact" className="text-gray-600 hover:text-gray-900">
                   Help Center
                 </Link>
               </li>
