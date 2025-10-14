@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
@@ -67,7 +67,9 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
   const [categoriesData, setCategoriesData] = useState<CategoriesData | null>(null)
   const [productsData, setProductsData] = useState<ProductsData | null>(null)
   const [availableFilters, setAvailableFilters] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [loadingCategories, setLoadingCategories] = useState(true)
+  const [loadingProducts, setLoadingProducts] = useState(true)
+  const [initialized, setInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<ProductWithCategory | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -81,6 +83,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
 
   const router = useRouter()
   const urlSearchParams = useSearchParams()
+  const productsAbortRef = useRef<AbortController | null>(null)
 
   // Always show products interface - no category browsing mode
   const hasActiveFilters = true
@@ -109,83 +112,116 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
     'Gift Cards': '🎁',
   }
 
+  // Fetch categories once on mount
   useEffect(() => {
-    fetchData()
-  }, [searchParams.category, searchParams.search, searchParams.sort, searchParams.minPrice, searchParams.maxPrice, searchParams.page])
-
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      setProductsData(null) // Clear previous data
-
-      // Always fetch categories for navigation
-      const categoriesResponse = await fetch('/api/categories?type=hierarchy')
-      if (!categoriesResponse.ok) {
-        throw new Error('Failed to fetch categories')
-      }
-      const categoriesResult = await categoriesResponse.json()
-      
-      // Transform the API response to match expected structure
-      const transformedCategories = (categoriesResult.categories || []).map((category: any) => ({
-        ...category,
-        productCount: category._count?.products || 0,
-        children: category.children?.map((child: any) => ({
-          ...child,
-          productCount: child._count?.products || 0
-        })) || []
-      }))
-      
-      const transformedData = {
-        rootCategories: transformedCategories,
-        featuredCategories: transformedCategories.slice(0, 6)
-      }
-      setCategoriesData(transformedData)
-
-      // Always fetch products since we always show the products interface
-      const params = new URLSearchParams()
-      Object.entries(searchParams).forEach(([key, value]) => {
-        if (value) params.set(key, value)
-      })
-      
-      // Add isActive=true to only show active products
-      params.set('isActive', 'true')
-      
-      // Add cache busting
-      params.set('_t', Date.now().toString())
-      
-      const productsResponse = await fetch(`/api/products?${params.toString()}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache'
+    const fetchCategoriesOnce = async () => {
+      try {
+        setLoadingCategories(true)
+        const categoriesResponse = await fetch('/api/categories?type=hierarchy')
+        if (!categoriesResponse.ok) {
+          throw new Error('Failed to fetch categories')
         }
-      })
-      if (!productsResponse.ok) {
-        throw new Error('Failed to fetch products')
+        const categoriesResult = await categoriesResponse.json()
+        
+        // Transform the API response to match expected structure
+        const transformedCategories = (categoriesResult.categories || []).map((category: any) => ({
+          ...category,
+          productCount: category._count?.products || 0,
+          children: category.children?.map((child: any) => ({
+            ...child,
+            productCount: child._count?.products || 0
+          })) || []
+        }))
+        
+        const transformedData = {
+          rootCategories: transformedCategories,
+          featuredCategories: transformedCategories.slice(0, 6)
+        }
+        setCategoriesData(transformedData)
+      } catch (err) {
+        console.error('Error fetching categories:', err)
+        // Do not block UI; filters will still work without category list
+      } finally {
+        setLoadingCategories(false)
       }
-      const productsResult = await productsResponse.json()
-      setProductsData(productsResult)
-      
-      // Set up load more functionality
-      const products = productsResult.data || []
-      setAllProducts(products)
-      const initialDisplayCount = 24 // Show 24 products initially
-      setDisplayedProducts(products.slice(0, initialDisplayCount))
-      setHasMore(products.length > initialDisplayCount)
-
-      // Fetch available filters
-      const filtersResponse = await fetch('/api/products/filters')
-      if (filtersResponse.ok) {
-        const filtersResult = await filtersResponse.json()
-        setAvailableFilters(filtersResult)
-      }
-    } catch (err) {
-      console.error('Error fetching data:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load data')
-    } finally {
-      setLoading(false)
     }
-  }
+    fetchCategoriesOnce()
+  }, [])
+
+  // Fetch products whenever filters/search change
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoadingProducts(true)
+        setError(null)
+
+        // Cancel any in-flight request
+        if (productsAbortRef.current) {
+          productsAbortRef.current.abort()
+        }
+        const controller = new AbortController()
+        productsAbortRef.current = controller
+
+        const params = new URLSearchParams()
+        Object.entries(searchParams).forEach(([key, value]) => {
+          if (value) params.set(key, value)
+        })
+        // Add isActive=true to only show active products
+        params.set('isActive', 'true')
+        // Add cache busting
+        params.set('_t', Date.now().toString())
+
+        const productsResponse = await fetch(`/api/products?${params.toString()}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' },
+          signal: controller.signal,
+        })
+        if (!productsResponse.ok) {
+          throw new Error('Failed to fetch products')
+        }
+        const productsResult = await productsResponse.json()
+        setProductsData(productsResult)
+
+        // Set up load more functionality
+        const products = productsResult.data || []
+        setAllProducts(products)
+        const initialDisplayCount = 24 // Show 24 products initially
+        setDisplayedProducts(products.slice(0, initialDisplayCount))
+        setHasMore(products.length > initialDisplayCount)
+
+        // Fetch available filters only on first load
+        if (!initialized) {
+          try {
+            const filtersResponse = await fetch('/api/products/filters')
+            if (filtersResponse.ok) {
+              const filtersResult = await filtersResponse.json()
+              setAvailableFilters(filtersResult)
+            }
+          } catch (e) {
+            // ignore filters failure
+          }
+        }
+      } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          return
+        }
+        console.error('Error fetching products:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load data')
+      } finally {
+        setLoadingProducts(false)
+        setInitialized(true)
+      }
+    }
+
+    fetchProducts()
+
+    // Cleanup to abort when effect re-runs
+    return () => {
+      if (productsAbortRef.current) {
+        productsAbortRef.current.abort()
+      }
+    }
+  }, [searchParams.category, searchParams.search, searchParams.sort, searchParams.minPrice, searchParams.maxPrice, searchParams.page])
 
   const handleProductClick = (product: ProductWithCategory) => {
     setSelectedProduct(product)
@@ -212,7 +248,25 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
     
     const newUrl = `/categories?${params.toString()}`
     console.log('Navigating to:', newUrl)
-    router.push(newUrl)
+    router.push(newUrl, { scroll: false })
+  }
+
+  // Helper to resolve a category name by its ID (used for breadcrumbs and chips)
+  const findCategoryById = (id: string | undefined): Category | undefined => {
+    if (!id || !categoriesData) return undefined
+    const roots = categoriesData.rootCategories || []
+    for (const root of roots) {
+      if (root.id === id) return root
+      const stack: Category[] = [...(root.children || [])]
+      while (stack.length) {
+        const current = stack.pop() as Category
+        if (current.id === id) return current
+        if (current.children && current.children.length) {
+          stack.push(...current.children)
+        }
+      }
+    }
+    return undefined
   }
 
   const clearFilters = () => {
@@ -233,7 +287,8 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
     }, 500) // Small delay for better UX
   }
 
-  if (loading) {
+  // Initial loading skeleton only on first load
+  if (!initialized && loadingProducts) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="animate-pulse">
@@ -276,7 +331,8 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
   ]
   
   if (searchParams.category) {
-    breadcrumbs.push({ name: searchParams.category, href: `/categories?category=${searchParams.category}` })
+    const catName = findCategoryById(searchParams.category)?.name
+    breadcrumbs.push({ name: catName || 'Category', href: `/categories?category=${searchParams.category}` })
   }
   
   if (searchParams.search) {
@@ -348,7 +404,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                     <div className="flex flex-wrap gap-2">
                       {searchParams.category && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          Category: {searchParams.category}
+                          Category: {findCategoryById(searchParams.category)?.name || 'Selected'}
                           <button
                             onClick={() => updateFilters({ category: null })}
                             className="ml-1.5 hover:text-blue-600"
@@ -404,22 +460,23 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                       key={`category-${searchParams.category || 'all'}`}
                       value={searchParams.category || ''}
                       onChange={(e) => {
-                        console.log('Category changed to:', e.target.value)
+                        console.log('Category changed to (id):', e.target.value)
                         console.log('Current searchParams.category:', searchParams.category)
+                        // Store the category ID in the query param so the API can filter by categoryId
                         updateFilters({ category: e.target.value || null })
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-indigo-500 focus:border-indigo-500"
                     >
                       <option value="">All Categories</option>
                       {categoriesData.rootCategories.map((category) => (
-                        <option key={category.id} value={category.name}>
+                        <option key={category.id} value={category.id}>
                           {category.name} ({category.productCount || 0})
                         </option>
                       ))}
                       {/* Also include subcategories */}
                       {categoriesData.rootCategories.map((category) => 
                         category.children?.map((subcategory) => (
-                          <option key={subcategory.id} value={subcategory.name}>
+                          <option key={subcategory.id} value={subcategory.id}>
                             {category.name} → {subcategory.name} ({subcategory.productCount || 0})
                           </option>
                         ))

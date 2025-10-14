@@ -74,7 +74,7 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
           </div>
         </div>
       }>
-        <CategoriesClient key={`${params.category || 'all'}-${params.search || ''}-${params.page || '1'}`} searchParams={params} />
+        <CategoriesClient searchParams={params} />
       </Suspense>
     </MainLayout>
   )

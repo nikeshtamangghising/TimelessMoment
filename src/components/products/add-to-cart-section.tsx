@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { MinusIcon, PlusIcon } from '@heroicons/react/24/outline'
 import Button from '@/components/ui/button'
 import { useCart } from '@/contexts/cart-context'
@@ -15,6 +16,7 @@ export default function AddToCartSection({ product }: AddToCartSectionProps) {
   const [quantity, setQuantity] = useState(1)
   const { addToCart, isLoading } = useCart()
   const { openCart } = useCartStore()
+  const router = useRouter()
 
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity >= 1 && newQuantity <= product.inventory) {
@@ -23,14 +25,20 @@ export default function AddToCartSection({ product }: AddToCartSectionProps) {
   }
 
   const handleAddToCart = async () => {
-    // Create a deep copy of the product to avoid reference issues
     const productCopy = JSON.parse(JSON.stringify(product))
-    
     const success = await addToCart(productCopy, quantity)
     if (success) {
       openCart()
-      // Reset quantity to 1 after successful add
       setQuantity(1)
+    }
+  }
+
+  const handleBuyNow = async () => {
+    if (product.inventory === 0) return
+    const productCopy = JSON.parse(JSON.stringify(product))
+    const success = await addToCart(productCopy, 1)
+    if (success) {
+      router.push('/checkout')
     }
   }
 
@@ -77,7 +85,7 @@ export default function AddToCartSection({ product }: AddToCartSectionProps) {
       </div>
 
       {/* Action Buttons */}
-      <div className="flex space-x-4">
+      <div className="flex flex-col sm:flex-row gap-3">
         <Button
           size="lg"
           disabled={isOutOfStock || isLoading}
@@ -87,11 +95,12 @@ export default function AddToCartSection({ product }: AddToCartSectionProps) {
           {isLoading ? 'Adding...' : isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
         </Button>
         <Button
-          variant="outline"
           size="lg"
-          disabled={isLoading}
+          disabled={isOutOfStock || isLoading}
+          onClick={handleBuyNow}
+          className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
         >
-          ♡ Wishlist
+          Buy Now
         </Button>
       </div>
       
