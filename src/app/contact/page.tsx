@@ -52,6 +52,14 @@ export default function ContactPage() {
           </div>
         </div>
 
+        {/* About Us */}
+        <div className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900">About Us</h2>
+          <p className="mt-2 text-gray-600">
+            Rijal Decors & Interior Pvt. Ltd curates affordable, artistic decor for homes and offices — from resin sculptures and figurines to chef and wine holders, welcome sign boards, and stock market bull & bear sets. We focus on tasteful pieces that elevate spaces and make thoughtful gifts.
+          </p>
+        </div>
+
         <div className="mt-8 grid grid-cols-1 gap-6">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900">Map Location</h2>
@@ -81,6 +89,64 @@ export default function ContactPage() {
               Email Us
             </a>
           </div>
+        </div>
+
+        {/* Social Links */}
+        <div className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900">Connect With Us</h2>
+          <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <li>
+              <a
+                href="https://facebook.com/rijaldecorsvalley"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Facebook
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://instagram.com/rijaldecorsvalley"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Instagram
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://tiktok.com/@rijaldecorsvalley"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                TikTok
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://youtube.com/@rijaldecorsvalley"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                YouTube
+              </a>
+            </li>
+            <li className="sm:col-span-2">
+              <a
+                href="https://wa.me/9779800000000"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                WhatsApp
+              </a>
+            </li>
+          </ul>
+          <p className="mt-2 text-xs text-gray-500">Replace these URLs with your official profiles.</p>
         </div>
       </div>
     </MainLayout>
