@@ -37,61 +37,55 @@ export class OrderRepository {
       }
     }
 
-    // Create order in a transaction with inventory updates
-    const order = await prisma.$transaction(async (tx) => {
-      // Create the order
-      const newOrder = await tx.order.create({
-        data: {
-          userId: data.userId,
-          total: data.total,
-          stripePaymentIntentId: data.stripePaymentIntentId,
-          status: 'PENDING',
-          shippingAddress: data.shippingAddress ? data.shippingAddress : undefined,
-          items: {
-            create: data.items.map(item => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              price: item.price
-            })),
-          },
-        } as any, // Type assertion to bypass Prisma type checking
-        include: {
-          items: {
-            include: {
-              product: true,
-            },
-          },
-          user: true,
-        },
-      })
-
-      // Update inventory levels and record adjustments
-      for (const item of data.items) {
-        // Decrease product inventory and increment performance counters
-        await tx.product.update({
-          where: { id: item.productId },
-          data: {
-            inventory: {
-              decrement: item.quantity
-            },
-            orderCount: { increment: 1 },
-            purchaseCount: { increment: item.quantity },
-          }
-        })
-
-        // Record inventory adjustment
-        await tx.inventoryAdjustment.create({
-          data: {
+    // Create order and related updates using a batched transaction (PgBouncer-safe)
+    const createOrderQuery = prisma.order.create({
+      data: {
+        userId: data.userId,
+        total: data.total,
+        stripePaymentIntentId: data.stripePaymentIntentId,
+        status: 'PENDING',
+        shippingAddress: data.shippingAddress ? data.shippingAddress : undefined,
+        items: {
+          create: data.items.map(item => ({
             productId: item.productId,
-            quantity: -item.quantity,
-            type: 'ORDER_PLACED',
-            reason: `Inventory reduced for order ${newOrder.id}`,
-          }
-        })
-      }
-
-      return newOrder
+            quantity: item.quantity,
+            price: item.price
+          })),
+        },
+      } as any, // Type assertion to bypass Prisma type checking
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+        user: true,
+      },
     })
+
+    const inventoryQueries = data.items.flatMap(item => [
+      prisma.product.update({
+        where: { id: item.productId },
+        data: {
+          inventory: { decrement: item.quantity },
+          orderCount: { increment: 1 },
+          purchaseCount: { increment: item.quantity },
+        },
+      }),
+      prisma.inventoryAdjustment.create({
+        data: {
+          productId: item.productId,
+          quantity: -item.quantity,
+          type: 'ORDER_PLACED',
+          reason: `Inventory reduced for order`,
+        },
+      }),
+    ])
+
+    const [order] = await prisma.$transaction([
+      createOrderQuery,
+      ...inventoryQueries,
+    ]) as [OrderWithItems, ...any[]]
 
     // Invalidate related caches
     await invalidateOrder(order.id)
@@ -123,64 +117,58 @@ export class OrderRepository {
       }
     }
 
-    // Create guest order in a transaction with inventory updates
-    const order = await prisma.$transaction(async (tx) => {
-      // Create the guest order
-      const newOrder = await tx.order.create({
-        data: {
-          userId: null, // No user for guest orders
-          guestEmail: data.guestEmail,
-          guestName: data.guestName,
-          isGuestOrder: true,
-          total: data.total,
-          stripePaymentIntentId: data.stripePaymentIntentId,
-          status: 'PENDING',
-          shippingAddress: data.shippingAddress,
-          items: {
-            create: data.items.map(item => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              price: item.price
-            })),
-          },
-        } as any, // Type assertion to bypass Prisma type checking
-        include: {
-          items: {
-            include: {
-              product: true,
-            },
-          },
-          user: true,
-        },
-      })
-
-      // Update inventory levels and record adjustments
-      for (const item of data.items) {
-        // Decrease product inventory and increment performance counters
-        await tx.product.update({
-          where: { id: item.productId },
-          data: {
-            inventory: {
-              decrement: item.quantity
-            },
-            orderCount: { increment: 1 },
-            purchaseCount: { increment: item.quantity },
-          }
-        })
-
-        // Record inventory adjustment
-        await tx.inventoryAdjustment.create({
-          data: {
+    // Create guest order and related updates using a batched transaction (PgBouncer-safe)
+    const createOrderQuery = prisma.order.create({
+      data: {
+        userId: null, // No user for guest orders
+        guestEmail: data.guestEmail,
+        guestName: data.guestName,
+        isGuestOrder: true,
+        total: data.total,
+        stripePaymentIntentId: data.stripePaymentIntentId,
+        status: 'PENDING',
+        shippingAddress: data.shippingAddress,
+        items: {
+          create: data.items.map(item => ({
             productId: item.productId,
-            quantity: -item.quantity,
-            type: 'ORDER_PLACED',
-            reason: `Inventory reduced for guest order ${newOrder.id}`,
-          }
-        })
-      }
-
-      return newOrder
+            quantity: item.quantity,
+            price: item.price
+          })),
+        },
+      } as any, // Type assertion to bypass Prisma type checking
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+        user: true,
+      },
     })
+
+    const inventoryQueries = data.items.flatMap(item => [
+      prisma.product.update({
+        where: { id: item.productId },
+        data: {
+          inventory: { decrement: item.quantity },
+          orderCount: { increment: 1 },
+          purchaseCount: { increment: item.quantity },
+        },
+      }),
+      prisma.inventoryAdjustment.create({
+        data: {
+          productId: item.productId,
+          quantity: -item.quantity,
+          type: 'ORDER_PLACED',
+          reason: `Inventory reduced for guest order`,
+        },
+      }),
+    ])
+
+    const [order] = await prisma.$transaction([
+      createOrderQuery,
+      ...inventoryQueries,
+    ]) as [OrderWithItems, ...any[]]
 
     // Invalidate related caches
     await invalidateOrder(order.id)
@@ -391,60 +379,56 @@ export class OrderRepository {
 
     const oldStatus = order.status
 
-    // Update order status in transaction with inventory adjustments if needed
-    const updatedOrder = await prisma.$transaction(async (tx) => {
-      // Prepare update data
-      const updateData: any = { 
-        status,
-        updatedAt: new Date(),
-      }
+    // Update order status and related adjustments using a batched transaction (PgBouncer-safe)
+    const updateData: any = {
+      status,
+      updatedAt: new Date(),
+    }
 
-      // Generate tracking number if status is being updated to SHIPPED and no tracking number exists
-      if (status === 'SHIPPED' && !order.trackingNumber) {
-        const trackingNumber = `TN${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`
-        updateData.trackingNumber = trackingNumber
-      }
+    if (status === 'SHIPPED' && !order.trackingNumber) {
+      const trackingNumber = `TN${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`
+      updateData.trackingNumber = trackingNumber
+    }
 
-      const updated = await tx.order.update({
-        where: { id },
-        data: updateData,
-      })
+    const updateOrderQuery = prisma.order.update({
+      where: { id },
+      data: updateData,
+    })
 
-      // Handle inventory adjustments for status changes
-      if (oldStatus === 'PENDING' && (status === 'CANCELLED' || status === 'REFUNDED')) {
-        // Return inventory to stock
-        for (const item of order.items) {
-          await tx.product.update({
+    const adjustQueries: any[] = []
+
+    if (oldStatus === 'PENDING' && (status === 'CANCELLED' || status === 'REFUNDED')) {
+      for (const item of order.items) {
+        adjustQueries.push(
+          prisma.product.update({
             where: { id: item.productId },
-            data: {
-              inventory: {
-                increment: item.quantity
-              }
-            }
-          })
-
-          await tx.inventoryAdjustment.create({
+            data: { inventory: { increment: item.quantity } },
+          }),
+          prisma.inventoryAdjustment.create({
             data: {
               productId: item.productId,
               quantity: item.quantity,
-              type: status === 'CANCELLED' ? 'ORDER_RETURNED' : 'ORDER_RETURNED',
-              reason: `Inventory restored from ${status.toLowerCase()} order ${id}`,
-            }
-          })
-        }
+              type: 'ORDER_RETURNED',
+              reason: `Inventory restored from ${status.toLowerCase()} order`,
+            },
+          }),
+        )
       }
+    }
 
-      // Add tracking log entry when status changes
-      await tx.orderTracking.create({
-        data: {
-          orderId: id,
-          status,
-          message: `Order status updated from ${oldStatus} to ${status}`,
-        }
-      })
-
-      return updated
+    const trackingLogQuery = prisma.orderTracking.create({
+      data: {
+        orderId: id,
+        status,
+        message: `Order status updated from ${oldStatus} to ${status}`,
+      },
     })
+
+    const [updatedOrder] = await prisma.$transaction([
+      updateOrderQuery,
+      ...adjustQueries,
+      trackingLogQuery,
+    ]) as [Order, ...any[]]
 
     return updatedOrder
   }

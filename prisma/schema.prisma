@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")        // pooled (PgBouncer) for runtime
+  directUrl = env("DIRECT_DATABASE_URL") // direct for migrations/introspection
 }
 
 model User {
@@ -158,6 +159,10 @@ model Order {
   items                 OrderItem[]
   trackingLogs          OrderTracking[]
 
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([guestEmail, createdAt])
+  @@index([stripePaymentIntentId])
   @@map("orders")
 }
 
@@ -170,6 +175,8 @@ model OrderItem {
   order     Order   @relation(fields: [orderId], references: [id])
   product   Product @relation(fields: [productId], references: [id])
 
+  @@index([orderId])
+  @@index([productId])
   @@map("order_items")
 }
 
@@ -198,6 +205,8 @@ model EmailLog {
   sentAt    DateTime?
   createdAt DateTime    @default(now())
 
+  @@index([status])
+  @@index([createdAt])
   @@map("email_logs")
 }
 

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { ActivityType } from '@prisma/client';
+import { getSessionId } from '@/lib/activity-utils';
 
 export interface ActivityData {
   userId?: string;
@@ -350,24 +351,32 @@ export class ActivityTracker {
 export const trackActivity = async (data: ActivityData) => {
   // Check if we're running on the client side
   if (typeof window !== 'undefined') {
-    // Make API call to track activity
+    // Ensure we have at least a sessionId for guests
+    const payload: ActivityData = {
+      ...data,
+      sessionId: data.userId ? data.sessionId : (data.sessionId || getSessionId()),
+    }
+
     try {
       const response = await fetch('/api/activity', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       })
       
       if (!response.ok) {
-        throw new Error(`Failed to track activity: ${response.statusText}`)
+        const text = await response.text().catch(() => '')
+        console.warn(`trackActivity: non-OK response ${response.status} ${response.statusText} ${text}`)
+        return { success: false }
       }
       
       return await response.json()
     } catch (error) {
-      console.error('Error tracking activity:', error)
-      throw error
+      // Do not throw from client-side tracking; avoid breaking UX
+      console.warn('trackActivity: request failed:', error)
+      return { success: false }
     }
   } else {
     // Server side - use direct method

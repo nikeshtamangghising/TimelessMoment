@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getPaymentGatewayManager, parseESewaCallback, parseKhaltiCallback } from '@/lib/payment-gateways'
@@ -141,59 +143,48 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // Create the order
-      const order = await prisma.$transaction(async (tx) => {
-        // Create the order
-        const newOrder = await tx.order.create({
-          data: {
-            id: orderId,
-            userId: orderSessionData.userId,
-            total: orderSessionData.amount,
-            status: 'PENDING',
-            stripePaymentIntentId: transactionId,
-            shippingAddress: orderSessionData.shippingAddress ? orderSessionData.shippingAddress : undefined,
-            items: {
-              create: orderSessionData.cartItems.map((item: any) => ({
-                productId: item.productId,
-                quantity: item.quantity,
-                price: item.price,
-              })),
-            },
-          },
-          include: {
-            items: {
-              include: {
-                product: true,
-              },
-            },
-            user: true,
-          },
-        })
-
-        // Update product inventory
-        for (const item of orderSessionData.cartItems) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: {
-              inventory: {
-                decrement: item.quantity
-              }
-            }
-          })
-
-          // Record inventory adjustment
-          await tx.inventoryAdjustment.create({
-            data: {
+      // Create the order using a batched transaction (PgBouncer-safe)
+      const createOrderQuery = prisma.order.create({
+        data: {
+          id: orderId,
+          userId: orderSessionData.userId,
+          total: orderSessionData.amount,
+          status: 'PENDING',
+          stripePaymentIntentId: transactionId,
+          shippingAddress: orderSessionData.shippingAddress ? orderSessionData.shippingAddress : undefined,
+          items: {
+            create: orderSessionData.cartItems.map((item: any) => ({
               productId: item.productId,
-              quantity: -item.quantity,
-              type: 'ORDER_PLACED',
-              reason: `Inventory reduced for order ${newOrder.id}`,
-            }
-          })
-        }
-
-        return newOrder
+              quantity: item.quantity,
+              price: item.price,
+            })),
+          },
+        },
+        include: {
+          items: { include: { product: true } },
+          user: true,
+        },
       })
+
+      const inventoryQueries = orderSessionData.cartItems.flatMap((item: any) => [
+        prisma.product.update({
+          where: { id: item.productId },
+          data: { inventory: { decrement: item.quantity } },
+        }),
+        prisma.inventoryAdjustment.create({
+          data: {
+            productId: item.productId,
+            quantity: -item.quantity,
+            type: 'ORDER_PLACED',
+            reason: `Inventory reduced for order`,
+          },
+        }),
+      ])
+
+      const [order] = await prisma.$transaction([
+        createOrderQuery,
+        ...inventoryQueries,
+      ]) as [any, ...any[]]
 
       // Start order processing workflow
       try {

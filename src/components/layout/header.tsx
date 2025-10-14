@@ -40,10 +40,10 @@ export default function Header() {
               <Image
                 src="/logo.png"
                 alt="Rijal Decors Valley Logo"
-                width={140}
-                height={34}
+                width={160}
+                height={40}
                 priority
-                className="h-8 w-auto object-contain"
+                className="h-10 w-auto object-contain"
               />
             </Link>
           </div>

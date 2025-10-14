@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -81,6 +81,9 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
   const [displayedProducts, setDisplayedProducts] = useState<ProductWithCategory[]>([])
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const pageSize = 24
 
   const router = useRouter()
   const urlSearchParams = useSearchParams()
@@ -155,6 +158,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
       try {
         setLoadingProducts(true)
         setError(null)
+        setCurrentPage(1)
 
         // Cancel any in-flight request
         if (productsAbortRef.current) {
@@ -165,8 +169,20 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
 
         const params = new URLSearchParams()
         Object.entries(searchParams).forEach(([key, value]) => {
-          if (value) params.set(key, value)
+          if (value && key !== 'page') params.set(key, value)
         })
+        // Normalize sort values expected by API
+        const sort = searchParams.sort
+        if (sort === 'price-low') params.set('sort', 'price-asc')
+        else if (sort === 'price-high') params.set('sort', 'price-desc')
+        else if (sort === 'rating') params.set('sort', 'rating')
+        else if (sort === 'popular') params.set('sort', 'popular')
+        else if (sort === 'newest') params.set('sort', 'newest')
+
+        // Pagination
+        params.set('page', '1')
+        params.set('limit', String(pageSize))
+
         // Add isActive=true to only show active products
         params.set('isActive', 'true')
         // Add cache busting
@@ -183,12 +199,15 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
         const productsResult = await productsResponse.json()
         setProductsData(productsResult)
 
-        // Set up load more functionality
+        // Initial page of products
         const products = productsResult.data || []
         setAllProducts(products)
-        const initialDisplayCount = 24 // Show 24 products initially
-        setDisplayedProducts(products.slice(0, initialDisplayCount))
-        setHasMore(products.length > initialDisplayCount)
+        setDisplayedProducts(products)
+        const tp = productsResult.pagination?.totalPages || 1
+        setTotalPages(tp)
+        const cp = productsResult.pagination?.page || 1
+        setCurrentPage(cp)
+        setHasMore(cp < tp)
 
         // Fetch available filters only on first load
         if (!initialized) {
@@ -222,7 +241,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
         productsAbortRef.current.abort()
       }
     }
-  }, [searchParams.category, searchParams.search, searchParams.sort, searchParams.minPrice, searchParams.maxPrice, searchParams.page])
+  }, [searchParams.category, searchParams.search, searchParams.sort, searchParams.minPrice, searchParams.maxPrice])
 
   const handleProductClick = useCallback((product: ProductWithCategory) => {
     setSelectedProduct(product)
@@ -252,40 +271,72 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
     router.push(newUrl, { scroll: false })
   }
 
-  // Helper to resolve a category name by its ID (used for breadcrumbs and chips)
-  const findCategoryById = (id: string | undefined): Category | undefined => {
-    if (!id || !categoriesData) return undefined
-    const roots = categoriesData.rootCategories || []
-    for (const root of roots) {
-      if (root.id === id) return root
-      const stack: Category[] = [...(root.children || [])]
+  // Map category id -> category (for O(1) lookup)
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, Category>()
+    if (categoriesData?.rootCategories) {
+      const stack = [...categoriesData.rootCategories]
       while (stack.length) {
-        const current = stack.pop() as Category
-        if (current.id === id) return current
-        if (current.children && current.children.length) {
-          stack.push(...current.children)
-        }
+        const c = stack.pop() as Category
+        map.set(c.id, c)
+        if (c.children && c.children.length) stack.push(...c.children)
       }
     }
-    return undefined
+    return map
+  }, [categoriesData])
+
+  const findCategoryById = (id: string | undefined): Category | undefined => {
+    if (!id) return undefined
+    return categoryMap.get(id)
   }
 
   const clearFilters = () => {
     router.push('/categories')
   }
   
-  const loadMore = () => {
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return
     setLoadingMore(true)
-    
-    setTimeout(() => {
-      const currentCount = displayedProducts.length
-      const nextBatch = 12 // Load 12 more products at a time
-      const newDisplayed = allProducts.slice(0, currentCount + nextBatch)
-      
-      setDisplayedProducts(newDisplayed)
-      setHasMore(newDisplayed.length < allProducts.length)
+
+    try {
+      const nextPage = currentPage + 1
+      const params = new URLSearchParams()
+      Object.entries(searchParams).forEach(([key, value]) => {
+        if (value && key !== 'page') params.set(key, value)
+      })
+      // Normalize sort values expected by API
+      const sort = searchParams.sort
+      if (sort === 'price-low') params.set('sort', 'price-asc')
+      else if (sort === 'price-high') params.set('sort', 'price-desc')
+      else if (sort === 'rating') params.set('sort', 'rating')
+      else if (sort === 'popular') params.set('sort', 'popular')
+      else if (sort === 'newest') params.set('sort', 'newest')
+
+      params.set('page', String(nextPage))
+      params.set('limit', String(pageSize))
+      params.set('isActive', 'true')
+      params.set('_t', Date.now().toString())
+
+      const response = await fetch(`/api/products?${params.toString()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      })
+      if (!response.ok) throw new Error('Failed to load more products')
+      const result = await response.json()
+
+      const newProducts = result.data || []
+      const combined = [...allProducts, ...newProducts]
+      setAllProducts(combined)
+      setDisplayedProducts(combined)
+      const tp = result.pagination?.totalPages || totalPages
+      setTotalPages(tp)
+      setCurrentPage(nextPage)
+      setHasMore(nextPage < tp)
+    } catch (e) {
+      console.error('Load more failed:', e)
+    } finally {
       setLoadingMore(false)
-    }, 500) // Small delay for better UX
+    }
   }
 
   // Initial loading skeleton only on first load

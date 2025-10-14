@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { z } from 'zod'
@@ -145,7 +147,8 @@ export async function POST(request: NextRequest) {
           )
         }
 
-        const order = await prisma.order.create({
+        // Create order and update inventory atomically (PgBouncer-safe)
+        const createOrderQuery = prisma.order.create({
           data: {
             id: orderId,
             userId: actualUserId || null,
@@ -153,31 +156,25 @@ export async function POST(request: NextRequest) {
             status: 'PENDING' as const,
             stripePaymentIntentId: paymentResult.transactionId, // Store transaction ID here for now
             shippingAddress: shippingAddress ? shippingAddress : undefined,
-            items: {
-              create: orderItems,
-            },
+            items: { create: orderItems },
           },
           include: {
-            items: {
-              include: {
-                product: true,
-              },
-            },
+            items: { include: { product: true } },
             user: true,
           },
         })
 
-        // Update product inventory
-        for (const item of cartItems) {
-          await prisma.product.update({
+        const inventoryQueries = cartItems.map((item) =>
+          prisma.product.update({
             where: { id: item.productId },
-            data: {
-              inventory: {
-                decrement: item.quantity
-              }
-            }
+            data: { inventory: { decrement: item.quantity } },
           })
-        }
+        )
+
+        const [order] = await prisma.$transaction([
+          createOrderQuery,
+          ...inventoryQueries,
+        ]) as [any, ...any[]]
 
         // Send confirmation email if user email is available
         const userEmail = isGuest ? guestEmail : token?.email
