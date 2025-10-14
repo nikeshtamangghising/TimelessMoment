@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { signOut } from 'next-auth/react'
@@ -35,8 +36,18 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="text-xl font-bold text-gray-900 hover:text-indigo-600">
-              Rijal Decors Valley
+            <Link href="/" className="flex items-center gap-2 group" aria-label="Rijal Decors Valley Home">
+              <Image
+                src="/logo-placeholder.svg"
+                alt="Rijal Decors Valley Logo"
+                width={140}
+                height={34}
+                priority
+                className="h-8 w-auto object-contain"
+              />
+              <span className="text-xl font-bold text-gray-900 group-hover:text-indigo-600 hidden sm:inline">
+                Rijal Decors Valley
+              </span>
             </Link>
           </div>
 
