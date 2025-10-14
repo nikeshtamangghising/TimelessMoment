@@ -38,7 +38,7 @@ export default function Header() {
           <div className="flex items-center">
             <Link href="/" className="flex items-center gap-2 group" aria-label="Rijal Decors Valley Home">
               <Image
-                src="/logo-placeholder.svg"
+                src="/logo.png"
                 alt="Rijal Decors Valley Logo"
                 width={140}
                 height={34}
