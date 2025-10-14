@@ -94,55 +94,91 @@ export default function ContactPage() {
         {/* Social Links */}
         <div className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900">Connect With Us</h2>
-          <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ul className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            {/* Facebook */}
             <li>
               <a
                 href="https://facebook.com/rijaldecorsvalley"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex w-full items-center justify-center rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                aria-label="Facebook"
+                title="Facebook"
+                className="inline-flex w-full items-center justify-center rounded-lg px-4 py-3 text-white shadow-sm hover:shadow-md transition bg-[#1877F2]"
               >
-                Facebook
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M22 12.06C22 6.51 17.52 2 12 2S2 6.51 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H8.08v-2.9h2.36v-2.2c0-2.33 1.39-3.62 3.52-3.62.99 0 2.02.18 2.02.18v2.23h-1.14c-1.12 0-1.47.7-1.47 1.41v2h2.5l-.4 2.9h-2.1V22c4.78-.76 8.44-4.92 8.44-9.94z"/>
+                </svg>
+                <span className="sr-only">Facebook</span>
               </a>
             </li>
+
+            {/* Instagram */}
             <li>
               <a
                 href="https://instagram.com/rijaldecorsvalley"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex w-full items-center justify-center rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                aria-label="Instagram"
+                title="Instagram"
+                className="inline-flex w-full items-center justify-center rounded-lg px-4 py-3 text-white shadow-sm hover:shadow-md transition bg-gradient-to-r from-[#F58529] via-[#DD2A7B] to-[#8134AF]"
               >
-                Instagram
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="1.8"/>
+                  <circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.8"/>
+                  <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/>
+                </svg>
+                <span className="sr-only">Instagram</span>
               </a>
             </li>
+
+            {/* TikTok */}
             <li>
               <a
                 href="https://tiktok.com/@rijaldecorsvalley"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex w-full items-center justify-center rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                aria-label="TikTok"
+                title="TikTok"
+                className="inline-flex w-full items-center justify-center rounded-lg px-4 py-3 text-white shadow-sm hover:shadow-md transition bg-black"
               >
-                TikTok
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M21 8.5c-2.6 0-4.9-1.5-6-3.7V16c0 3.3-2.7 6-6 6s-6-2.7-6-6 2.7-6 6-6c.35 0 .7.03 1 .1v2.54c-.32-.09-.66-.14-1-.14-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.79 4-4V2h2.18c1.02 2.2 3.26 3.73 5.82 3.86V8.5z"/>
+                </svg>
+                <span className="sr-only">TikTok</span>
               </a>
             </li>
+
+            {/* YouTube */}
             <li>
               <a
                 href="https://youtube.com/@rijaldecorsvalley"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex w-full items-center justify-center rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                aria-label="YouTube"
+                title="YouTube"
+                className="inline-flex w-full items-center justify-center rounded-lg px-4 py-3 text-white shadow-sm hover:shadow-md transition bg-[#FF0000]"
               >
-                YouTube
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M23.5 6.2c-.3-1.2-1.2-2.1-2.4-2.4C19.3 3.3 12 3.3 12 3.3s-7.3 0-9.1.5C1.7 4.1.8 5 .5 6.2.1 8 .1 12 .1 12s0 4 .4 5.8c.3 1.2 1.2 2.1 2.4 2.4 1.8.5 9.1.5 9.1.5s7.3 0 9.1-.5c1.2-.3 2.1-1.2 2.4-2.4.4-1.8.4-5.8.4-5.8s0-4-.4-5.8zM9.8 15.5V8.5l6.2 3.5-6.2 3.5z"/>
+                </svg>
+                <span className="sr-only">YouTube</span>
               </a>
             </li>
-            <li className="sm:col-span-2">
+
+            {/* WhatsApp */}
+            <li>
               <a
                 href="https://wa.me/9779800000000"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex w-full items-center justify-center rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                aria-label="WhatsApp"
+                title="WhatsApp"
+                className="inline-flex w-full items-center justify-center rounded-lg px-4 py-3 text-white shadow-sm hover:shadow-md transition bg-[#25D366]"
               >
-                WhatsApp
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M20.5 3.5A11.9 11.9 0 0012 0C5.4 0 .1 5.3.1 11.9c0 2.1.6 4.1 1.7 5.9L0 24l6.4-1.7a11.9 11.9 0 005.6 1.4h.1c6.6 0 11.9-5.3 11.9-11.9 0-3.2-1.2-6.1-3.5-8.3zM12 21.3c-1.8 0-3.5-.5-5-1.4l-.4-.2-3.8 1 1-3.7-.3-.4a9.3 9.3 0 01-1.6-5.1c0-5.1 4.2-9.2 9.3-9.2 2.5 0 4.8 1 6.6 2.7 1.8 1.8 2.7 4.1 2.7 6.6 0 5.1-4.2 9.2-9.5 9.2zm5.4-6.9c-.3-.2-1.8-.9-2.1-1-.2-.1-.4-.2-.6.1-.2.2-.7.8-.9 1-.2.2-.3.2-.6.1-1.6-.8-2.7-1.4-3.7-3.3-.3-.5.3-.5.9-1.6.1-.1.1-.3 0-.5-.2-.2-.6-1.6-.9-2.2-.2-.6-.5-.5-.6-.5h-.5c-.2 0-.5.1-.7.3-.3.3-1 1-1 2.4s1.1 2.8 1.3 3c.2.2 2.1 3.2 5.1 4.4.7.3 1.3.5 1.8.6.7.2 1.3.2 1.8.1.6-.1 1.8-.7 2-1.4.2-.6.2-1.2.2-1.3 0-.1-.1-.2-.3-.3z"/>
+                </svg>
+                <span className="sr-only">WhatsApp</span>
               </a>
             </li>
           </ul>
