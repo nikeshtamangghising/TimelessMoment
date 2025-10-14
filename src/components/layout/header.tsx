@@ -45,9 +45,6 @@ export default function Header() {
                 priority
                 className="h-8 w-auto object-contain"
               />
-              <span className="text-xl font-bold text-gray-900 group-hover:text-indigo-600 hidden sm:inline">
-                Rijal Decors Valley
-              </span>
             </Link>
           </div>
 
