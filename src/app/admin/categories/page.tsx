@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import Button from '@/components/ui/button'
 import AdminLayout from '@/components/admin/admin-layout'
@@ -227,9 +228,11 @@ export default function CategoriesPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           {category.image && (
-                            <img
+                            <Image
                               src={category.image}
                               alt={category.name}
+                              width={32}
+                              height={32}
                               className="h-8 w-8 object-contain mr-3 rounded"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement

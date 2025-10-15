@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useParams } from 'next/navigation'
 import BrandForm from '@/components/admin/brand-form'
@@ -18,13 +18,7 @@ export default function EditBrandPage() {
   const [fetchLoading, setFetchLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (brandId) {
-      fetchBrand()
-    }
-  }, [brandId])
-
-  const fetchBrand = async () => {
+  const fetchBrand = useCallback(async () => {
     setFetchLoading(true)
     setError(null)
     
@@ -45,7 +39,13 @@ export default function EditBrandPage() {
     } finally {
       setFetchLoading(false)
     }
-  }
+  }, [brandId])
+
+  useEffect(() => {
+    if (brandId) {
+      fetchBrand()
+    }
+  }, [fetchBrand])
 
   const handleSubmit = async (formData: any) => {
     setLoading(true)
@@ -133,7 +133,7 @@ export default function EditBrandPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Edit Brand</h1>
-        <p className="text-gray-600">Update "{brand.name}" information</p>
+        <p className="text-gray-600">Update &quot;{brand.name}&quot; information</p>
       </div>
 
       {/* Error Message */}

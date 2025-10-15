@@ -24,7 +24,7 @@ export default function AddressesPage() {
     if (isAuthenticated) {
       fetchAddresses()
     }
-  }, [isAuthenticated, isLoading])
+  }, [isAuthenticated, isLoading, router])
 
   const fetchAddresses = async () => {
     try {

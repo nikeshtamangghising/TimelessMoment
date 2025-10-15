@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import CheckoutForm from '@/components/checkout/checkout-form'
@@ -67,7 +67,7 @@ export default function CheckoutPage() {
     }
   }, [mounted, authLoading, items, router, orderPlaced])
 
-  const calculateOrderTotal = async () => {
+  const calculateOrderTotal = useCallback(async () => {
     setLoading(true)
     setError('')
 
@@ -103,7 +103,7 @@ export default function CheckoutPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [items])
 
   const handlePaymentInitiate = async (method: PaymentMethod) => {
     try {

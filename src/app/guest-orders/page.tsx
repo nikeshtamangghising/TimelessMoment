@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import Button from '@/components/ui/button'
 import Loading from '@/components/ui/loading'
@@ -138,7 +139,7 @@ export default function GuestOrdersPage() {
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No Orders Found</h3>
               <p className="text-gray-600 mb-4">
-                We couldn't find any orders for this email address.
+                We couldn&apos;t find any orders for this email address.
               </p>
               <Link href="/" className="text-indigo-600 hover:text-indigo-500 font-medium">
                 Continue Shopping
@@ -201,9 +202,11 @@ export default function GuestOrdersPage() {
                           <div className="flex items-center space-x-3">
                             <div className="w-12 h-12 bg-gray-100 rounded-md flex items-center justify-center">
                               {item.product.images && item.product.images.length > 0 ? (
-                                <img
+                                <Image
                                   src={item.product.images[0]}
                                   alt={item.product.name}
+                                  width={48}
+                                  height={48}
                                   className="w-full h-full object-cover rounded-md"
                                 />
                               ) : (

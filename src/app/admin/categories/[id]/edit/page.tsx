@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useParams } from 'next/navigation'
 import CategoryForm from '@/components/admin/category-form'
@@ -18,13 +18,7 @@ export default function EditCategoryPage() {
   const [fetchLoading, setFetchLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (categoryId) {
-      fetchCategory()
-    }
-  }, [categoryId])
-
-  const fetchCategory = async () => {
+  const fetchCategory = useCallback(async () => {
     setFetchLoading(true)
     setError(null)
     
@@ -45,7 +39,13 @@ export default function EditCategoryPage() {
     } finally {
       setFetchLoading(false)
     }
-  }
+  }, [categoryId])
+
+  useEffect(() => {
+    if (categoryId) {
+      fetchCategory()
+    }
+  }, [fetchCategory])
 
   const handleSubmit = async (formData: any) => {
     setLoading(true)
@@ -133,7 +133,7 @@ export default function EditCategoryPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Edit Category</h1>
-        <p className="text-gray-600">Update "{category.name}" information</p>
+        <p className="text-gray-600">Update &quot;{category.name}&quot; information</p>
       </div>
 
       {/* Error Message */}

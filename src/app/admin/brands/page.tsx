@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import Button from '@/components/ui/button'
 import AdminLayout from '@/components/admin/admin-layout'
@@ -217,9 +218,11 @@ export default function BrandsPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           {brand.logo && (
-                            <img
+                            <Image
                               src={brand.logo}
                               alt={brand.name}
+                              width={32}
+                              height={32}
                               className="h-8 w-8 object-contain mr-3"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement

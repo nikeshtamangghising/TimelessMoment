@@ -1,6 +1,7 @@
 "use client"
 
 import { Suspense, useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
 import AdminLayout from '@/components/admin/admin-layout'
 import AdminProtectedRoute from '@/components/admin/admin-protected-route'
 import Loading from '@/components/ui/loading'
@@ -141,12 +142,9 @@ function CustomerDetailContent({ id }: { id: string }) {
   )
 }
 
-export default async function AdminCustomerDetailPage({ 
-  params 
-}: { 
-  params: Promise<{ id: string }> 
-}) {
-  const { id } = await params
+export default function AdminCustomerDetailPage() {
+  const params = useParams()
+  const id = params.id as string
   return (
     <Suspense fallback={
       <AdminProtectedRoute>
