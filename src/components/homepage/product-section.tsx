@@ -31,6 +31,7 @@ interface ProductSectionProps {
   viewAllLink?: string
   className?: string
   variant?: 'default' | 'featured' | 'popular' | 'trending'
+  compact?: boolean
 }
 
 export default function ProductSection({ 
@@ -39,7 +40,8 @@ export default function ProductSection({
   products, 
   viewAllLink,
   className = '',
-  variant = 'default'
+  variant = 'default',
+  compact = false
 }: ProductSectionProps) {
   const [selectedProduct, setSelectedProduct] = useState<ProductWithCategory | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -100,16 +102,16 @@ export default function ProductSection({
   }
 
   return (
-    <section className={`py-20 ${className}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end mb-16">
-          <div className="mb-8 lg:mb-0">
-            {getVariantBadge()}
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 flex items-center gap-3">
+    <section className={compact ? `py-6 ${className}` : `py-20 ${className}`}>
+      <div className={compact ? "max-w-full mx-auto px-2 sm:px-3 lg:px-4" : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"}>
+        <div className={compact ? "flex flex-col lg:flex-row lg:justify-between lg:items-end mb-4" : "flex flex-col lg:flex-row lg:justify-between lg:items-end mb-16"}>
+          <div className={compact ? "mb-3 lg:mb-0" : "mb-8 lg:mb-0"}>
+            {!compact && getVariantBadge()}
+            <h2 className={compact ? "text-lg md:text-xl font-bold text-gray-900 mb-1 flex items-center gap-2" : "text-4xl md:text-5xl font-bold text-gray-900 mb-4 flex items-center gap-3"}>
               {title}
-              {getVariantIcon()}
+              {!compact && getVariantIcon()}
             </h2>
-            {subtitle && (
+            {subtitle && !compact && (
               <p className="text-xl text-gray-600 max-w-3xl leading-relaxed">
                 {subtitle}
               </p>
@@ -118,36 +120,43 @@ export default function ProductSection({
           {viewAllLink && (
             <Link
               href={viewAllLink}
-              className="group hidden lg:inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-full hover:from-blue-700 hover:to-purple-700 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
+              className={compact 
+                ? "group hidden lg:inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 transition-colors"
+                : "group hidden lg:inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-full hover:from-blue-700 hover:to-purple-700 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
+              }
             >
-              View All
-              <svg className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {compact ? 'More' : 'View All'}
+              <svg className={compact ? "ml-1 w-3 h-3" : "ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </Link>
           )}
         </div>
 
-        {/* Products Grid - Higher Density: 2-col mobile, 6-col desktop */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 lg:gap-5">
+        {/* Products Grid */}
+        <div className={compact 
+          ? "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 md:gap-2.5"
+          : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 lg:gap-5"
+        }>
           {products.map((product, index) => (
             <div 
               key={product.id}
-              className="transform transition-all duration-500 hover:scale-105"
-              style={{
+              className={compact ? "" : "transform transition-all duration-500 hover:scale-105"}
+              style={compact ? undefined : {
                 animationDelay: `${index * 100}ms`,
               }}
             >
               <ProductCard 
                 product={product} 
                 onProductClick={handleProductClick}
+                compact={compact}
               />
             </div>
           ))}
         </div>
 
         {/* Mobile View All Button */}
-        {viewAllLink && (
+        {viewAllLink && !compact && (
           <div className="text-center mt-16 lg:hidden">
             <Link
               href={viewAllLink}

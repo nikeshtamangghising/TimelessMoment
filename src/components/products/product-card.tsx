@@ -18,6 +18,7 @@ interface ProductCardProps {
   loading?: boolean
   showFavoriteButton?: boolean
   trackViews?: boolean
+  compact?: boolean
 }
 
 function ProductCard({ 
@@ -26,7 +27,8 @@ function ProductCard({
   onProductClick, 
   loading,
   showFavoriteButton = true,
-  trackViews = true
+  trackViews = true,
+  compact = false
 }: ProductCardProps) {
   const { data: session } = useSession()
   const { addToCart } = useCart() // Removed cartLoading from destructuring
@@ -288,50 +290,56 @@ function ProductCard({
           </div>
         </div>
       </div>
-      <CardContent className="p-4">
+      <CardContent className={compact ? "p-2" : "p-4"}>
         {/* Category Badge */}
-        <div className="mb-2">
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
-            {product.category.name}
-          </span>
-        </div>
+        {!compact && (
+          <div className="mb-2">
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
+              {product.category.name}
+            </span>
+          </div>
+        )}
         
         {/* Product Title */}
         <h3 
-          className="text-sm font-semibold text-gray-900 line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors mb-2 leading-tight"
+          className={compact ? "text-xs font-medium text-gray-900 line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors mb-1 leading-tight" : "text-sm font-semibold text-gray-900 line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors mb-2 leading-tight"}
         >
           {product.name}
         </h3>
         
         {/* Price */}
-        <div className="flex items-baseline space-x-2 mb-3">
+        <div className={compact ? "flex items-baseline space-x-1 mb-2" : "flex items-baseline space-x-2 mb-3"}>
           {product.discountPrice ? (
             <>
-              <span className="text-lg font-bold text-green-600">
+              <span className={compact ? "text-sm font-bold text-green-600" : "text-lg font-bold text-green-600"}>
                 {formatCurrency(product.discountPrice, product.currency || DEFAULT_CURRENCY)}
               </span>
-              <span className="text-sm text-gray-500 line-through">
-                {formatCurrency(product.price, product.currency || DEFAULT_CURRENCY)}
-              </span>
-              <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">
-                {Math.round(((product.price - product.discountPrice) / product.price) * 100)}% OFF
-              </span>
+              {!compact && (
+                <>
+                  <span className="text-sm text-gray-500 line-through">
+                    {formatCurrency(product.price, product.currency || DEFAULT_CURRENCY)}
+                  </span>
+                  <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">
+                    {Math.round(((product.price - product.discountPrice) / product.price) * 100)}% OFF
+                  </span>
+                </>
+              )}
             </>
           ) : (
-            <span className="text-lg font-bold text-blue-600">
+            <span className={compact ? "text-sm font-bold text-blue-600" : "text-lg font-bold text-blue-600"}>
               {formatCurrency(product.price, product.currency || DEFAULT_CURRENCY)}
             </span>
           )}
         </div>
         
         {/* Action Buttons */}
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className={compact ? "mt-2 flex gap-1" : "mt-3 grid grid-cols-2 gap-2"}>
           <Button
             onClick={handleAddToCart}
             onPointerDown={(e) => { e.stopPropagation() }}
             onPointerUp={(e) => { e.stopPropagation() }}
             disabled={product.inventory === 0 || isButtonLoading}
-            className={`w-full h-9 px-2 py-0.5 text-xs font-medium ${
+            className={`${compact ? 'flex-1' : 'w-full'} ${compact ? 'h-7 px-1.5 py-0.5' : 'h-9 px-2 py-0.5'} text-xs font-medium ${
               product.inventory === 0
                 ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
@@ -340,53 +348,51 @@ function ProductCard({
           >
             {isButtonLoading ? (
               <div className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-1.5 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                <svg className={`animate-spin ${compact ? 'h-3 w-3' : '-ml-1 mr-1.5 h-3.5 w-3.5'} text-white`} fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Adding...
+                {!compact && 'Adding...'}
               </div>
             ) : product.inventory === 0 ? (
-              'Sold Out'
+              compact ? 'Out' : 'Sold Out'
             ) : (
               <div className="flex items-center justify-center">
-                <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={compact ? 'w-3 h-3' : 'w-3.5 h-3.5 mr-1.5'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13v6a1 1 0 001 1h9a1 1 0 001-1v-6M9 9h6m-3-3v6" />
                 </svg>
-                Add
+                {!compact && 'Add'}
               </div>
             )}
           </Button>
 
-          <Button
-            onClick={handleBuyNow}
-            onPointerDown={(e) => { e.stopPropagation() }}
-            onPointerUp={(e) => { e.stopPropagation() }}
-            disabled={product.inventory === 0 || isBuying || isButtonLoading}
-            className={`w-full h-9 px-2 py-0.5 text-xs font-medium ${
-              product.inventory === 0
-                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                : 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm'
-            }`}
-            size="sm"
-          >
-            {isBuying ? (
-              <div className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-1.5 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing...
-              </div>
-            ) : (
-              <div className="flex items-center justify-center">
-                <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Buy
-              </div>
-            )}
-          </Button>
+          {!compact && (
+            <Button
+              onClick={handleBuyNow}
+              onPointerDown={(e) => { e.stopPropagation() }}
+              onPointerUp={(e) => { e.stopPropagation() }}
+              disabled={product.inventory === 0 || isBuying || isButtonLoading}
+              className="w-full h-9 px-2 py-0.5 text-xs font-medium bg-amber-600 hover:bg-amber-700 text-white shadow-sm disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
+              size="sm"
+            >
+              {isBuying ? (
+                <div className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-1.5 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </div>
+              ) : (
+                <div className="flex items-center justify-center">
+                  <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Buy
+                </div>
+              )}
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -410,6 +416,7 @@ function areEqual(prev: Readonly<ProductCardProps>, next: Readonly<ProductCardPr
   if ((prev.loading || false) !== (next.loading || false)) return false
   if ((prev.showFavoriteButton || true) !== (next.showFavoriteButton || true)) return false
   if ((prev.trackViews || true) !== (next.trackViews || true)) return false
+  if ((prev.compact || false) !== (next.compact || false)) return false
   return true
 }
 

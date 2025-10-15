@@ -37,7 +37,7 @@ export default function RecommendationsSection() {
       try {
         setLoading(true)
         const userId = session?.user?.id || 'guest'
-        const response = await fetch(`/api/recommendations/${userId}?personalizedLimit=8&popularLimit=8&trendingLimit=8`)
+        const response = await fetch(`/api/recommendations/${userId}?personalizedLimit=30&popularLimit=30&trendingLimit=30`)
         
         if (!response.ok) {
           throw new Error('Failed to fetch recommendations')
@@ -57,19 +57,18 @@ export default function RecommendationsSection() {
 
   if (loading) {
     return (
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
+      <section className="py-6 bg-gray-50">
+        <div className="max-w-full mx-auto px-2 sm:px-3 lg:px-4">
+          <div className="mb-4">
             <div className="animate-pulse">
-              <div className="h-8 bg-gray-300 rounded w-64 mx-auto mb-4"></div>
-              <div className="h-4 bg-gray-300 rounded w-96 mx-auto mb-8"></div>
+              <div className="h-5 bg-gray-300 rounded w-32 mb-4"></div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {Array.from({ length: 8 }).map((_, index) => (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 md:gap-2.5">
+              {Array.from({ length: 30 }).map((_, index) => (
                 <div key={index} className="animate-pulse">
-                  <div className="bg-gray-300 rounded-lg h-64 mb-4"></div>
-                  <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-gray-300 rounded w-1/2"></div>
+                  <div className="bg-gray-300 rounded-lg aspect-square mb-2"></div>
+                  <div className="h-3 bg-gray-300 rounded w-3/4 mb-1"></div>
+                  <div className="h-3 bg-gray-300 rounded w-1/2"></div>
                 </div>
               ))}
             </div>
@@ -110,8 +109,9 @@ export default function RecommendationsSection() {
           subtitle="Hot products that everyone is talking about"
           products={recommendations.trending.map(r => r.product)}
           viewAllLink="/products?sort=trending"
-          className="bg-gradient-to-b from-white to-gray-50"
+          className="bg-white"
           variant="trending"
+          compact
         />
       )}
       
@@ -122,8 +122,9 @@ export default function RecommendationsSection() {
           subtitle="Personalized recommendations based on your preferences"
           products={recommendations.personalized.map(r => r.product)}
           viewAllLink="/products?personalized=true"
-          className="bg-gradient-to-b from-gray-50 to-white"
+          className="bg-gray-50"
           variant="default"
+          compact
         />
       )}
       
@@ -134,8 +135,9 @@ export default function RecommendationsSection() {
           subtitle="Products that customers love the most"
           products={recommendations.popular.map(r => r.product)}
           viewAllLink="/products?sort=popular"
-          className="bg-gradient-to-b from-white to-gray-50"
+          className="bg-white"
           variant="popular"
+          compact
         />
       )}
     </>
