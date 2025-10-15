@@ -1,6 +1,7 @@
 'use client'
 
 import { Product } from '@/types'
+import { getAttributeValue } from '@/lib/product-attributes'
 
 interface ProductSpecificationsProps {
   product: Product
@@ -8,6 +9,9 @@ interface ProductSpecificationsProps {
 }
 
 export default function ProductSpecifications({ product, className = '' }: ProductSpecificationsProps) {
+  // Get product attributes for dynamic specifications
+  const attributes = (product as any).attributes || []
+  
   // Extract specifications from product data
   const specifications = [
     {
@@ -34,12 +38,22 @@ export default function ProductSpecifications({ product, className = '' }: Produ
     },
     {
       label: 'Material',
-      value: product.tags?.find(tag => tag.toLowerCase().includes('material')) || 'Not specified'
+      value: getAttributeValue((product as any).attributes, 'material')
     },
     {
       label: 'Color',
-      value: product.tags?.find(tag => tag.toLowerCase().includes('color')) || 'Not specified'
-    },
+      value: getAttributeValue((product as any).attributes, 'color')
+    }
+  ]
+  
+  // Add dynamic attributes from database
+  const additionalSpecs = attributes.map((attr: any) => ({
+    label: attr.name,
+    value: attr.value
+  }))
+  
+  // Inventory specifications
+  const inventorySpecs = [
     {
       label: 'In Stock',
       value: product.inventory > 0 ? 'Yes' : 'No'
@@ -66,7 +80,7 @@ export default function ProductSpecifications({ product, className = '' }: Produ
         
         <div className="px-6 py-4">
           <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-            {specifications.map((spec, index) => (
+            {specifications.concat(inventorySpecs).map((spec, index) => (
               <div key={index}>
                 <dt className="text-sm font-medium text-gray-500">
                   {spec.label}
@@ -76,6 +90,28 @@ export default function ProductSpecifications({ product, className = '' }: Produ
                 </dd>
               </div>
             ))}
+            
+            {/* Display additional attributes not already shown */}
+            {additionalSpecs
+              .filter(spec => 
+                !specifications.some(basicSpec => 
+                  basicSpec.label.toLowerCase() === spec.label.toLowerCase()
+                ) && 
+                !inventorySpecs.some(invSpec => 
+                  invSpec.label.toLowerCase() === spec.label.toLowerCase()
+                )
+              )
+              .map((spec, index) => (
+                <div key={`additional-${index}`}>
+                  <dt className="text-sm font-medium text-gray-500 capitalize">
+                    {spec.label}
+                  </dt>
+                  <dd className="mt-1 text-sm text-gray-900">
+                    {spec.value}
+                  </dd>
+                </div>
+              ))
+            }
           </dl>
         </div>
       </div>

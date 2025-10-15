@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { SettingsRepository } from '../src/lib/settings-repository'
+import { initializeDefaultSettings } from '../src/lib/site-settings'
 
 const prisma = new PrismaClient()
 
@@ -205,7 +205,7 @@ async function main() {
   console.log('✅ Admin user created')
 
   // Initialize default settings
-  await SettingsRepository.initializeDefaults()
+  await initializeDefaultSettings()
   console.log('✅ Default settings initialized')
 
   console.log('🎉 Database seeding completed successfully!')

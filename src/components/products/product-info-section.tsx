@@ -2,12 +2,14 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { HeartIcon, ShareIcon, TruckIcon, ShieldCheckIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import { HeartIcon, ShareIcon } from '@heroicons/react/24/outline'
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid'
 import { Card, CardContent } from '@/components/ui/card'
 import AddToCartSection from '@/components/products/add-to-cart-section'
 import ProductRatingDisplay from '@/components/products/product-rating-display'
+import TrustBadgesClient from '@/components/ui/trust-badges-client'
 import { formatCurrency, DEFAULT_CURRENCY } from '@/lib/currency'
+import { getAttributeValue } from '@/lib/product-attributes'
 import { Product } from '@/types'
 
 interface ProductInfoSectionProps {
@@ -17,6 +19,15 @@ interface ProductInfoSectionProps {
 export default function ProductInfoSection({ product }: ProductInfoSectionProps) {
   const [isFavorited, setIsFavorited] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
+  
+  // Debug logging
+  console.log('Product attributes debug:', {
+    productName: product.name,
+    productSlug: product.slug,
+    attributesCount: (product as any).attributes?.length || 0,
+    attributes: (product as any).attributes || [],
+    hasAttributes: !!(product as any).attributes
+  })
 
   const productWithCategory = product as any
   const categoryName = typeof productWithCategory.category === 'object' 
@@ -242,7 +253,11 @@ export default function ProductInfoSection({ product }: ProductInfoSectionProps)
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="font-medium text-gray-900">Material:</span>
-                <span className="text-gray-600">{(() => { const attrs = ((product as any).attributes || []) as Array<{name:string,value:string}>; const attr = attrs.find(a => a.name?.toLowerCase() === 'material'); return attr?.value || '—' })()}</span>
+                <span className="text-gray-600">{getAttributeValue((product as any).attributes, 'material')}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="font-medium text-gray-900">Color:</span>
+                <span className="text-gray-600">{getAttributeValue((product as any).attributes, 'color')}</span>
               </div>
             </div>
           </div>
@@ -253,40 +268,7 @@ export default function ProductInfoSection({ product }: ProductInfoSectionProps)
       <AddToCartSection product={product} />
 
       {/* Trust Badges */}
-      <div className="bg-gray-50 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Why Buy From Us?</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-green-100 rounded-full">
-              <TruckIcon className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-900">Free Shipping</div>
-              <div className="text-xs text-gray-500">On orders over $50</div>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-full">
-              <ShieldCheckIcon className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-900">Secure Payment</div>
-              <div className="text-xs text-gray-500">SSL encrypted</div>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-purple-100 rounded-full">
-              <ArrowPathIcon className="w-6 h-6 text-purple-600" />
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-900">30-Day Returns</div>
-              <div className="text-xs text-gray-500">Hassle-free returns</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <TrustBadgesClient />
     </div>
   )
 }
