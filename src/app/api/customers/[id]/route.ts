@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 import { createAdminHandler } from '@/lib/auth-middleware'
 
 interface RouteParams {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export const GET = createAdminHandler(async (
@@ -11,7 +11,7 @@ export const GET = createAdminHandler(async (
   context: RouteParams
 ) => {
   try {
-    const { id } = context.params
+    const { id } = await context.params
 
     const user = await prisma.user.findUnique({
       where: { id },

@@ -17,9 +17,9 @@ import RecommendedProducts from '@/components/products/recommended-products'
 import { formatCurrency, DEFAULT_CURRENCY } from '@/lib/currency'
 
 interface ProductPageProps {
-  params: {
+  params: Promise<{
     slug: string
-  }
+  }>
 }
 
 // Enable ISR with 1 hour revalidation
@@ -43,7 +43,8 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
-  const product = await getProduct(params.slug)
+  const resolvedParams = await params
+  const product = await getProduct(resolvedParams.slug)
 
   if (!product) {
     return {
@@ -56,7 +57,8 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
-  const product = await getProduct(params.slug)
+  const resolvedParams = await params
+  const product = await getProduct(resolvedParams.slug)
 
   if (!product || !product.isActive) {
     notFound()

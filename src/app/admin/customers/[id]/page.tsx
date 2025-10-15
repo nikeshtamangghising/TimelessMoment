@@ -141,8 +141,12 @@ function CustomerDetailContent({ id }: { id: string }) {
   )
 }
 
-export default function AdminCustomerDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params
+export default async function AdminCustomerDetailPage({ 
+  params 
+}: { 
+  params: Promise<{ id: string }> 
+}) {
+  const { id } = await params
   return (
     <Suspense fallback={
       <AdminProtectedRoute>

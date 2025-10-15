@@ -1,12 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Production-ready TypeScript configuration
   typescript: {
-    // Temporarily ignore TypeScript build errors
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: process.env.NODE_ENV === 'development',
   },
+  // Production-ready ESLint configuration
   eslint: {
-    // Temporarily ignore ESLint build errors
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: process.env.NODE_ENV === 'development',
+    // In production, only show critical errors
+    dirs: process.env.NODE_ENV === 'production' 
+      ? ['src/app', 'src/lib'] 
+      : ['src'],
   },
   webpack: (config, { isServer }) => {
     // Fixes for potential webpack issues
@@ -48,12 +52,18 @@ const nextConfig = {
     // Disable automatic preloading for better control
     disableOptimizedLoading: false,
   },
-  // React 18 specific optimizations
-  reactStrictMode: true,
+  // React 18 specific optimizations  
+  reactStrictMode: process.env.NODE_ENV !== 'production',
   // Performance optimizations
   compress: true,
   poweredByHeader: false,
   generateEtags: false,
+  // Production logging optimization
+  logging: {
+    fetches: {
+      fullUrl: process.env.NODE_ENV === 'development',
+    },
+  },
   images: {
     remotePatterns: [
       {
