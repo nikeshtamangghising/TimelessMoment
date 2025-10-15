@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import MainLayout from '@/components/layout/main-layout'
 import AddressList from '@/components/addresses/address-list'
-import AddressForm from '@/components/addresses/address-form'
+// AddressForm will be used for future inline editing
+// import AddressForm from '@/components/addresses/address-form'
 import { Address } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'

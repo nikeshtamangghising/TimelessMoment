@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { 
   MagnifyingGlassIcon,
-  FunnelIcon,
+  // FunnelIcon, // Reserved for future filtering feature
   EyeIcon,
   CheckIcon,
   XMarkIcon,

@@ -86,7 +86,7 @@ export function formatFileSize(bytes: number) {
  * Utility function to check if an object is empty
  */
 export function isEmpty(obj: any): boolean {
-  if (obj == null) return true
+  if (obj === null || obj === undefined) return true
   if (Array.isArray(obj) || typeof obj === 'string') return obj.length === 0
   if (obj instanceof Map || obj instanceof Set) return obj.size === 0
   return Object.keys(obj).length === 0

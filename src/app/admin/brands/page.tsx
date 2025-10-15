@@ -11,7 +11,7 @@ import AdminProtectedRoute from '@/components/admin/admin-protected-route'
 import { Brand } from '@/types'
 
 export default function BrandsPage() {
-  const router = useRouter()
+  const _router = useRouter() // Unused for now, reserved for future navigation
   const [brands, setBrands] = useState<Brand[]>([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<string | null>(null)
