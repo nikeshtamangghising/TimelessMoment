@@ -1,15 +1,19 @@
 import { redirect } from 'next/navigation'
 
 // Redirect old /products route to /categories
-export default async function ProductsPage() {
+interface ProductsPageProps {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
+
+export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   // Next.js App Router: searchParams is now async
-  const searchParams = await import('next/navigation').then(m => m.searchParams?.())
+  const searchParamsValue = await searchParams
 
   const params = new URLSearchParams()
 
-  const search = searchParams?.get?.('search')
-  const category = searchParams?.get?.('category')
-  const page = searchParams?.get?.('page')
+  const search = searchParamsValue?.search as string
+  const category = searchParamsValue?.category as string
+  const page = searchParamsValue?.page as string
 
   if (search) params.set('search', search)
   if (category) params.set('category', category)

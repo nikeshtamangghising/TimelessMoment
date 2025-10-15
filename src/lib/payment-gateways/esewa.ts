@@ -75,7 +75,7 @@ export class ESewaGateway {
    * Generate eSewa payment URL
    */
   getPaymentUrl(paymentRequest: ESewaPaymentRequest): string {
-    const params = new URLSearchParams(paymentRequest)
+    const params = new URLSearchParams(paymentRequest as unknown as Record<string, string>)
     return `${this.config.baseUrl}/epay/main?${params.toString()}`
   }
 

@@ -18,27 +18,21 @@ export async function GET(request: NextRequest) {
     const validLimit = Math.min(Math.max(limit, 1), 20) // Between 1-20
 
     // Search products using the repository
-    const searchResults = await productRepository.search({
-      query: query.trim(),
-      isActive: true
-    }, {
-      page: 1,
-      limit: validLimit
-    })
+    const searchResults = await productRepository.searchProducts(query.trim(), 20)
 
     // Format results for autocomplete
-    const products = searchResults.data.map(product => ({
+    const products = searchResults.map(product => ({
       id: product.id,
       name: product.name,
       slug: product.slug,
       price: product.price,
-      category: product.category,
+      category: (product as any).category,
       images: product.images || []
     }))
 
     return NextResponse.json({
       products,
-      total: searchResults.total,
+      total: searchResults.length,
       query: query.trim()
     })
 
@@ -69,27 +63,20 @@ export async function POST(request: NextRequest) {
 
     const validLimit = Math.min(Math.max(limit, 1), 20)
 
-    const searchResults = await productRepository.search({
-      query: query.trim(),
-      isActive: true,
-      ...filters
-    }, {
-      page: 1,
-      limit: validLimit
-    })
+    const searchResults = await productRepository.searchProducts(query.trim(), validLimit)
 
-    const products = searchResults.data.map(product => ({
+    const products = searchResults.map(product => ({
       id: product.id,
       name: product.name,
       slug: product.slug,
       price: product.price,
-      category: product.category,
+      category: (product as any).category,
       images: product.images || []
     }))
 
     return NextResponse.json({
       products,
-      total: searchResults.total,
+      total: searchResults.length,
       query: query.trim(),
       filters
     })

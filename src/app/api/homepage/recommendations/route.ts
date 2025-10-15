@@ -14,11 +14,11 @@ export async function GET(request: NextRequest) {
     let recommendations = []
     
     if (session?.user?.id) {
-      // Get personalized recommendations for logged-in users
-      recommendations = await productRepo.getPersonalizedRecommendations(session.user.id, 8)
+      // Get featured products for logged-in users (simplified personalization)
+      recommendations = await productRepo.getFeaturedProducts(8)
     } else {
-      // Get general recommendations for anonymous users
-      recommendations = await productRepo.getTrendingProducts(8)
+      // Get popular products for anonymous users
+      recommendations = await productRepo.getPopularProducts(8)
     }
 
     // Record performance metric

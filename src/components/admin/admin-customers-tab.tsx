@@ -318,7 +318,7 @@ export default function AdminCustomersTab() {
                     return (
                       <Button
                         key={pageNum}
-                        variant={currentPage === pageNum ? "default" : "ghost"}
+                        variant={currentPage === pageNum ? "primary" : "ghost"}
                         size="sm"
                         onClick={() => setCurrentPage(pageNum)}
                       >

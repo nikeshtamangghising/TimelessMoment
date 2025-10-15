@@ -4,6 +4,7 @@ import { inventoryRepository } from '@/lib/inventory-repository'
 import { productRepository } from '@/lib/product-repository'
 import { orderRepository } from '@/lib/order-repository'
 import { bulkInventoryUpdateSchema, inventoryAdjustmentSchema } from '@/lib/validations'
+import { prisma } from '@/lib/db'
 
 // GET /api/inventory - Get inventory summary and low stock alerts
 export const GET = createAdminHandler(async (request: NextRequest) => {
@@ -14,8 +15,28 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
     const summary = await inventoryRepository.getInventorySummary(lowStockThreshold)
     
     // Calculate total inventory worth
-    const products = await productRepository.findMany({}, { page: 1, limit: 1000 })
-    const totalInventoryWorth = products.data.reduce((total, product) => {
+    const products = await prisma.product.findMany({
+      where: { isActive: true },
+      take: 1000,
+      include: {
+        category: {
+          select: {
+            name: true
+          }
+        }
+      }
+    })
+    
+    const productsWithPagination = {
+      data: products,
+      pagination: {
+        page: 1,
+        limit: 1000,
+        total: products.length,
+        totalPages: 1
+      }
+    }
+    const totalInventoryWorth = products.reduce((total, product) => {
       return total + (product.price * product.inventory)
     }, 0)
     
@@ -47,7 +68,7 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
       .slice(0, 10)
     
     // Calculate additional inventory metrics
-    const totalProductsValue = products.data.reduce((total, product) => {
+    const totalProductsValue = products.reduce((total, product) => {
       return total + (product.price * product.inventory)
     }, 0)
     
@@ -62,7 +83,7 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
     const inventoryTurnover = totalProductsValue > 0 ? totalPurchasesValue / totalProductsValue : 0
     
     // Get category-wise inventory distribution
-    const categoryDistribution = products.data.reduce((acc, product) => {
+    const categoryDistribution = products.reduce((acc, product) => {
       const category = product.category?.name || 'Uncategorized'
       if (!acc[category]) {
         acc[category] = {

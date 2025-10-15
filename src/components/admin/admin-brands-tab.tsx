@@ -248,7 +248,7 @@ export default function AdminBrandsTab() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {brand._count?.products || 0}
+                        {(brand as any)._count?.products || 0}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(brand.createdAt).toLocaleDateString()}

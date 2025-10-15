@@ -360,7 +360,7 @@ export default function CheckoutPage() {
                 {isAuthenticated ? (
                   <EnhancedAddressSelector
                     type="SHIPPING"
-                    selectedAddress={selectedAddress}
+                    selectedAddress={selectedAddress as any}
                     onAddressSelect={handleAddressSelect}
                     onAddressSave={handleAddressSave}
                   />
@@ -503,7 +503,7 @@ export default function CheckoutPage() {
                     guestEmail={guestEmail}
                     onGuestEmailChange={setGuestEmail}
                     onPaymentInitiate={handlePaymentInitiate}
-                    selectedAddress={selectedAddress}
+                    selectedAddress={selectedAddress as any}
                   />
                 </div>
               )}

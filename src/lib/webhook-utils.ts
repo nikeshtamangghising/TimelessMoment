@@ -1,5 +1,9 @@
 import Stripe from 'stripe'
-import { extractMetadata } from './stripe'
+
+// Helper function to extract metadata from payment intent
+function extractMetadata(paymentIntent: Stripe.PaymentIntent): Record<string, string> {
+  return paymentIntent.metadata || {}
+}
 
 export interface WebhookProcessingResult {
   success: boolean

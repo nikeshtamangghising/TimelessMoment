@@ -104,10 +104,12 @@ export default function CategoriesPage() {
     return matchesSearch && matchesStatus
   })
 
-  // Helper function to get full category path
-  const getCategoryPath = (category: Category): string => {
+  // Helper function to get category path
+  const getCategoryPath = (category: any): string => {
+    // For now, just show the category name since we're not loading the full hierarchy
+    // TODO: Implement full path rendering when parent data is properly loaded
     if (category.parent) {
-      return `${getCategoryPath(category.parent)} > ${category.name}`
+      return `${category.parent.name} > ${category.name}`
     }
     return category.name
   }
@@ -260,7 +262,7 @@ export default function CategoriesPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {category._count?.products || 0}
+                        {(category as any)._count?.products || 0}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(category.createdAt).toLocaleDateString()}

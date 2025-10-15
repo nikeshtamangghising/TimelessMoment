@@ -89,7 +89,7 @@ export default function AdminDashboardTabs() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <AdminDashboardContent onTabChange={setActiveTab} />
+        return <AdminDashboardContent onTabChange={(tab: string) => setActiveTab(tab as AdminTab)} />
       case 'settings':
         return <AdminSettingsTab />
       case 'products':
@@ -107,7 +107,7 @@ export default function AdminDashboardTabs() {
       case 'analytics':
         return <AdminAnalyticsTab />
       default:
-        return <AdminDashboardContent onTabChange={setActiveTab} />
+        return <AdminDashboardContent onTabChange={(tab: string) => setActiveTab(tab as AdminTab)} />
     }
   }
 

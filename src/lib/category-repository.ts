@@ -27,7 +27,7 @@ class CategoryRepository {
               orderBy: { sortOrder: 'asc' }
             },
             _count: {
-              select: { products: true }
+              select: { products: true, children: true }
             }
           },
           orderBy: { sortOrder: 'asc' }
@@ -50,7 +50,7 @@ class CategoryRepository {
           where: { isActive: true },
           orderBy: { sortOrder: 'asc' },
           include: {
-            _count: { select: { products: true } }
+            _count: { select: { products: true, children: true } }
           }
         },
         _count: {
@@ -231,7 +231,7 @@ class CategoryRepository {
       },
       include: {
         parent: true,
-        _count: { select: { products: true } }
+        _count: { select: { products: true, children: true } }
       },
       orderBy: [
         { name: 'asc' }

@@ -109,8 +109,8 @@ class InventoryRepository {
 
     return {
       totalProducts,
-      lowStockProducts: lowStockProducts as Product[],
-      outOfStockProducts: outOfStockProducts as Product[],
+      lowStockProducts: lowStockProducts as any,
+      outOfStockProducts: outOfStockProducts as any,
       totalValue,
       recentAdjustments: recentAdjustments as InventoryAdjustmentWithProduct[]
     }
@@ -278,7 +278,7 @@ class InventoryRepository {
       orderBy: { inventory: 'asc' }
     })
 
-    return products as Product[]
+    return products as any
   }
 
   async recordOrderInventoryDeduction(

@@ -88,8 +88,6 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/auth/signin',
   },
-  // Fix for Next.js 15 - explicitly set the base path
-  basePath: '/api/auth',
   debug: process.env.NODE_ENV === 'development',
   logger: {
     error: (code, metadata) => {

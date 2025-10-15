@@ -25,6 +25,13 @@ export async function POST(request: NextRequest) {
         isActive: true,
         inventory: { lte: threshold }
       },
+      include: {
+        category: {
+          select: {
+            name: true
+          }
+        }
+      },
       take: 100,
       orderBy: { inventory: 'asc' }
     })
@@ -108,6 +115,13 @@ export async function GET() {
       where: {
         isActive: true,
         inventory: { lte: threshold }
+      },
+      include: {
+        category: {
+          select: {
+            name: true
+          }
+        }
       },
       take: 100,
       orderBy: { inventory: 'asc' }

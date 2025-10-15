@@ -250,7 +250,7 @@ export default function AdminInventoryTab() {
                 <CardTitle className="text-sm font-medium">Low Stock</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">{analytics.lowStockProducts}</div>
+                <div className="text-2xl font-bold text-yellow-600">{(analytics as any).lowStockProducts || 0}</div>
               </CardContent>
             </Card>
 

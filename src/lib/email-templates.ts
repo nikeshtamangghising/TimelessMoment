@@ -386,7 +386,7 @@ export function generateLowStockAlertEmail(product: Product, currentStock: numbe
       <strong>Product Details:</strong><br>
       Name: <strong>${product.name}</strong><br>
       SKU: ${product.id}<br>
-      Category: ${product.category}<br>
+      Category: ${(product as any).category?.name || 'N/A'}<br>
       Current Stock: <strong>${currentStock} units</strong><br>
       Price: $${product.price.toFixed(2)}
     </div>
@@ -408,7 +408,7 @@ This is an automated alert to inform you that a product is running low on stock.
 Product Details:
 Name: ${product.name}
 SKU: ${product.id}
-Category: ${product.category}
+Category: ${(product as any).category?.name || 'N/A'}
 Current Stock: ${currentStock} units
 Price: $${product.price.toFixed(2)}
 

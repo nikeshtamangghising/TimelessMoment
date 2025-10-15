@@ -12,9 +12,7 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
   EyeIcon,
-  PlusIcon,
-  TrendingUpIcon,
-  TrendingDownIcon
+  PlusIcon
 } from '@heroicons/react/24/outline'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import Loading from '@/components/ui/loading'

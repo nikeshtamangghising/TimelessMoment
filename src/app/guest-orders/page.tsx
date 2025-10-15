@@ -230,10 +230,10 @@ export default function GuestOrdersPage() {
                     <div>
                       <h4 className="text-sm font-medium text-gray-900 mb-2">Shipping Address</h4>
                       <div className="text-sm text-gray-600">
-                        <p>{order.shippingAddress.fullName}</p>
-                        <p>{order.shippingAddress.address}</p>
-                        <p>{order.shippingAddress.city}, {order.shippingAddress.postalCode}</p>
-                        {order.shippingAddress.phone && <p>{order.shippingAddress.phone}</p>}
+                        <p>{(order.shippingAddress as any).fullName}</p>
+                        <p>{(order.shippingAddress as any).address}</p>
+                        <p>{(order.shippingAddress as any).city}, {(order.shippingAddress as any).postalCode}</p>
+                        {(order.shippingAddress as any).phone && <p>{(order.shippingAddress as any).phone}</p>}
                       </div>
                     </div>
                   )}

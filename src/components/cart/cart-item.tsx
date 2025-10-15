@@ -74,7 +74,7 @@ export default function CartItem({ item }: CartItemProps) {
             </h3>
             
             <p className="mt-1 text-sm text-gray-500">
-              {item.product.category?.name || 'Uncategorized'}
+              {(item.product as any).category?.name || 'Uncategorized'}
             </p>
             
             <div className="mt-1 text-sm font-medium text-gray-900">

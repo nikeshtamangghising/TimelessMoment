@@ -73,7 +73,6 @@ export function createDynamicComponent<T = any>(
   return dynamic(importFn, {
     loading,
     ssr,
-    suspense,
   })
 }
 

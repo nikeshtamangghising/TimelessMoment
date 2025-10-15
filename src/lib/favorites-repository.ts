@@ -285,30 +285,22 @@ export class FavoritesRepository {
     const [totalCount, recentFavorites, categoryBreakdown] = await Promise.all([
       this.getFavoritesCount(userId),
       this.getRecentFavorites(userId, 3),
-      prisma.favorite.groupBy({
-        by: ['product', 'categoryId'],
+      prisma.favorite.findMany({
         where: { 
           userId,
           product: { isActive: true },
         },
-        _count: { id: true },
-      }).then(async (grouped) => {
-        const categoryIds = [...new Set(grouped.map(g => g.categoryId))];
-        const categories = await prisma.category.findMany({
-          where: { id: { in: categoryIds } },
-          select: { id: true, name: true },
-        });
-
-        const categoryMap = Object.fromEntries(
-          categories.map(cat => [cat.id, cat.name])
-        );
-
+        include: {
+          product: {
+            select: { categoryId: true, category: { select: { name: true } } }
+          }
+        }
+      }).then((favorites) => {
         const breakdown: Record<string, number> = {};
-        grouped.forEach(item => {
-          const categoryName = categoryMap[item.categoryId] || 'Unknown';
-          breakdown[categoryName] = (breakdown[categoryName] || 0) + item._count.id;
+        favorites.forEach(favorite => {
+          const categoryName = (favorite.product as any).category?.name || 'Unknown';
+          breakdown[categoryName] = (breakdown[categoryName] || 0) + 1;
         });
-
         return breakdown;
       }),
     ]);

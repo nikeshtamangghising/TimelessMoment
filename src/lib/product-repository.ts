@@ -214,7 +214,7 @@ export class ProductRepository {
     ])
 
     return {
-      data: products,
+      data: products as any,
       pagination: {
         page,
         limit,

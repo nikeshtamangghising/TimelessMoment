@@ -101,93 +101,9 @@ async function main() {
     console.log('⚠️  No admin user created. Set ADMIN_EMAIL and ADMIN_PASSWORD environment variables to create admin user.')
   }
 
-  // Initialize default system settings
-  const defaultSettings = [
-    {
-      key: 'site_name',
-      value: 'E-commerce Platform',
-      type: 'TEXT',
-      isPublic: true,
-      description: 'The name of the website',
-    },
-    {
-      key: 'site_description',
-      value: 'A modern e-commerce platform',
-      type: 'TEXT',
-      isPublic: true,
-      description: 'Site description for SEO',
-    },
-    {
-      key: 'default_currency',
-      value: 'NPR',
-      type: 'TEXT',
-      isPublic: true,
-      description: 'Default currency code',
-    },
-    {
-      key: 'free_shipping_threshold',
-      value: '5000',
-      type: 'NUMBER',
-      isPublic: true,
-      description: 'Minimum order amount for free shipping',
-    },
-    {
-      key: 'max_cart_items',
-      value: '50',
-      type: 'NUMBER',
-      isPublic: false,
-      description: 'Maximum items allowed in cart',
-    },
-    {
-      key: 'enable_reviews',
-      value: 'true',
-      type: 'BOOLEAN',
-      isPublic: true,
-      description: 'Enable product reviews',
-    },
-    {
-      key: 'enable_wishlists',
-      value: 'true',
-      type: 'BOOLEAN',
-      isPublic: true,
-      description: 'Enable user wishlists/favorites',
-    },
-  ]
-
-  for (const setting of defaultSettings) {
-    await prisma.setting.upsert({
-      where: { key: setting.key },
-      update: {},
-      create: setting,
-    })
-  }
-
-  console.log('✅ Default settings initialized')
-
-  // Create system status entries for monitoring
-  await prisma.systemStatus.upsert({
-    where: { service: 'DATABASE' },
-    update: { status: 'HEALTHY', lastChecked: new Date() },
-    create: {
-      service: 'DATABASE',
-      status: 'HEALTHY',
-      lastChecked: new Date(),
-      metadata: { version: 'PostgreSQL', initialized: true },
-    },
-  })
-
-  await prisma.systemStatus.upsert({
-    where: { service: 'EMAIL' },
-    update: { status: 'PENDING', lastChecked: new Date() },
-    create: {
-      service: 'EMAIL',
-      status: 'PENDING',
-      lastChecked: new Date(),
-      metadata: { provider: 'Resend', configured: !!process.env.RESEND_API_KEY },
-    },
-  })
-
-  console.log('✅ System status initialized')
+  // Note: Settings and SystemStatus models are not yet implemented in schema
+  // These will be added in future iterations
+  console.log('✅ Basic setup completed (Settings & SystemStatus models pending)')
 
   console.log('🎉 Production database seeding completed successfully!')
   console.log('📝 Next steps:')

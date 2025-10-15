@@ -4,10 +4,10 @@ import RecommendationEngine from '@/lib/recommendation-engine';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const { userId } = params;
+    const { userId } = await params;
     const searchParams = request.nextUrl.searchParams;
     
     const personalizedLimit = parseInt(searchParams.get('personalizedLimit') || '12');
@@ -103,7 +103,7 @@ export async function GET(
     if (userId && userId !== 'guest') {
       try {
         const personalizedScores = await RecommendationEngine.getPersonalizedRecommendations(userId, personalizedLimit)
-        personalized = personalizedScores
+        personalized = personalizedScores.map(p => ({ ...p, reason: 'personalized' as const }))
       } catch (e) {
         // Fallback to popular if personalized fails for any reason
         personalized = popularScored.slice(0, personalizedLimit).map(p => ({ ...p, reason: 'personalized' as const }))

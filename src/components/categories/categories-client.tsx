@@ -367,7 +367,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
               Unable to load content
             </h3>
             <p className="text-red-600 mb-4">{error}</p>
-            <Button onClick={fetchData} variant="outline">
+            <Button onClick={() => window.location.reload()} variant="outline">
               Try Again
             </Button>
           </div>

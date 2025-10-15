@@ -16,11 +16,11 @@ export default function ProductSpecifications({ product, className = '' }: Produ
     },
     {
       label: 'Category',
-      value: typeof product.category === 'object' ? product.category?.name : 'Uncategorized'
+      value: typeof (product as any).category === 'object' ? (product as any).category?.name : 'Uncategorized'
     },
     {
       label: 'Brand',
-      value: typeof product.brand === 'object' ? product.brand?.name : 'Not specified'
+      value: typeof (product as any).brand === 'object' ? (product as any).brand?.name : 'Not specified'
     },
     {
       label: 'Weight',
@@ -29,7 +29,7 @@ export default function ProductSpecifications({ product, className = '' }: Produ
     {
       label: 'Dimensions',
       value: product.dimensions 
-        ? `${product.dimensions.length || 'N/A'} × ${product.dimensions.width || 'N/A'} × ${product.dimensions.height || 'N/A'} cm`
+        ? `${(product.dimensions as any).length || 'N/A'} × ${(product.dimensions as any).width || 'N/A'} × ${(product.dimensions as any).height || 'N/A'} cm`
         : 'Not specified'
     },
     {

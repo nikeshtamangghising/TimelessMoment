@@ -64,7 +64,7 @@ export default function AccountPage() {
                 <h2 className="text-xl font-semibold text-gray-900">{user.name}</h2>
                 <p className="text-gray-600">{user.email}</p>
                 <p className="text-sm text-gray-500">
-                  Member since {new Date(user.createdAt || Date.now()).toLocaleDateString()}
+                  Member since {new Date((user as any)?.createdAt || Date.now()).toLocaleDateString()}
                 </p>
               </div>
             </div>
@@ -72,14 +72,15 @@ export default function AccountPage() {
         </Card>
 
         {/* Account Management Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="addresses">Address Book</TabsTrigger>
             <TabsTrigger value="orders">Order History</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="profile" className="space-y-6">
+          <TabsContent value="profile">
+            <div className="space-y-6">
             <Card>
               <CardHeader>
                 <h3 className="text-lg font-medium text-gray-900">Profile Information</h3>
@@ -88,12 +89,14 @@ export default function AccountPage() {
                 </p>
               </CardHeader>
               <CardContent>
-                <ProfileForm user={user} />
+                <ProfileForm user={{...user, createdAt: (user as any)?.createdAt || new Date().toISOString()}} />
               </CardContent>
             </Card>
+            </div>
           </TabsContent>
 
-          <TabsContent value="addresses" className="space-y-6">
+          <TabsContent value="addresses">
+            <div className="space-y-6">
             <Card>
               <CardHeader>
                 <h3 className="text-lg font-medium text-gray-900">Address Book</h3>
@@ -105,9 +108,11 @@ export default function AccountPage() {
                 <AddressBook />
               </CardContent>
             </Card>
+            </div>
           </TabsContent>
 
-          <TabsContent value="orders" className="space-y-6">
+          <TabsContent value="orders">
+            <div className="space-y-6">
             <Card>
               <CardHeader>
                 <h3 className="text-lg font-medium text-gray-900">Order History</h3>
@@ -119,6 +124,7 @@ export default function AccountPage() {
                 <OrderHistory />
               </CardContent>
             </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

@@ -204,7 +204,7 @@ export default function SearchAutocomplete({
                     {product.name}
                   </div>
                   <div className="text-sm text-gray-500 truncate">
-                    {product.category} • {formatCurrency(product.price, product.currency || DEFAULT_CURRENCY)}
+                    {(product as any).category?.name || 'Uncategorized'} • {formatCurrency(product.price, product.currency || DEFAULT_CURRENCY)}
                   </div>
                 </div>
               </button>

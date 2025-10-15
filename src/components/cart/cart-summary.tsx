@@ -41,7 +41,7 @@ export default function CartSummary() {
         productId: item.productId,
         quantity: item.quantity,
         hasProduct: !!item.product,
-        productId: item.product?.id
+        productIdFromObject: item.product?.id
       })))
       
       // Validate items before sending

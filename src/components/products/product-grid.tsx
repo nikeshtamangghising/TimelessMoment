@@ -40,7 +40,7 @@ export default function ProductGrid({ products, onAddToCart, loading }: ProductG
         {products.map((product) => (
           <ProductCard
             key={product.id}
-            product={product}
+            product={product as any}
             onAddToCart={onAddToCart}
             onProductClick={handleProductClick}
             loading={loading}
@@ -50,7 +50,7 @@ export default function ProductGrid({ products, onAddToCart, loading }: ProductG
       
       {/* Product Modal */}
       <ProductModal 
-        product={selectedProduct}
+        product={selectedProduct as any}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
       />

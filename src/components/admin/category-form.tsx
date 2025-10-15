@@ -144,7 +144,7 @@ export default function CategoryForm({ category, onSubmit, loading }: CategoryFo
   // Get category options for parent selection
   const categoryOptions = categories.map(cat => ({
     value: cat.id,
-    label: `${cat.parent ? cat.parent.name + ' > ' : ''}${cat.name}`
+    label: `${(cat as any).parent ? (cat as any).parent.name + ' > ' : ''}${cat.name}`
   }))
 
   return (
@@ -178,15 +178,13 @@ export default function CategoryForm({ category, onSubmit, loading }: CategoryFo
             <Select
               label="Parent Category"
               value={formData.parentId}
-              onChange={(value) => handleInputChange('parentId', value)}
+              onChange={(e) => handleInputChange('parentId', e.target.value)}
               options={[
                 { value: '', label: 'None (Top Level)' },
                 ...categoryOptions
               ]}
               error={errors.parentId}
               helperText="Select a parent category to create a subcategory"
-              loading={loadingCategories}
-              placeholder="Select parent category..."
             />
 
             <div>

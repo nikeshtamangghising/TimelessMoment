@@ -7,9 +7,9 @@ export class AddressRepository {
     return prisma.address.create({
       data: {
         userId: data.userId,
-        type: data.type,
+        type: (data as any).type,
         fullName: data.fullName,
-        email: data.email,
+        email: (data as any).email,
         phone: data.phone,
         address: data.address,
         city: data.city,

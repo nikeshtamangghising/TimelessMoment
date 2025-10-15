@@ -19,7 +19,7 @@ export { prisma }
 // Product operations
 export async function createProduct(data: CreateProductInput): Promise<Product> {
   return prisma.product.create({
-    data,
+    data: data as any,
   })
 }
 
@@ -43,7 +43,7 @@ export async function getProducts(
   const skip = (page - 1) * limit
 
   const where = {
-    ...(filters.category && { category: filters.category }),
+    ...(filters.category && { categoryId: filters.category }),
     ...(filters.search && {
       OR: [
         { name: { contains: filters.search, mode: 'insensitive' as const } },
@@ -79,7 +79,7 @@ export async function getProducts(
 export async function updateProduct(id: string, data: UpdateProductInput): Promise<Product> {
   return prisma.product.update({
     where: { id },
-    data,
+    data: data as any,
   })
 }
 
@@ -97,7 +97,7 @@ export async function createOrder(data: CreateOrderInput): Promise<OrderWithItem
       total: data.total,
       stripePaymentIntentId: data.stripePaymentIntentId,
       items: {
-        create: data.items,
+        create: data.items as any,
       },
     },
     include: {
@@ -108,7 +108,7 @@ export async function createOrder(data: CreateOrderInput): Promise<OrderWithItem
       },
       user: true,
     },
-  })
+  }) as any
 }
 
 export async function getOrderById(id: string): Promise<OrderWithItems | null> {
@@ -122,7 +122,7 @@ export async function getOrderById(id: string): Promise<OrderWithItems | null> {
       },
       user: true,
     },
-  })
+  }) as any
 }
 
 export async function getOrdersByUserId(
@@ -146,7 +146,7 @@ export async function getOrdersByUserId(
         },
         user: true,
       },
-    }),
+    }) as any,
     prisma.order.count({ where: { userId } }),
   ])
 
@@ -180,7 +180,7 @@ export async function getAllOrders(
         },
         user: true,
       },
-    }),
+    }) as any,
     prisma.order.count(),
   ])
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { productRepository } from '@/lib/product-repository'
 import { createProductSchema, paginationSchema, productFiltersSchema } from '@/lib/validations'
 import { createAdminHandler } from '@/lib/auth-middleware'
+import { prisma } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
