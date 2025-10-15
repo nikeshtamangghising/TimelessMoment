@@ -1,11 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { v2 as cloudinary } from 'cloudinary'
 import { createAdminHandler } from '@/lib/auth-middleware'
 
-// POST /api/upload - Upload image files
-// Note: In production on Vercel, this is a demo endpoint that simulates file upload
-// For production use, integrate with cloud storage (Cloudinary, AWS S3, Vercel Blob, etc.)
+// Configure Cloudinary - supports both URL format and individual variables
+if (process.env.CLOUDINARY_URL) {
+  // Parse CLOUDINARY_URL: cloudinary://api_key:api_secret@cloud_name
+  const url = new URL(process.env.CLOUDINARY_URL)
+  cloudinary.config({
+    cloud_name: url.hostname,
+    api_key: url.username,
+    api_secret: url.password,
+  })
+} else {
+  // Fallback to individual environment variables
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  })
+}
+
+// POST /api/upload - Production-grade image upload with Cloudinary
 export const POST = createAdminHandler(async (request: NextRequest) => {
   try {
+    // Check if Cloudinary is configured
+    if (!process.env.CLOUDINARY_URL && (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET)) {
+      return NextResponse.json(
+        { 
+          error: 'Cloudinary not configured. Please add CLOUDINARY_URL or individual CLOUDINARY_* environment variables.' 
+        },
+        { status: 500 }
+      )
+    }
+
     const formData = await request.formData()
     const files = formData.getAll('files') as File[]
 
@@ -17,93 +44,105 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
     }
 
     const uploadedUrls: string[] = []
+    const uploadErrors: string[] = []
 
     for (const file of files) {
       if (!file || file.size === 0) {
         continue
       }
 
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        return NextResponse.json(
-          { error: `File ${file.name} is not a valid image` },
-          { status: 400 }
-        )
-      }
-
-      // Check file size (max 5MB)
-      const maxSize = 5 * 1024 * 1024 // 5MB
-      if (file.size > maxSize) {
-        return NextResponse.json(
-          { error: `File ${file.name} is too large. Maximum size is 5MB` },
-          { status: 400 }
-        )
-      }
-
-      // Generate unique filename for demo
-      const timestamp = Date.now()
-      const randomSuffix = Math.random().toString(36).substring(2, 8)
-      const fileExtension = file.name.split('.').pop()
-      const fileName = `product-${timestamp}-${randomSuffix}.${fileExtension}`
-
-      // DEMO MODE: Return placeholder URLs for Vercel deployment
-      // In production, replace this with actual cloud storage integration
-      if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-        // Return demo placeholder images for production demo
-        const demoImages = [
-          'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400',
-          'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400', 
-          'https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400',
-          'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400',
-          'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400'
-        ]
-        
-        const randomImage = demoImages[Math.floor(Math.random() * demoImages.length)]
-        uploadedUrls.push(randomImage)
-      } else {
-        // Local development - try to save to filesystem
-        try {
-          const { writeFile, mkdir } = await import('fs/promises')
-          const { join } = await import('path')
-          
-          const uploadDir = join(process.cwd(), 'public', 'uploads', 'products')
-          await mkdir(uploadDir, { recursive: true })
-
-          const filePath = join(uploadDir, fileName)
-          const bytes = await file.arrayBuffer()
-          const buffer = Buffer.from(bytes)
-          
-          await writeFile(filePath, buffer)
-          uploadedUrls.push(`/uploads/products/${fileName}`)
-        } catch (fsError) {
-          // Fallback to demo image if filesystem fails
-          const demoImages = [
-            'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400',
-            'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400'
-          ]
-          uploadedUrls.push(demoImages[Math.floor(Math.random() * demoImages.length)])
+      try {
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          uploadErrors.push(`File ${file.name} is not a valid image`)
+          continue
         }
+
+        // Check file size (max 10MB for production)
+        const maxSize = 10 * 1024 * 1024 // 10MB
+        if (file.size > maxSize) {
+          uploadErrors.push(`File ${file.name} is too large. Maximum size is 10MB`)
+          continue
+        }
+
+        // Convert file to buffer
+        const bytes = await file.arrayBuffer()
+        const buffer = Buffer.from(bytes)
+
+        // Generate unique public ID
+        const timestamp = Date.now()
+        const randomSuffix = Math.random().toString(36).substring(2, 8)
+        const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+        const publicId = `ecommerce/products/product-${timestamp}-${randomSuffix}`
+
+        // Upload to Cloudinary
+        const uploadResult = await new Promise((resolve, reject) => {
+          cloudinary.uploader.upload_stream(
+            {
+              public_id: publicId,
+              folder: 'ecommerce/products',
+              resource_type: 'image',
+              format: fileExtension,
+              transformation: [
+                { width: 1200, height: 1200, crop: 'limit', quality: 'auto:good' },
+                { fetch_format: 'auto' }
+              ],
+              overwrite: false,
+              unique_filename: true,
+            },
+            (error, result) => {
+              if (error) {
+                reject(error)
+              } else {
+                resolve(result)
+              }
+            }
+          ).end(buffer)
+        })
+
+        if (uploadResult && typeof uploadResult === 'object' && 'secure_url' in uploadResult) {
+          uploadedUrls.push(uploadResult.secure_url as string)
+        } else {
+          uploadErrors.push(`Failed to upload ${file.name}: Invalid response from Cloudinary`)
+        }
+
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        uploadErrors.push(`Failed to upload ${file.name}: ${errorMessage}`)
       }
     }
 
-    return NextResponse.json({
-      message: `Successfully processed ${uploadedUrls.length} file(s)`,
+    // Return results
+    if (uploadedUrls.length === 0 && uploadErrors.length > 0) {
+      return NextResponse.json(
+        { error: 'All uploads failed', details: uploadErrors },
+        { status: 400 }
+      )
+    }
+
+    const response: any = {
+      message: `Successfully uploaded ${uploadedUrls.length} of ${files.length} file(s)`,
       urls: uploadedUrls,
-      demo: process.env.VERCEL || process.env.NODE_ENV === 'production'
-    })
+      success: true,
+    }
+
+    if (uploadErrors.length > 0) {
+      response.warnings = uploadErrors
+      response.partialSuccess = true
+    }
+
+    return NextResponse.json(response)
 
   } catch (error) {
-    // Graceful fallback with demo images
-    const demoImages = [
-      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400',
-      'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400'
-    ]
-    
-    return NextResponse.json({
-      message: 'Using demo images - configure cloud storage for production',
-      urls: [demoImages[0]], // Return one demo image
-      demo: true
-    })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    return NextResponse.json(
+      { 
+        error: 'Upload service error', 
+        details: errorMessage,
+        success: false 
+      },
+      { status: 500 }
+    )
   }
 })
 

@@ -69,23 +69,35 @@ export default function ImageUpload({
 
       const result = await response.json()
       
-      // Show demo mode notification if applicable
-      if (result.demo) {
-        alert('Demo mode: Using placeholder images. In production, integrate with cloud storage service.')
+      // Handle successful uploads
+      if (result.success && result.urls && result.urls.length > 0) {
+        // Add new URLs to existing images
+        onImagesChange([...images, ...result.urls])
+        
+        // Show success message
+        if (result.partialSuccess && result.warnings) {
+          alert(`Upload completed with warnings:\n${result.warnings.join('\n')}`)
+        }
+      } else {
+        throw new Error(result.error || 'Upload failed')
       }
-      
-      // Add new URLs to existing images
-      onImagesChange([...images, ...result.urls])
 
     } catch (error) {
       console.error('Upload error:', error)
       
-      // In demo mode, provide helpful message
-      const errorMessage = error instanceof Error ? error.message : 'Failed to upload images'
-      if (errorMessage.includes('demo mode') || errorMessage.includes('Vercel')) {
-        alert('Demo Mode: File upload simulated with placeholder images. For production, configure cloud storage.')
+      let errorMessage = 'Failed to upload images'
+      
+      if (error instanceof Error) {
+        errorMessage = error.message
+      }
+      
+      // Show more specific error messages
+      if (errorMessage.includes('Cloudinary not configured')) {
+        alert('Image upload requires Cloudinary configuration. Please contact the administrator to set up cloud storage.')
+      } else if (errorMessage.includes('All uploads failed')) {
+        alert('All image uploads failed. Please check your files and try again.')
       } else {
-        alert(errorMessage)
+        alert(`Upload failed: ${errorMessage}`)
       }
     } finally {
       setUploading(false)
@@ -173,7 +185,7 @@ export default function ImageUpload({
               {' '}or drag and drop
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              PNG, JPG, GIF up to {maxFileSize}MB each (max {maxImages} images)
+              PNG, JPG, GIF up to 10MB each (max {maxImages} images)
             </p>
           </div>
 
