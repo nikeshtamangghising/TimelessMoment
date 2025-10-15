@@ -59,6 +59,37 @@ export class RecommendationEngine {
   }
 
   /**
+   * Update popularity score for a single product
+   */
+  static async updateProductScore(productId: number): Promise<void> {
+    const product = await prisma.product.findUnique({
+      where: { id: productId.toString() },
+      select: {
+        id: true,
+        viewCount: true,
+        cartCount: true,
+        favoriteCount: true,
+        orderCount: true,
+        createdAt: true,
+      },
+    });
+
+    if (!product) {
+      console.warn(`Product ${productId} not found for score update`);
+      return;
+    }
+
+    const score = this.calculatePopularityScore(product);
+    await prisma.product.update({
+      where: { id: product.id },
+      data: {
+        popularityScore: score,
+        lastScoreUpdate: new Date(),
+      },
+    });
+  }
+
+  /**
    * Update popularity scores for all products
    */
   static async updateAllProductScores(): Promise<void> {
