@@ -112,7 +112,6 @@ export class QueryMonitor {
 
     // Log slow queries
     if (duration > 1000) { // More than 1 second
-      console.warn(`Slow query detected (${duration}ms):`, query, params)
     }
   }
 
@@ -170,5 +169,4 @@ export function optimizeConnectionPool(): void {
     idleTimeout: 600000, // 10 minutes
   }
 
-  console.log('Database connection pool recommendations:', recommendations)
 }

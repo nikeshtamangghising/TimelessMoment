@@ -38,7 +38,6 @@ export async function trackActivity(params: {
     });
   } catch (error) {
     // Silently fail - don't break user experience
-    console.warn('Failed to track activity:', error);
   }
 }
 

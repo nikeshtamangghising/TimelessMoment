@@ -34,7 +34,6 @@ export default function AdminBrandsTab() {
       }
     } catch (error) {
       setError('Failed to fetch brands')
-      console.error('Error fetching brands:', error)
     } finally {
       setLoading(false)
     }
@@ -58,7 +57,6 @@ export default function AdminBrandsTab() {
         alert(errorData.error || 'Failed to delete brand')
       }
     } catch (error) {
-      console.error('Error deleting brand:', error)
       alert('Failed to delete brand')
     } finally {
       setDeleting(null)
@@ -86,7 +84,6 @@ export default function AdminBrandsTab() {
         alert(errorData.error || 'Failed to update brand status')
       }
     } catch (error) {
-      console.error('Error updating brand status:', error)
       alert('Failed to update brand status')
     }
   }

@@ -35,7 +35,6 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
 
     return NextResponse.json(history)
   } catch (error) {
-    console.error('Error fetching inventory history:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

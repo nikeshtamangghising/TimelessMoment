@@ -27,7 +27,6 @@ export default function ProductRatingDisplay({ productId, className = '' }: Prod
           setRatingStats(data.data.ratingStats)
         }
       } catch (error) {
-        console.error('Error fetching rating stats:', error)
       } finally {
         setLoading(false)
       }

@@ -56,7 +56,6 @@ export const GET = createAuthHandler(async (request: NextRequest) => {
     }
 
   } catch (error) {
-    console.error('Error fetching orders:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -99,7 +98,6 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
     }
 
   } catch (error) {
-    console.error('Error processing order action:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

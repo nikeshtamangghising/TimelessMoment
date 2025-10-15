@@ -38,7 +38,6 @@ export default function BulkInventoryUpdate({ onClose, onSuccess }: BulkInventor
         setProducts(data.data)
       }
     } catch (error) {
-      console.error('Error fetching products:', error)
       setError('Failed to load products')
     } finally {
       setFetchingProducts(false)

@@ -75,7 +75,6 @@ export class ActivityTracker {
       // 4. Queue product for smart score update (after transaction completes)
       queueProductUpdate(parseInt(productId));
     } catch (error) {
-      console.error('Error tracking activity:', error);
       throw new Error('Failed to track activity');
     }
   }
@@ -132,7 +131,6 @@ export class ActivityTracker {
         }
       });
     } catch (error) {
-      console.error('Error tracking batch activities:', error);
       throw new Error('Failed to track activities');
     }
   }
@@ -372,14 +370,12 @@ export const trackActivity = async (data: ActivityData) => {
       
       if (!response.ok) {
         const text = await response.text().catch(() => '')
-        console.warn(`trackActivity: non-OK response ${response.status} ${response.statusText} ${text}`)
         return { success: false }
       }
       
       return await response.json()
     } catch (error) {
       // Do not throw from client-side tracking; avoid breaking UX
-      console.warn('trackActivity: request failed:', error)
       return { success: false }
     }
   } else {
@@ -408,7 +404,6 @@ export const createViewTracker = (userId?: string, sessionId?: string) => {
               productId,
               activityType: 'VIEW',
             }).catch((error) => {
-              console.error('Error tracking view:', error)
             })
             
             // Stop observing this element to prevent duplicate views

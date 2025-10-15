@@ -85,7 +85,6 @@ export class FavoritesRepository {
 
       return favorite as FavoriteItem;
     } catch (error) {
-      console.error('Error adding to favorites:', error);
       throw new Error('Failed to add to favorites');
     }
   }

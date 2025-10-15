@@ -39,7 +39,6 @@ export default function OrdersPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load orders'
       setError(errorMessage)
-      console.error('Error fetching orders:', err)
     } finally {
       setLoading(false)
     }

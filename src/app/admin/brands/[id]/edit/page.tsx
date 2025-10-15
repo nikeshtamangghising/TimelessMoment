@@ -34,7 +34,6 @@ export default function EditBrandPage() {
         setError('Failed to load brand')
       }
     } catch (error) {
-      console.error('Error fetching brand:', error)
       setError('Failed to load brand')
     } finally {
       setFetchLoading(false)
@@ -67,7 +66,6 @@ export default function EditBrandPage() {
         setError(errorData.error || 'Failed to update brand')
       }
     } catch (error) {
-      console.error('Error updating brand:', error)
       setError('Failed to update brand')
     } finally {
       setLoading(false)

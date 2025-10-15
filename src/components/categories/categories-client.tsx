@@ -143,7 +143,6 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
         }
         setCategoriesData(transformedData)
       } catch (err) {
-        console.error('Error fetching categories:', err)
         // Do not block UI; filters will still work without category list
       } finally {
         setLoadingCategories(false)
@@ -225,7 +224,6 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
         if (err?.name === 'AbortError') {
           return
         }
-        console.error('Error fetching products:', err)
         setError(err instanceof Error ? err.message : 'Failed to load data')
       } finally {
         setLoadingProducts(false)
@@ -254,9 +252,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
   }
 
   const updateFilters = (newFilters: Record<string, string | null>) => {
-    console.log('updateFilters called with:', newFilters)
     const params = new URLSearchParams(urlSearchParams.toString())
-    console.log('Current URL params:', params.toString())
     
     Object.entries(newFilters).forEach(([key, value]) => {
       if (value) {
@@ -267,7 +263,6 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
     })
     
     const newUrl = `/categories?${params.toString()}`
-    console.log('Navigating to:', newUrl)
     router.push(newUrl, { scroll: false })
   }
 
@@ -512,8 +507,6 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                       key={`category-${searchParams.category || 'all'}`}
                       value={searchParams.category || ''}
                       onChange={(e) => {
-                        console.log('Category changed to (id):', e.target.value)
-                        console.log('Current searchParams.category:', searchParams.category)
                         // Store the category ID in the query param so the API can filter by categoryId
                         updateFilters({ category: e.target.value || null })
                       }}

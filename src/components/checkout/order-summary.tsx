@@ -43,7 +43,6 @@ export default function OrderSummary({ items }: OrderSummaryProps) {
       setLoading(true)
       setError('')
       
-      console.log('Sending cart items to API:', items)
       
       // Use API endpoint to get accurate calculations with database settings
       // Send minimal payload to satisfy API schema and avoid mismatches
@@ -60,8 +59,6 @@ export default function OrderSummary({ items }: OrderSummaryProps) {
         }),
       })
       
-      console.log('Cart summary API response status:', response.status)
-      console.log('Cart summary API response headers:', Object.fromEntries(response.headers.entries()))
       
       if (!response.ok) {
         const errorText = await response.text()
@@ -70,10 +67,8 @@ export default function OrderSummary({ items }: OrderSummaryProps) {
       }
       
       const data = await response.json()
-      console.log('Cart summary API response data:', data)
       setSummary(data.summary)
     } catch (err) {
-      console.error('Error calculating cart summary:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to calculate order total'
       setError(errorMessage)
       

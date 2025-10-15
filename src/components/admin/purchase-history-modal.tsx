@@ -76,7 +76,6 @@ export default function PurchaseHistoryModal({ product, onClose }: PurchaseHisto
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load purchase history'
       setError(errorMessage)
-      console.error('Error fetching purchase history:', err)
     } finally {
       setLoading(false)
     }

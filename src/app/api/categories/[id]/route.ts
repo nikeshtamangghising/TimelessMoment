@@ -68,7 +68,6 @@ export async function GET(
     return NextResponse.json(category)
 
   } catch (error) {
-    console.error('Error fetching category:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -224,7 +223,6 @@ export const PUT = createAdminHandler<RouteParams>(async (
     })
 
   } catch (error) {
-    console.error('Error updating category:', error)
     
     if (error instanceof Error) {
       return NextResponse.json(
@@ -300,7 +298,6 @@ export const DELETE = createAdminHandler<RouteParams>(async (
     })
 
   } catch (error) {
-    console.error('Error deleting category:', error)
     
     if (error instanceof Error) {
       return NextResponse.json(

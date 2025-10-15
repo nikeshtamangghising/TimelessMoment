@@ -30,7 +30,6 @@ export async function GET(request: NextRequest) {
       sort: searchParams.get('sort') || undefined,
     }
     
-    console.log('API: Received filters:', filters)
 
     const filtersResult = productFiltersSchema.safeParse(filters)
     if (!filtersResult.success) {
@@ -48,7 +47,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result)
 
   } catch (error) {
-    console.error('Error fetching products:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -167,7 +165,6 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
         }
       }
     } catch (e) {
-      console.warn('Attribute upsert skipped:', e)
     }
 
     return NextResponse.json(
@@ -179,7 +176,6 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
     )
 
   } catch (error) {
-    console.error('Error creating product:', error)
     
     if (error instanceof Error) {
       return NextResponse.json(

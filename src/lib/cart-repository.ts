@@ -125,7 +125,6 @@ export class CartRepository {
 
       return result as CartItem;
     } catch (error) {
-      console.error('Error adding to cart:', error);
       throw error;
     }
   }

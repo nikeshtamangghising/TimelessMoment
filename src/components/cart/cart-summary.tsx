@@ -23,7 +23,6 @@ export default function CartSummary() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    console.log('CartSummary useEffect triggered with items:', items)
     if (items.length > 0) {
       fetchCartSummary()
     } else {
@@ -35,18 +34,8 @@ export default function CartSummary() {
     try {
       setLoading(true)
       
-      console.log('Fetching cart summary for items:', items)
-      console.log('Items count:', items.length)
-      console.log('Items structure:', items.map(item => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        hasProduct: !!item.product,
-        productIdFromObject: item.product?.id
-      })))
-      
       // Validate items before sending
       if (!items || items.length === 0) {
-        console.log('No items to calculate summary for')
         setSummary(null)
         return
       }
@@ -66,18 +55,12 @@ export default function CartSummary() {
         }),
       })
       
-      console.log('Response status:', response.status)
-      console.log('Response ok:', response.ok)
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
-      
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('API Error Response:', errorText)
         throw new Error(`Failed to calculate cart summary: ${response.status} ${errorText}`)
       }
       
       const data = await response.json()
-      console.log('API Response data:', data)
       
       if (data.success && data.summary) {
         setSummary(data.summary)
@@ -85,15 +68,7 @@ export default function CartSummary() {
         throw new Error('Invalid response format from API')
       }
     } catch (err) {
-      console.error('Error calculating cart summary:', err)
-      console.error('Error details:', {
-        message: err.message,
-        stack: err.stack,
-        name: err.name
-      })
-      
       // Fallback to hardcoded values if API call fails
-      console.log('Using fallback calculation')
       const fallbackSummary = getCartSummary(items)
       setSummary({
         ...fallbackSummary,

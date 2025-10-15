@@ -15,7 +15,6 @@ export async function GET(
 
     return NextResponse.json({ exists: false })
   } catch (error) {
-    console.error('Error checking slug:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

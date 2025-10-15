@@ -44,7 +44,6 @@ export async function GET(
     return NextResponse.json(brand)
 
   } catch (error) {
-    console.error('Error fetching brand:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -148,7 +147,6 @@ export const PUT = createAdminHandler<RouteParams>(async (
     })
 
   } catch (error) {
-    console.error('Error updating brand:', error)
     
     if (error instanceof Error) {
       return NextResponse.json(
@@ -222,7 +220,6 @@ export const DELETE = createAdminHandler<RouteParams>(async (
     }
 
   } catch (error) {
-    console.error('Error deleting brand:', error)
     
     if (error instanceof Error) {
       return NextResponse.json(

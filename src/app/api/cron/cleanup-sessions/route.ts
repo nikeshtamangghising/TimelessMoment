@@ -9,7 +9,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('Starting scheduled session cleanup...')
 
     // Clean up expired sessions (older than 30 days)
     const thirtyDaysAgo = new Date()
@@ -23,7 +22,6 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    console.log(`Cleaned up ${deletedSessions.count} expired sessions`)
 
     // Clean up expired verification tokens (older than 7 days)
     const sevenDaysAgo = new Date()
@@ -37,7 +35,6 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    console.log(`Cleaned up ${deletedTokens.count} expired verification tokens`)
 
     return NextResponse.json({ 
       success: true, 
@@ -47,7 +44,6 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString()
     })
   } catch (error) {
-    console.error('Error cleaning up sessions:', error)
     return NextResponse.json(
       { 
         error: 'Failed to cleanup sessions',

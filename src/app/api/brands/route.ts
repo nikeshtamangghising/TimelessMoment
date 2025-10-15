@@ -45,7 +45,6 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error fetching brands:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -121,7 +120,6 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
     )
 
   } catch (error) {
-    console.error('Error creating brand:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

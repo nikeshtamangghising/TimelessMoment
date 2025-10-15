@@ -35,7 +35,6 @@ export default function OrderHistory() {
       }
     } catch (error) {
       setError('Failed to fetch orders')
-      console.error('Error fetching orders:', error)
     } finally {
       setLoading(false)
     }

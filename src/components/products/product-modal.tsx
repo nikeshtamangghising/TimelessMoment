@@ -51,7 +51,6 @@ export default function ProductModal({ product, isOpen, onClose }: ProductModalP
           url: window.location.origin + `/products/${product.slug}`,
         })
       } catch (error) {
-        console.log('Error sharing:', error)
       }
     } else {
       // Fallback: copy to clipboard
@@ -59,7 +58,6 @@ export default function ProductModal({ product, isOpen, onClose }: ProductModalP
         await navigator.clipboard.writeText(window.location.origin + `/products/${product.slug}`)
         // You could show a toast notification here
       } catch (error) {
-        console.log('Error copying to clipboard:', error)
       }
     }
   }

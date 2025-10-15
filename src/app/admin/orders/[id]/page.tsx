@@ -72,7 +72,6 @@ export default function AdminOrderDetailPage({ params }: AdminOrderDetailPagePro
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load order'
       setError(errorMessage)
-      console.error('Error fetching order:', err)
     } finally {
       setLoading(false)
     }

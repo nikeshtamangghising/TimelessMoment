@@ -94,7 +94,6 @@ export async function GET(
         reason: 'trending' as const,
       }));
     } catch (error) {
-      console.log('No trending data available, using empty array');
       trending = [];
     }
 
@@ -140,7 +139,6 @@ export async function GET(
     res.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600')
     return res;
   } catch (error) {
-    console.error('Error fetching recommendations:', error);
     return NextResponse.json(
       { error: 'Failed to fetch recommendations' },
       { status: 500 }

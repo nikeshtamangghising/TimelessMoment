@@ -38,7 +38,6 @@ export default function GuestOrdersPage() {
       const data = await response.json()
       setOrders(data.data.data || [])
     } catch (err) {
-      console.error('Error fetching orders:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch orders')
       setOrders([])
     } finally {

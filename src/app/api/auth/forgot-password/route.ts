@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
         resetUrl
       }, true) // Use queue
 
-      console.log(`Password reset email sent to ${user.email}`)
     } catch (emailError) {
       console.error('Failed to send password reset email:', emailError)
       

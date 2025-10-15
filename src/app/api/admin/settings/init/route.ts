@@ -23,7 +23,6 @@ export async function POST(request: NextRequest) {
       message: 'Default settings initialized successfully'
     })
   } catch (error) {
-    console.error('Error initializing settings:', error)
     return NextResponse.json(
       { error: 'Failed to initialize settings' },
       { status: 500 }

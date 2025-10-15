@@ -28,7 +28,6 @@ const DEFAULT_FROM_NAME = process.env.FROM_NAME || 'E-Commerce Platform'
 export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   try {
     if (!process.env.RESEND_API_KEY) {
-      console.warn('RESEND_API_KEY not configured, email sending disabled')
       return {
         success: false,
         error: 'Email service not configured'

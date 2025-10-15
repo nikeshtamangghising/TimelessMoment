@@ -65,7 +65,6 @@ export const POST = createAuthHandler(async (request: NextRequest) => {
     return NextResponse.json({ success: true, order })
 
   } catch (error) {
-    console.error('Error creating order:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create order' },
       { status: 400 }

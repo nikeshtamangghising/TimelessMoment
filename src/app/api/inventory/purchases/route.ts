@@ -79,7 +79,6 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
 
     return NextResponse.json(paginatedResult)
   } catch (error) {
-    console.error('Error fetching purchase history:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

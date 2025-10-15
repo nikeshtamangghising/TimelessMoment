@@ -73,7 +73,6 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
       product: updatedProduct
     })
   } catch (error) {
-    console.error('Error adjusting inventory:', error)
     
     if (error instanceof Error && error.message.includes('not found')) {
       return NextResponse.json(

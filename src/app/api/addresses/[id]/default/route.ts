@@ -50,7 +50,6 @@ export const POST = createAuthHandler<RouteParams>(async (
     return NextResponse.json({ address: updatedAddress })
 
   } catch (error) {
-    console.error('Error setting default address:', error)
     return NextResponse.json(
       { error: 'Failed to set default address' },
       { status: 500 }

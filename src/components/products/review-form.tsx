@@ -110,7 +110,6 @@ export default function ReviewForm({
         setError(data.error || 'Failed to submit review')
       }
     } catch (err) {
-      console.error('Error submitting review:', err)
       setError('Failed to submit review. Please try again.')
     } finally {
       setSubmitting(false)

@@ -50,7 +50,6 @@ export const GET = createAuthHandler<RouteParams>(async (
     return NextResponse.json({ address })
 
   } catch (error) {
-    console.error('Error fetching address:', error)
     return NextResponse.json(
       { error: 'Failed to fetch address' },
       { status: 500 }
@@ -109,7 +108,6 @@ export const PUT = createAuthHandler<RouteParams>(async (
     return NextResponse.json({ address: updatedAddress })
 
   } catch (error) {
-    console.error('Error updating address:', error)
     return NextResponse.json(
       { error: 'Failed to update address' },
       { status: 500 }
@@ -158,7 +156,6 @@ export const DELETE = createAuthHandler<RouteParams>(async (
     return NextResponse.json({ message: 'Address deleted successfully' })
 
   } catch (error) {
-    console.error('Error deleting address:', error)
     return NextResponse.json(
       { error: 'Failed to delete address' },
       { status: 500 }

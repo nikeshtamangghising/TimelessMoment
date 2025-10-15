@@ -60,7 +60,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, order })
 
   } catch (error) {
-    console.error('Error creating guest order:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create guest order' },
       { status: 400 }

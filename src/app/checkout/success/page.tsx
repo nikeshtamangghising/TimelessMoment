@@ -51,7 +51,6 @@ function CheckoutSuccessContent() {
       const data = await response.json()
       setPaymentDetails(data)
     } catch (err) {
-      console.error('Error fetching payment details:', err)
       setError('Failed to load payment information')
     } finally {
       setLoading(false)

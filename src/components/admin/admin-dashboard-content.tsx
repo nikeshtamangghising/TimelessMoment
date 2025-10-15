@@ -106,7 +106,6 @@ export default function AdminDashboardContent({ onTabChange }: AdminDashboardCon
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard'
       setError(errorMessage)
-      console.error('Error fetching dashboard data:', err)
     } finally {
       setLoading(false)
     }

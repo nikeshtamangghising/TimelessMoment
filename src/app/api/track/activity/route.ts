@@ -55,7 +55,6 @@ export async function POST(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('Error tracking activity:', error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -90,7 +89,6 @@ export async function GET(request: NextRequest) {
       generatedAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Error fetching activity summary:', error);
     return NextResponse.json(
       { error: 'Failed to fetch activity summary' },
       { status: 500 }

@@ -95,7 +95,6 @@ export function formatCurrency(
 
     return formatter.format(amount)
   } catch (error) {
-    console.warn(`Currency formatting error for ${currency}:`, error)
     
     // Fallback formatting
     const formattedNumber = amount.toFixed(config.decimals)
@@ -148,7 +147,6 @@ export async function convertCurrency(
     const exchangeRate = await getExchangeRate(fromCurrency, toCurrency)
     return amount * exchangeRate
   } catch (error) {
-    console.warn(`Currency conversion failed: ${fromCurrency} to ${toCurrency}`, error)
     // Return original amount if conversion fails
     return amount
   }

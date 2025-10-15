@@ -131,8 +131,6 @@ export async function POST(request: NextRequest) {
       
       // If we still don't have session data, we can't create the order
       if (!orderSessionData) {
-        console.warn('Order creation skipped: Session data not available')
-        console.warn('OrderId:', verificationResult.orderId)
         return NextResponse.json({
           success: true,
           orderId: verificationResult.orderId,
@@ -227,7 +225,6 @@ export async function POST(request: NextRequest) {
       })
 
     } catch (error) {
-      console.error('Error processing verified payment:', error)
       return NextResponse.json(
         { 
           success: false,
@@ -240,7 +237,6 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('Error verifying payment:', error)
     
     if (error instanceof Error) {
       return NextResponse.json(
@@ -325,7 +321,6 @@ export async function GET(request: NextRequest) {
     )
 
   } catch (error) {
-    console.error('Error handling payment callback:', error)
     
     // Redirect to failure page on error
     const failureUrl = new URL('/checkout/failure', request.url)

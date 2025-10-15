@@ -25,7 +25,6 @@ export class SettingsRepository {
     // If setting doesn't exist and we have a default, create it
     if (!setting && defaultValue !== null) {
       try {
-        console.log(`Setting '${key}' not found, creating with default value:`, defaultValue)
         setting = await this.set(key, defaultValue, {
           description: `Auto-generated setting for ${key}`,
           category: 'auto',
@@ -120,17 +119,14 @@ export class SettingsRepository {
   // Get all settings
   static async getAll(): Promise<SiteSettings[]> {
     try {
-      console.log('Fetching all settings from database...')
       const settings = await prisma.siteSettings.findMany({
         orderBy: [
           { category: 'asc' },
           { key: 'asc' }
         ]
       })
-      console.log(`Found ${settings.length} settings`)
       return settings
     } catch (error) {
-      console.error('Error in SettingsRepository.getAll:', error)
       throw error
     }
   }

@@ -47,7 +47,6 @@ export function useFavorites() {
         setFavorites([]);
       }
     } catch (error) {
-      console.error('Error fetching favorites:', error);
       setFavorites([]);
     } finally {
       setLoading(false);
@@ -107,7 +106,6 @@ export function useFavorites() {
         return false;
       }
     } catch (error) {
-      console.error('Error adding to favorites:', error);
       return false;
     } finally {
       setOperationLoading(null);
@@ -143,7 +141,6 @@ export function useFavorites() {
         return false;
       }
     } catch (error) {
-      console.error('Error removing from favorites:', error);
       return false;
     } finally {
       setOperationLoading(null);

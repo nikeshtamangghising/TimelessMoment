@@ -162,7 +162,6 @@ class InventoryRepository {
 
           updatedCount++
         } catch (error) {
-          console.error(`Error updating product ${update.productId}:`, error)
           errors.push(`Failed to update product ${update.productId}`)
         }
       }

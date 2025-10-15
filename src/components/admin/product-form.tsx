@@ -67,7 +67,6 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
           setBrands(brandsData.brands || [])
         }
       } catch (error) {
-        console.error('Error fetching options:', error)
       } finally {
         setLoadingOptions(false)
       }

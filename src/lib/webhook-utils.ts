@@ -136,7 +136,6 @@ export function logWebhookEvent(
   }
 
   if (result.success) {
-    console.log('Webhook processed successfully:', logData)
   } else {
     console.error('Webhook processing failed:', logData)
   }
@@ -181,7 +180,6 @@ export async function processWebhookWithRetry<T>(
       }
       
       const delay = getWebhookRetryDelay(attempt)
-      console.log(`Webhook attempt ${attempt} failed, retrying in ${delay}ms:`, error)
       
       await new Promise(resolve => setTimeout(resolve, delay))
     }

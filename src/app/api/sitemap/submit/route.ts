@@ -32,7 +32,6 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     })
   } catch (error) {
-    console.error('Error submitting sitemap:', error)
     return NextResponse.json(
       { error: 'Failed to submit sitemap to search engines' },
       { status: 500 }
@@ -59,7 +58,6 @@ export async function GET() {
       },
     })
   } catch (error) {
-    console.error('Error getting submission info:', error)
     return NextResponse.json(
       { error: 'Failed to get submission info' },
       { status: 500 }

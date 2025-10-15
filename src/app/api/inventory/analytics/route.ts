@@ -38,7 +38,6 @@ export async function GET() {
       lowStockProducts: lowStockProducts.length,
     });
   } catch (error) {
-    console.error('Error fetching inventory analytics:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

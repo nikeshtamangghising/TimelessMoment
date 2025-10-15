@@ -38,7 +38,6 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
       count: lowStockProducts.length
     })
   } catch (error) {
-    console.error('Error fetching low stock products:', error)
     return NextResponse.json(
       { error: 'Failed to fetch low stock products' },
       { status: 500 }

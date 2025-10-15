@@ -54,7 +54,6 @@ export async function POST(request: NextRequest) {
     // Send welcome email
     try {
       await EmailService.sendWelcomeEmail({ user }, true) // Use queue
-      console.log(`Welcome email sent to ${user.email}`)
     } catch (emailError) {
       console.error('Failed to send welcome email:', emailError)
       // Don't fail registration if email fails

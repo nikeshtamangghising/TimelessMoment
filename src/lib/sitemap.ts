@@ -92,7 +92,6 @@ export async function generateSitemap(): Promise<MetadataRoute.Sitemap> {
     sitemap.push(...categoryPages)
 
   } catch (error) {
-    console.error('Error generating sitemap:', error)
     // Continue with static pages even if dynamic content fails
   }
 
@@ -142,7 +141,6 @@ export async function generateProductSitemap(): Promise<MetadataRoute.Sitemap> {
 
     sitemap.push(...productPages)
   } catch (error) {
-    console.error('Error generating product sitemap:', error)
   }
 
   return sitemap
@@ -163,7 +161,6 @@ export async function generateCategorySitemap(): Promise<MetadataRoute.Sitemap> 
 
     sitemap.push(...categoryPages)
   } catch (error) {
-    console.error('Error generating category sitemap:', error)
   }
 
   return sitemap

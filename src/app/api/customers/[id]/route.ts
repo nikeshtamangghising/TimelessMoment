@@ -54,7 +54,6 @@ export const GET = createAdminHandler(async (
       }))
     })
   } catch (error) {
-    console.error('Error fetching customer detail:', error)
     return NextResponse.json({ error: 'Failed to fetch customer' }, { status: 500 })
   }
 })

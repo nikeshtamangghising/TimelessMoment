@@ -249,7 +249,6 @@ export async function cleanupTestData(page: Page) {
   try {
     await page.request.delete('/api/test/cleanup')
   } catch (error) {
-    console.warn('Could not clean up test data:', error)
   }
 }
 

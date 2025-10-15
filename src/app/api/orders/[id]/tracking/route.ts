@@ -62,7 +62,6 @@ export const GET = createAuthHandler<RouteParams>(async (
     return NextResponse.json(trackingLogs)
 
   } catch (error) {
-    console.error('Error fetching tracking logs:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -142,7 +141,6 @@ export const POST = createAdminHandler<RouteParams>(async (
     })
 
   } catch (error) {
-    console.error('Error adding tracking information:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

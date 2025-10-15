@@ -61,7 +61,6 @@ export async function POST(
     })
 
   } catch (error) {
-    console.error('Error updating review helpful votes:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

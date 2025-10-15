@@ -37,7 +37,6 @@ export default function CategoriesPage() {
       }
     } catch (error) {
       setError('Failed to fetch categories')
-      console.error('Error fetching categories:', error)
     } finally {
       setLoading(false)
     }
@@ -61,7 +60,6 @@ export default function CategoriesPage() {
         alert(errorData.error || 'Failed to delete category')
       }
     } catch (error) {
-      console.error('Error deleting category:', error)
       alert('Failed to delete category')
     } finally {
       setDeleting(null)
@@ -89,7 +87,6 @@ export default function CategoriesPage() {
         alert(errorData.error || 'Failed to update category status')
       }
     } catch (error) {
-      console.error('Error updating category status:', error)
       alert('Failed to update category status')
     }
   }

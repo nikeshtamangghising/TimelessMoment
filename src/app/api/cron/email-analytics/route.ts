@@ -9,7 +9,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('Starting scheduled email analytics processing...')
 
     // Get analytics for the last 24 hours
     const yesterday = new Date()
@@ -21,11 +20,9 @@ export async function GET(request: NextRequest) {
     // })
     const analytics = { total: 0, opens: 0, clicks: 0 }
 
-    console.log('Email analytics retrieved:', analytics)
 
     // Generate daily report (this could be sent to admins)
     // const report = await generateEmailReport(analytics)
-    console.log('Email report generated')
 
     // In a real application, you might:
     // 1. Store analytics in a time-series database
@@ -40,7 +37,6 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString()
     })
   } catch (error) {
-    console.error('Error processing email analytics:', error)
     return NextResponse.json(
       { 
         error: 'Failed to process email analytics',

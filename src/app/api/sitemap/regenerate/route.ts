@@ -24,7 +24,6 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     })
   } catch (error) {
-    console.error('Error regenerating sitemap:', error)
     return NextResponse.json(
       { error: 'Failed to regenerate sitemap' },
       { status: 500 }
@@ -43,7 +42,6 @@ export async function GET() {
       sitemapUrl: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://localhost:3000'}/sitemap.xml`,
     })
   } catch (error) {
-    console.error('Error getting sitemap info:', error)
     return NextResponse.json(
       { error: 'Failed to get sitemap info' },
       { status: 500 }

@@ -46,7 +46,6 @@ export default function RecommendationsSection() {
         const data = await response.json()
         setRecommendations(data)
       } catch (err) {
-        console.error('Error fetching recommendations:', err)
         setError(err instanceof Error ? err.message : 'Failed to load recommendations')
       } finally {
         setLoading(false)

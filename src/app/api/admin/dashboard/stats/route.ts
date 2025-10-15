@@ -87,7 +87,6 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
     return NextResponse.json(stats)
 
   } catch (error) {
-    console.error('Error fetching dashboard stats:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -63,7 +63,6 @@ export async function processPendingUpdates(): Promise<void> {
     const productsToUpdate = Array.from(updateTracker.pendingProducts)
       .slice(0, CONFIG.BATCH_SIZE);
     
-    console.log(`Updating scores for ${productsToUpdate.length} products`);
 
     // Update metrics for specific products
     for (const productId of productsToUpdate) {
@@ -76,7 +75,6 @@ export async function processPendingUpdates(): Promise<void> {
       }
     }
 
-    console.log(`✅ Smart update completed for ${productsToUpdate.length} products`);
     
   } catch (error) {
     console.error('Smart score update failed:', error);
@@ -106,14 +104,12 @@ function processPendingUpdatesDebounced(): void {
  */
 export async function forceFullUpdate(): Promise<void> {
   if (updateTracker.updateInProgress) {
-    console.log('Update already in progress, skipping full update');
     return;
   }
 
   updateTracker.updateInProgress = true;
   
   try {
-    console.log('Starting full product score update...');
     await recalculateAllProductMetrics();
     await RecommendationEngine.updateAllProductScores();
     
@@ -121,7 +117,6 @@ export async function forceFullUpdate(): Promise<void> {
     updateTracker.pendingProducts.clear();
     updateTracker.lastFullUpdate = new Date();
     
-    console.log('✅ Full product score update completed');
   } catch (error) {
     console.error('Full update failed:', error);
     throw error;

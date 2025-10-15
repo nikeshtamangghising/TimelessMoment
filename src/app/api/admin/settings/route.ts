@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ settings })
   } catch (error) {
-    console.error('Error fetching settings:', error)
     return NextResponse.json(
       { error: 'Failed to fetch settings' },
       { status: 500 }
@@ -106,7 +105,6 @@ export async function PUT(request: NextRequest) {
       })
     }
   } catch (error) {
-    console.error('Error updating settings:', error)
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -158,7 +156,6 @@ export async function DELETE(request: NextRequest) {
       message: 'Setting deleted successfully'
     })
   } catch (error) {
-    console.error('Error deleting setting:', error)
     return NextResponse.json(
       { error: 'Failed to delete setting' },
       { status: 500 }

@@ -56,9 +56,8 @@ class PerformanceMonitor {
       performance.measure(id, `${id}-start`, `${id}-end`)
     }
 
-    // Log slow operations
-    if (duration > 1000) { // More than 1 second
-      console.warn(`Slow operation detected: ${id} took ${duration.toFixed(2)}ms`)
+    // Log slow operations in development only
+    if (duration > 1000 && process.env.NODE_ENV === 'development') {
     }
 
     return metric
@@ -127,7 +126,8 @@ class PerformanceMonitor {
       observer.observe({ type, buffered: true })
       this.observers.push(observer)
     } catch (error) {
-      console.warn(`Failed to observe ${type}:`, error)
+      if (process.env.NODE_ENV === 'development') {
+      }
     }
   }
 
@@ -143,7 +143,6 @@ class PerformanceMonitor {
 
     // Log to console in development
     if (process.env.NODE_ENV === 'development') {
-      console.log(`Web Vital - ${name}: ${value.toFixed(2)}`)
     }
   }
 
@@ -255,23 +254,21 @@ export function analyzeBundleSize(): void {
   const scripts = Array.from(document.querySelectorAll('script[src]'))
   const stylesheets = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
 
-  console.group('Bundle Analysis')
-  console.log(`Scripts loaded: ${scripts.length}`)
-  console.log(`Stylesheets loaded: ${stylesheets.length}`)
+  if (process.env.NODE_ENV === 'development') {
+    console.group('Bundle Analysis')
 
-  // Estimate bundle sizes (rough approximation)
-  let totalEstimatedSize = 0
-  scripts.forEach((script: any) => {
-    if (script.src && !script.src.includes('http')) {
-      // Rough estimation based on filename patterns
-      const size = estimateFileSize(script.src)
-      totalEstimatedSize += size
-      console.log(`${script.src}: ~${(size / 1024).toFixed(1)}KB`)
-    }
-  })
+    // Estimate bundle sizes (rough approximation)
+    let totalEstimatedSize = 0
+    scripts.forEach((script: any) => {
+      if (script.src && !script.src.includes('http')) {
+        // Rough estimation based on filename patterns
+        const size = estimateFileSize(script.src)
+        totalEstimatedSize += size
+      }
+    })
 
-  console.log(`Estimated total bundle size: ~${(totalEstimatedSize / 1024).toFixed(1)}KB`)
-  console.groupEnd()
+    console.groupEnd()
+  }
 }
 
 function estimateFileSize(filename: string): number {

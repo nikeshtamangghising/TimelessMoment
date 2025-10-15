@@ -7,7 +7,6 @@ export function setupChunkErrorHandler() {
     if (event.reason?.message?.includes('Loading chunk') || 
         event.reason?.message?.includes('chunk') ||
         event.reason?.code === 'CHUNK_LOAD_ERROR') {
-      console.warn('Chunk loading error detected, reloading page...')
       event.preventDefault()
       window.location.reload()
     }
@@ -17,7 +16,6 @@ export function setupChunkErrorHandler() {
   window.addEventListener('error', (event) => {
     if (event.error?.message?.includes('Loading chunk') ||
         event.error?.message?.includes('chunk')) {
-      console.warn('Chunk loading error detected, reloading page...')
       event.preventDefault()
       window.location.reload()
     }

@@ -31,7 +31,6 @@ export default function CreateBrandPage() {
         setError(errorData.error || 'Failed to create brand')
       }
     } catch (error) {
-      console.error('Error creating brand:', error)
       setError('Failed to create brand')
     } finally {
       setLoading(false)

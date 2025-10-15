@@ -29,7 +29,6 @@ export async function GET(
     })
 
   } catch (error) {
-    console.error('Error fetching guest orders:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch orders' },
       { status: 500 }

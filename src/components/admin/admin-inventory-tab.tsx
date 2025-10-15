@@ -112,7 +112,6 @@ export default function AdminInventoryTab() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load inventory data'
       setError(errorMessage)
-      console.error('Error fetching inventory data:', err)
     } finally {
       setLoading(false)
     }

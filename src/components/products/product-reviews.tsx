@@ -59,7 +59,6 @@ export default function ProductReviews({ product, className = '' }: ProductRevie
           setError('Failed to load reviews')
         }
       } catch (err) {
-        console.error('Error fetching reviews:', err)
         setError('Failed to load reviews')
       } finally {
         setLoading(false)
@@ -92,7 +91,6 @@ export default function ProductReviews({ product, className = '' }: ProductRevie
         ))
       }
     } catch (err) {
-      console.error('Error voting on review:', err)
     }
   }
 

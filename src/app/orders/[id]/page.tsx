@@ -59,7 +59,6 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load order'
       setError(errorMessage)
-      console.error('Error fetching order:', err)
     } finally {
       setLoading(false)
     }

@@ -117,7 +117,6 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Error fetching product filters:', error)
     return NextResponse.json(
       { error: 'Failed to fetch product filters' },
       { status: 500 }

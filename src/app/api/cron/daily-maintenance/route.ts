@@ -19,13 +19,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log('Starting daily maintenance job...');
     const startTime = Date.now();
     const results: Record<string, any> = {};
 
     // Task 1: Update product scores and metrics (using smart updater)
     try {
-      console.log('1/4 Updating product scores...');
       await forceFullUpdate();
       
       // Weekly cleanup (run on Sundays)
@@ -36,7 +34,6 @@ export async function GET(request: NextRequest) {
       }
       
       results.productScores = 'success';
-      console.log('✅ Product scores updated via smart updater');
     } catch (error) {
       console.error('❌ Product scores failed:', error);
       results.productScores = `error: ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -44,10 +41,8 @@ export async function GET(request: NextRequest) {
 
     // Task 2: Update sitemap
     try {
-      console.log('2/4 Updating sitemap...');
       await generateSitemap();
       results.sitemap = 'success';
-      console.log('✅ Sitemap updated');
     } catch (error) {
       console.error('❌ Sitemap update failed:', error);
       results.sitemap = `error: ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -55,7 +50,6 @@ export async function GET(request: NextRequest) {
 
     // Task 3: Cleanup sessions and tokens
     try {
-      console.log('3/4 Cleaning up sessions...');
       
       // Clean expired sessions (older than 30 days)
       const thirtyDaysAgo = new Date();
@@ -78,7 +72,6 @@ export async function GET(request: NextRequest) {
         sessionsDeleted: deletedSessions.count,
         tokensDeleted: deletedTokens.count
       };
-      console.log(`✅ Cleanup: ${deletedSessions.count} sessions, ${deletedTokens.count} tokens`);
     } catch (error) {
       console.error('❌ Session cleanup failed:', error);
       results.cleanup = `error: ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -86,17 +79,14 @@ export async function GET(request: NextRequest) {
 
     // Task 4: Email analytics (placeholder for future implementation)
     try {
-      console.log('4/4 Processing email analytics...');
       // Placeholder - actual implementation would process email metrics
       results.emailAnalytics = 'success (placeholder)';
-      console.log('✅ Email analytics processed');
     } catch (error) {
       console.error('❌ Email analytics failed:', error);
       results.emailAnalytics = `error: ${error instanceof Error ? error.message : 'Unknown error'}`;
     }
 
     const duration = Date.now() - startTime;
-    console.log(`Daily maintenance completed in ${duration}ms`);
 
     return NextResponse.json({
       success: true,

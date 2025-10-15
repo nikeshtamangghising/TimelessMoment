@@ -24,7 +24,6 @@ export default function AdminProtectedRoute({ children }: AdminProtectedRoutePro
     // Set up a timeout to redirect if loading takes too long
     const timeout = setTimeout(() => {
       if (isLoading && !isAuthenticated) {
-        console.log('Auth loading timeout, redirecting to signin')
         setHasRedirected(true)
         router.push('/auth/signin?redirect=/admin')
       }
@@ -36,14 +35,12 @@ export default function AdminProtectedRoute({ children }: AdminProtectedRoutePro
   useEffect(() => {
     if (!isLoading) {
       if (!isAuthenticated) {
-        console.log('User not authenticated, redirecting to signin')
         setHasRedirected(true)
         router.push('/auth/signin?redirect=/admin')
         return
       }
 
       if (!isAdmin) {
-        console.log('User not admin, redirecting to home')
         setHasRedirected(true)
         router.push('/')
         return

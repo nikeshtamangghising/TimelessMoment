@@ -21,9 +21,7 @@ const cartSummarySchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Cart summary API called')
     const body = await request.json()
-    console.log('Request body:', JSON.stringify(body, null, 2))
     
     const validationResult = cartSummarySchema.safeParse(body)
     
@@ -80,19 +78,15 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    console.log('Processing cart items:', cartItems.length)
     
     // Calculate summary using database settings
     let summary
     try {
       summary = await getCartSummaryWithSettings(cartItems)
-      console.log('Calculated summary:', summary)
     } catch (settingsError) {
-      console.error('Error fetching settings, using fallback calculation:', settingsError)
       // Fallback to hardcoded calculation if settings fail
       const { getCartSummary } = await import('@/lib/cart-utils')
       summary = getCartSummary(cartItems)
-      console.log('Using fallback summary:', summary)
     }
 
     return NextResponse.json({
@@ -111,7 +105,6 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error calculating cart summary:', error)
     
     if (error instanceof Error) {
       return NextResponse.json(

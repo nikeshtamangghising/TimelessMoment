@@ -44,7 +44,6 @@ export class ErrorTracker {
 
   captureError(error: Error, context?: ErrorContext): void {
     if (!this.isEnabled) {
-      console.error('Error:', error, context)
       return
     }
 
@@ -73,11 +72,9 @@ export class ErrorTracker {
     
     if (process.env.SENTRY_DSN) {
       // Sentry integration would go here
-      console.log('Sending error to Sentry:', errorData)
     }
 
     // Also log to application logs
-    console.error('Application Error:', JSON.stringify(errorData, null, 2))
   }
 }
 

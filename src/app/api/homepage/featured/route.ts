@@ -37,7 +37,6 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Error fetching homepage data:', error)
     
     performanceMonitor.recordApiLatency('/api/homepage/featured', performance.now() - timer, 500)
     

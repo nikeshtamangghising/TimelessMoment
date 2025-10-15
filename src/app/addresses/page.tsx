@@ -36,7 +36,6 @@ export default function AddressesPage() {
       setError(null)
     } catch (error) {
       setError('Failed to fetch addresses')
-      console.error('Error fetching addresses:', error)
     } finally {
       setLoading(false)
     }

@@ -7,8 +7,6 @@ export function useAuth() {
   const { data: session, status } = useSession()
 
   useEffect(() => {
-    console.log('Auth status:', status)
-    console.log('Session data:', session)
   }, [status, session])
 
   const isAuthenticated = !!session?.user

@@ -62,7 +62,6 @@ export const PUT = createAuthHandler(async (request: NextRequest) => {
     })
 
   } catch (error) {
-    console.error('Error updating profile:', error)
     return NextResponse.json(
       { error: 'Failed to update profile' },
       { status: 500 }

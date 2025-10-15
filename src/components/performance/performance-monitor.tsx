@@ -64,7 +64,6 @@ export default function PerformanceMonitor({
       observer.observe({ type: 'paint', buffered: true })
       observer.observe({ type: 'navigation', buffered: true })
     } catch (error) {
-      console.warn('Performance monitoring not fully supported:', error)
     }
 
     // Keyboard shortcut to toggle metrics display

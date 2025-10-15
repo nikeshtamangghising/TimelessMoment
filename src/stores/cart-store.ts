@@ -30,7 +30,6 @@ const customStorage: StateStorage = {
       const parsed = JSON.parse(item)
       return item
     } catch (error) {
-      console.error('Error parsing cart from storage:', error)
       return null
     }
   },
@@ -139,10 +138,9 @@ export const useCartStore = create<CartState>()(
       storage: createJSONStorage(() => customStorage),
       partialize: (state) => ({ items: state.items }), // Only persist items, not UI state
       onRehydrateStorage: () => (state) => {
-        console.log('Cart store hydrated:', state)
+        // Cart store hydrated
       },
       migrate: (persistedState: any, version: number) => {
-        console.log('Migrating cart state:', persistedState, version)
         // Ensure items array is properly structured
         if (persistedState && persistedState.items) {
           // Fix any potential reference issues

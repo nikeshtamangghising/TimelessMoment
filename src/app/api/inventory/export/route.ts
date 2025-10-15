@@ -58,7 +58,6 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
       }
     })
   } catch (error) {
-    console.error('Error exporting inventory:', error)
     return NextResponse.json({ error: 'Failed to export inventory' }, { status: 500 })
   }
 })

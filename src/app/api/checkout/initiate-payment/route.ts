@@ -211,7 +211,6 @@ export async function POST(request: NextRequest) {
           orderCreated: true,
         })
       } catch (orderError) {
-        console.error('Error creating COD order:', orderError)
         return NextResponse.json(
           { error: 'Payment successful but order creation failed' },
           { status: 500 }
@@ -259,7 +258,6 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error initiating payment:', error)
     
     if (error instanceof Error) {
       return NextResponse.json(

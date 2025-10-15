@@ -95,7 +95,6 @@ export default function CheckoutPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred while calculating order total'
       setError(errorMessage)
-      console.error('Error calculating order total:', err)
       // Even if there's an error calculating the total, we should still allow the user to proceed
       // Set a default total or use the client-side calculation
       const fallbackTotal = items.reduce((sum, item) => sum + (item.product.discountPrice || item.product.price) * item.quantity, 0)
@@ -147,7 +146,6 @@ export default function CheckoutPage() {
         }
       }
     } catch (err) {
-      console.error('Error initiating payment:', err)
       return {
         success: false,
         error: err instanceof Error ? err.message : 'Payment initiation failed',
@@ -190,7 +188,6 @@ export default function CheckoutPage() {
         }
 
         const result = await response.json()
-        console.log('Order created successfully:', result)
       }
     } catch (err) {
       console.error('Order creation failed:', err)

@@ -46,7 +46,6 @@ export class OrderProcessingService {
 
       return { processedCount, total: pendingOrders.length }
     } catch (error) {
-      console.error('Error processing pending orders:', error)
       throw error
     }
   }
@@ -101,7 +100,6 @@ export class OrderProcessingService {
 
       return { shippedCount, total: processingOrders.length }
     } catch (error) {
-      console.error('Error shipping processing orders:', error)
       throw error
     }
   }
@@ -147,7 +145,6 @@ export class OrderProcessingService {
 
       return { order, updates }
     } catch (error) {
-      console.error(`Error processing order ${orderId}:`, error)
       throw error
     }
   }

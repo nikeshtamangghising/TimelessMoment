@@ -18,7 +18,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Starting product score update job...');
     const startTime = Date.now();
 
     // Recalculate raw metrics (favorites, carts, orders, purchases, views) before scores
@@ -28,14 +27,11 @@ export async function POST(request: NextRequest) {
     await RecommendationEngine.updateAllProductScores();
 
     const duration = Date.now() - startTime;
-    console.log(`Product scores updated successfully in ${duration}ms`);
 
     // Optional: Clean up old activities (run weekly)
     const shouldCleanup = Math.random() < 0.02; // ~2% chance (roughly once per 50 runs)
     if (shouldCleanup) {
-      console.log('Running activity cleanup...');
       await ActivityTracker.cleanOldActivities(90); // Keep 90 days
-      console.log('Activity cleanup completed');
     }
 
     return NextResponse.json({
@@ -46,7 +42,6 @@ export async function POST(request: NextRequest) {
       cleanupRun: shouldCleanup,
     });
   } catch (error) {
-    console.error('Error updating product scores:', error);
     return NextResponse.json(
       { 
         error: 'Failed to update product scores',

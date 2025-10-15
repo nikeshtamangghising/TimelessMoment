@@ -87,7 +87,6 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error converting guest orders:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to convert guest orders' },
       { status: 500 }

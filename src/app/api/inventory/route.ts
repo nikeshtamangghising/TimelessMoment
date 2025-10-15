@@ -139,7 +139,6 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
     
     return NextResponse.json(enhancedSummary)
   } catch (error) {
-    console.error('Error fetching inventory summary:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -179,7 +178,6 @@ export const PUT = createAdminHandler(async (request: NextRequest) => {
       ...result
     })
   } catch (error) {
-    console.error('Error updating inventory:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -219,7 +217,6 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
       adjustment: result
     })
   } catch (error) {
-    console.error('Error adjusting inventory:', error)
     
     if (error instanceof Error && error.message.includes('not found')) {
       return NextResponse.json(

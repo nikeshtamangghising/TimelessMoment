@@ -66,7 +66,6 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('Error in manual score update:', error);
     return NextResponse.json(
       { 
         error: 'Update failed',
@@ -103,7 +102,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error getting update status:', error);
     return NextResponse.json(
       { 
         error: 'Failed to get status',

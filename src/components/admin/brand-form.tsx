@@ -89,7 +89,7 @@ export default function BrandForm({ brand, onSubmit, loading }: BrandFormProps) 
     try {
       await onSubmit(formData)
     } catch (error) {
-      console.error('Form submission error:', error)
+      // Handle form submission errors
     }
   }
 

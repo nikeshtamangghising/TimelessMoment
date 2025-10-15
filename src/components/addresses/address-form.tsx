@@ -105,7 +105,6 @@ export default function AddressForm({
     try {
       await onSubmit(formData)
     } catch (error) {
-      console.error('Error submitting address form:', error)
     } finally {
       setIsSubmitting(false)
     }

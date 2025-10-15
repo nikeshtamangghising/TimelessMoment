@@ -74,7 +74,6 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
       if ((err as any)?.name === 'AbortError') {
         // ignore aborts
       } else {
-        console.error('Error fetching mixed recommendations:', err)
         setError('Failed to load recommendations')
       }
     } finally {

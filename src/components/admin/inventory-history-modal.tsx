@@ -74,7 +74,6 @@ export default function InventoryHistoryModal({ product, onClose }: InventoryHis
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load inventory history'
       setError(errorMessage)
-      console.error('Error fetching inventory history:', err)
     } finally {
       setLoading(false)
     }

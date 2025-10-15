@@ -75,7 +75,6 @@ export class RecommendationEngine {
     });
 
     if (!product) {
-      console.warn(`Product ${productId} not found for score update`);
       return;
     }
 

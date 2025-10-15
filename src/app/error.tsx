@@ -10,11 +10,11 @@ interface ErrorPageProps {
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
   useEffect(() => {
     // Log error to monitoring service in production
-    console.error('Application error:', error)
-    
-    // In production, send to error tracking service like Sentry
     if (process.env.NODE_ENV === 'production') {
+      // Send to error tracking service like Sentry
       // Example: Sentry.captureException(error)
+    } else {
+      console.error('Application error:', error)
     }
   }, [error])
 

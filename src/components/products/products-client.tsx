@@ -48,7 +48,6 @@ export default function ProductsClient({ searchParams }: ProductsClientProps) {
         setCategories(data.categories)
       }
     } catch (error) {
-      console.error('Error fetching categories:', error)
     }
   }
 
@@ -78,7 +77,6 @@ export default function ProductsClient({ searchParams }: ProductsClientProps) {
       setProducts(data)
     } catch (error) {
       setError('Failed to load products. Please try again.')
-      console.error('Error fetching products:', error)
     } finally {
       setLoading(false)
     }

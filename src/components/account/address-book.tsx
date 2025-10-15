@@ -23,7 +23,6 @@ export default function AddressBook() {
       setError(null)
     } catch (error) {
       setError('Failed to fetch addresses')
-      console.error('Error fetching addresses:', error)
     } finally {
       setLoading(false)
     }

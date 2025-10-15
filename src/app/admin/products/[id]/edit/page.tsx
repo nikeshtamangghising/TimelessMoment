@@ -57,7 +57,6 @@ export default function EditProductPage({ params }: PageProps) {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load product'
       setError(errorMessage)
-      console.error('Error fetching product:', err)
     } finally {
       setLoading(false)
     }
@@ -67,8 +66,6 @@ export default function EditProductPage({ params }: PageProps) {
     setUpdating(true)
 
     try {
-      console.log('Submitting product update for ID:', productId)
-      console.log('Data to submit:', data)
       
       const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
@@ -84,12 +81,10 @@ export default function EditProductPage({ params }: PageProps) {
       }
 
       const result = await response.json()
-      console.log('Product update result:', result)
       
       // Redirect to products list with success message
       router.push('/admin/products?updated=true')
     } catch (error) {
-      console.error('Error updating product:', error)
       // Show a more user-friendly error message
       const errorMessage = error instanceof Error ? error.message : 'Failed to update product'
       alert(errorMessage)

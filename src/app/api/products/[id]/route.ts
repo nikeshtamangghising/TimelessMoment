@@ -16,11 +16,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    console.log('Fetching product with ID:', id)
     
     // Validate the ID format
     if (!id) {
-      console.log('Invalid product ID provided')
       return NextResponse.json(
         { error: 'Invalid product ID' },
         { status: 400 }
@@ -28,10 +26,8 @@ export async function GET(
     }
     
     const product = await productRepository.findById(id)
-    console.log('Product lookup result:', product ? 'Found' : 'Not found')
 
     if (!product) {
-      console.log('Product not found for ID:', id)
       return NextResponse.json(
         { error: 'Product not found' },
         { status: 404 }
@@ -41,7 +37,6 @@ export async function GET(
     return NextResponse.json(product)
 
   } catch (error) {
-    console.error('Error fetching product:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -67,8 +62,6 @@ export const PUT = createAdminHandler<RouteParams>(async (
       paramsPromise
     ])
     
-    console.log('Update request for product ID:', params.id)
-    console.log('Update data:', body)
     
     const validationResult = updateProductSchema.safeParse(body)
     if (!validationResult.success) {
@@ -90,7 +83,6 @@ export const PUT = createAdminHandler<RouteParams>(async (
       )
     }
     
-    console.log('Existing product found:', existingProduct.id, existingProduct.name)
 
     // Check if slug is being updated and if it conflicts
     if (validationResult.data.slug && validationResult.data.slug !== existingProduct.slug) {
@@ -160,7 +152,6 @@ export const PUT = createAdminHandler<RouteParams>(async (
     }
 
     const updatedProduct = await productRepository.update(params.id, incoming)
-    console.log('Product updated successfully:', updatedProduct.id, updatedProduct.name)
 
     // Upsert attributes if provided on raw body
     try {
@@ -188,7 +179,6 @@ export const PUT = createAdminHandler<RouteParams>(async (
         }
       }
     } catch (e) {
-      console.warn('Attribute upsert skipped:', e)
     }
 
     return NextResponse.json({
@@ -197,7 +187,6 @@ export const PUT = createAdminHandler<RouteParams>(async (
     })
 
   } catch (error) {
-    console.error('Error updating product:', error)
     
     if (error instanceof Error) {
       // Handle Prisma unique constraint violations
@@ -261,7 +250,6 @@ export const DELETE = createAdminHandler<RouteParams>(async (
     })
 
   } catch (error) {
-    console.error('Error deleting product:', error)
     
     if (error instanceof Error) {
       return NextResponse.json(

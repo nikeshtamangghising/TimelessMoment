@@ -75,7 +75,6 @@ export async function GET(
       generatedAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Error fetching similar products:', error);
     return NextResponse.json(
       { error: 'Failed to fetch similar products' },
       { status: 500 }

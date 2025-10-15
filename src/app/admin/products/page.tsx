@@ -65,7 +65,6 @@ function AdminProductsPageContent() {
         setCategories(data.categories)
       }
     } catch (error) {
-      console.error('Error fetching categories:', error)
     }
   }
 
@@ -94,7 +93,6 @@ function AdminProductsPageContent() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load products'
       setError(errorMessage)
-      console.error('Error fetching products:', err)
     } finally {
       setLoading(false)
     }

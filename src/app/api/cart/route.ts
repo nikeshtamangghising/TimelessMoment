@@ -51,7 +51,6 @@ export async function POST(request: NextRequest) {
       item: cartItem,
     });
   } catch (error) {
-    console.error('Error adding to cart:', error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -114,7 +113,6 @@ export async function GET(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('Error fetching cart:', error);
     return NextResponse.json(
       { error: 'Failed to fetch cart' },
       { status: 500 }
@@ -144,7 +142,6 @@ export async function PUT(request: NextRequest) {
       item: updatedItem,
     });
   } catch (error) {
-    console.error('Error updating cart item:', error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -180,7 +177,6 @@ export async function DELETE(request: NextRequest) {
       message: 'Item removed from cart successfully',
     });
   } catch (error) {
-    console.error('Error removing from cart:', error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(

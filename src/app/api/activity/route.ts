@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ success: true, result })
   } catch (error) {
-    console.error('Error tracking activity:', error)
     return NextResponse.json(
       { error: 'Failed to track activity' },
       { status: 500 }

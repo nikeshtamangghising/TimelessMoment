@@ -15,7 +15,6 @@ export const POST = createAdminHandler(async (_request: NextRequest) => {
       timestamp: new Date().toISOString(),
     })
   } catch (error) {
-    console.error('Error recalculating product metrics:', error)
     return NextResponse.json(
       { error: 'Failed to recalculate product metrics' },
       { status: 500 }

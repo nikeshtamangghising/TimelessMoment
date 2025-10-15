@@ -34,7 +34,6 @@ export default function EditCategoryPage() {
         setError('Failed to load category')
       }
     } catch (error) {
-      console.error('Error fetching category:', error)
       setError('Failed to load category')
     } finally {
       setFetchLoading(false)
@@ -67,7 +66,6 @@ export default function EditCategoryPage() {
         setError(errorData.error || 'Failed to update category')
       }
     } catch (error) {
-      console.error('Error updating category:', error)
       setError('Failed to update category')
     } finally {
       setLoading(false)

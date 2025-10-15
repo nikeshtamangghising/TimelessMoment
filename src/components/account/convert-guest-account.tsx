@@ -60,7 +60,6 @@ export default function ConvertGuestAccount({ guestEmail, onSuccess }: ConvertGu
       // Success - redirect to sign in page
       router.push(`/auth/signin?message=Account created successfully! Please sign in to view your orders.`)
     } catch (err) {
-      console.error('Error creating account:', err)
       setError(err instanceof Error ? err.message : 'Failed to create account')
     } finally {
       setLoading(false)

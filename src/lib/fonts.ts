@@ -118,7 +118,6 @@ export function measureFontLoadingPerformance(): void {
     const loadTime = performance.now() - startTime
     
     // Log font loading performance
-    console.log(`Fonts loaded in ${loadTime.toFixed(2)}ms`)
     
     // Send to analytics if available
     if (typeof window !== 'undefined' && (window as any).gtag) {

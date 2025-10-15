@@ -31,7 +31,6 @@ export default function CreateCategoryPage() {
         setError(errorData.error || 'Failed to create category')
       }
     } catch (error) {
-      console.error('Error creating category:', error)
       setError('Failed to create category')
     } finally {
       setLoading(false)

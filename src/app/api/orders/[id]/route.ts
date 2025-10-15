@@ -50,7 +50,6 @@ export const GET = createAuthHandler<RouteParams>(async (
     return NextResponse.json(order)
 
   } catch (error) {
-    console.error('Error fetching order:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -142,7 +141,6 @@ export const PUT = createAuthHandler<RouteParams>(async (
               newStatus
             }, true) // Use queue
 
-            console.log(`Order status update email sent to ${user.email}`)
           }
         } catch (emailError) {
           console.error('Failed to send order status update email:', emailError)
@@ -194,7 +192,6 @@ export const PUT = createAuthHandler<RouteParams>(async (
     )
 
   } catch (error) {
-    console.error('Error updating order:', error)
     
     if (error instanceof Error) {
       return NextResponse.json(
@@ -248,7 +245,6 @@ export const DELETE = createAdminHandler<RouteParams>(async (
     )
 
   } catch (error) {
-    console.error('Error deleting order:', error)
     
     if (error instanceof Error) {
       return NextResponse.json(

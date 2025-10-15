@@ -92,7 +92,6 @@ export async function GET(
     })
 
   } catch (error) {
-    console.error('Error fetching product reviews:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -203,7 +202,6 @@ export async function POST(
     })
 
   } catch (error) {
-    console.error('Error creating product review:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

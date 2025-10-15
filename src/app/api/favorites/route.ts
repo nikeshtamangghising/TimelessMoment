@@ -54,7 +54,6 @@ export async function POST(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('Error managing favorites:', error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -121,7 +120,6 @@ export async function GET(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('Error fetching favorites:', error);
     return NextResponse.json(
       { error: 'Failed to fetch favorites' },
       { status: 500 }
@@ -145,7 +143,6 @@ export async function DELETE(request: NextRequest) {
       message: 'Removed from favorites successfully',
     });
   } catch (error) {
-    console.error('Error removing from favorites:', error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(

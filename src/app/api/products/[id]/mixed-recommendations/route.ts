@@ -107,7 +107,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     res.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600')
     return res
   } catch (error) {
-    console.error('Error fetching mixed recommendations:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

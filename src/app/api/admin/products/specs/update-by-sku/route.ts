@@ -114,7 +114,6 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
       sku,
     })
   } catch (error) {
-    console.error('Error updating product specifications by SKU:', error)
     return NextResponse.json({ error: 'Failed to update product specifications' }, { status: 500 })
   }
 })

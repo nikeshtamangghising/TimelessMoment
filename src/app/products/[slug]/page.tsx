@@ -29,7 +29,6 @@ async function getProduct(slug: string): Promise<Product | null> {
   try {
     return await productRepository.findBySlug(slug)
   } catch (error) {
-    console.error('Error fetching product:', error)
     return null
   }
 }
@@ -68,7 +67,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
   try {
     await productRepository.incrementViewCount(product.id)
   } catch (e) {
-    console.warn('Failed to increment view count:', e)
   }
 
   const productWithCategory = product as any

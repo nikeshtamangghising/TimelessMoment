@@ -18,22 +18,17 @@ export default function SignInPage() {
     setLoading(true)
 
     try {
-      console.log('Attempting to sign in with:', { email })
       const result = await signIn('credentials', {
         email,
         password,
         redirect: false,
       })
-      
-      console.log('SignIn result:', result)
 
       if (result?.error) {
-        console.error('SignIn error:', result.error)
         setError('Invalid email or password')
       } else {
         // Get session to check user role
         const session = await getSession()
-        console.log('Login successful, session:', session)
         
         // Get redirect URL from query params
         const urlParams = new URLSearchParams(window.location.search)

@@ -207,7 +207,6 @@ test.describe('Customer Purchase Flow', () => {
       const backToFirstPageProducts = await productsPage.getProductCount()
       expect(backToFirstPageProducts).toBe(firstPageProducts)
     } else {
-      console.log('Pagination not available (not enough products)')
     }
   })
 
@@ -318,7 +317,6 @@ test.describe('Customer Purchase Flow', () => {
   })
 
   test('cross-browser compatibility', async ({ page, browserName }) => {
-    console.log(`Testing on ${browserName}`)
 
     // 1. Basic functionality should work on all browsers
     await homePage.goto()

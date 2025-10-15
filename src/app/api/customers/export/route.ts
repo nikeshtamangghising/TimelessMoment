@@ -44,7 +44,6 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
       }
     })
   } catch (error) {
-    console.error('Error exporting customers:', error)
     return NextResponse.json({ error: 'Failed to export customers' }, { status: 500 })
   }
 })
