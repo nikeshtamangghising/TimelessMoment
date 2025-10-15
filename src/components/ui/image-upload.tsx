@@ -69,12 +69,24 @@ export default function ImageUpload({
 
       const result = await response.json()
       
+      // Show demo mode notification if applicable
+      if (result.demo) {
+        alert('Demo mode: Using placeholder images. In production, integrate with cloud storage service.')
+      }
+      
       // Add new URLs to existing images
       onImagesChange([...images, ...result.urls])
 
     } catch (error) {
       console.error('Upload error:', error)
-      alert(error instanceof Error ? error.message : 'Failed to upload images')
+      
+      // In demo mode, provide helpful message
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload images'
+      if (errorMessage.includes('demo mode') || errorMessage.includes('Vercel')) {
+        alert('Demo Mode: File upload simulated with placeholder images. For production, configure cloud storage.')
+      } else {
+        alert(errorMessage)
+      }
     } finally {
       setUploading(false)
     }
