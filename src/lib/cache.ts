@@ -272,12 +272,15 @@ export function withCache<T extends (...args: any[]) => Promise<Response>>(
     // Try to get from memory cache
     const cached = memoryCache.get(cacheKey)
     if (cached) {
-      return new Response(JSON.stringify(cached.data), {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Cache': 'HIT',
-        },
-      })
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+      
+      if (process.env.NODE_ENV === 'production') {
+        headers['X-Cache'] = 'HIT'
+      }
+      
+      return new Response(JSON.stringify(cached.data), { headers })
     }
 
     // Execute handler
@@ -293,9 +296,11 @@ export function withCache<T extends (...args: any[]) => Promise<Response>>(
       }
     }
 
-    // Add cache headers
-    response.headers.set('X-Cache', 'MISS')
-    response.headers.set('Cache-Control', `public, max-age=${ttl}, s-maxage=${ttl}`)
+    // Add cache headers only in production
+    if (process.env.NODE_ENV === 'production') {
+      response.headers.set('X-Cache', 'MISS')
+      response.headers.set('Cache-Control', `public, max-age=${ttl}, s-maxage=${ttl}`)
+    }
 
     return response
   }) as T

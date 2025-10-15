@@ -22,8 +22,8 @@ interface ProductPageProps {
   }>
 }
 
-// Enable ISR with 1 hour revalidation
-export const revalidate = 3600
+// Force dynamic rendering to avoid DYNAMIC_SERVER_USAGE errors
+export const dynamic = 'force-dynamic'
 
 async function getProduct(slug: string): Promise<Product | null> {
   try {
@@ -63,11 +63,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
     notFound()
   }
 
-  // Increment view count (best-effort)
-  try {
-    await productRepository.incrementViewCount(product.id)
-  } catch (e) {
-  }
+  // Increment view count (best-effort, non-blocking)
+  productRepository.incrementViewCount(product.id).catch(() => {
+    // Ignore errors - view count is not critical
+  })
 
   const productWithCategory = product as any
   const categoryName = typeof productWithCategory.category === 'object' 
