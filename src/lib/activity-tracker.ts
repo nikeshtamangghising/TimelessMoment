@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { ActivityType } from '@prisma/client';
 import { getSessionId } from '@/lib/activity-utils';
+import { queueProductUpdate } from '@/lib/smart-score-updater';
 
 export interface ActivityData {
   userId?: string;
@@ -70,6 +71,9 @@ export class ActivityTracker {
           await this.updateUserInterests(tx, userId, productId, activityType);
         }
       });
+      
+      // 4. Queue product for smart score update (after transaction completes)
+      queueProductUpdate(parseInt(productId));
     } catch (error) {
       console.error('Error tracking activity:', error);
       throw new Error('Failed to track activity');

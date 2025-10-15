@@ -87,20 +87,8 @@
   },
   "crons": [
     {
-      "path": "/api/cron/update-scores",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/cron/sitemap-update",
+      "path": "/api/cron/daily-maintenance",
       "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/cron/cleanup-sessions",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/email-analytics",
-      "schedule": "0 1 * * *"
     }
   ]
 }
