@@ -73,7 +73,7 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
         const timestamp = Date.now()
         const randomSuffix = Math.random().toString(36).substring(2, 8)
         const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-        const publicId = `ecommerce/products/product-${timestamp}-${randomSuffix}`
+        const publicId = `product-${timestamp}-${randomSuffix}`
 
         // Upload to Cloudinary
         const uploadResult = await new Promise((resolve, reject) => {
@@ -82,7 +82,6 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
               public_id: publicId,
               folder: 'ecommerce/products',
               resource_type: 'image',
-              format: fileExtension,
               transformation: [
                 { width: 1200, height: 1200, crop: 'limit', quality: 'auto:good' },
                 { fetch_format: 'auto' }
