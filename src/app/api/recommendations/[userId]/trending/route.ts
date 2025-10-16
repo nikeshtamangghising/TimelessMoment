@@ -3,13 +3,14 @@ import { RecommendationEngine } from '@/lib/recommendation-engine'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const searchParams = request.nextUrl.searchParams
     const limit = Math.min(parseInt(searchParams.get('limit') || '24'), 50)
 
-    const userId = params.userId === 'guest' ? undefined : params.userId
+    const resolvedParams = await params
+    const userId = resolvedParams.userId === 'guest' ? undefined : resolvedParams.userId
 
     // Get trending products
     const trending = await RecommendationEngine.getTrendingProducts(limit)

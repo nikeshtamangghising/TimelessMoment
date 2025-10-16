@@ -9,7 +9,7 @@ const prisma = new PrismaClient()
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -21,7 +21,8 @@ export async function GET(
       )
     }
 
-    const orderId = params.id
+    const resolvedParams = await params
+    const orderId = resolvedParams.id
 
     // Fetch order with all necessary relations
     const order = await prisma.order.findUnique({
