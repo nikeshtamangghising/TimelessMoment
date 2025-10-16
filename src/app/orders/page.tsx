@@ -11,6 +11,7 @@ import Button from '@/components/ui/button'
 import Loading from '@/components/ui/loading'
 import { OrderWithItems, PaginatedResponse } from '@/types'
 import { formatPrice } from '@/lib/cart-utils'
+import DownloadInvoiceButton from '@/components/orders/download-invoice-button'
 
 export default function OrdersPage() {
   const router = useRouter()
@@ -190,6 +191,12 @@ export default function OrdersPage() {
                               View Details
                             </Button>
                           </Link>
+                          <DownloadInvoiceButton 
+                            orderId={order.id} 
+                            size="sm" 
+                            showText={false}
+                            className="!px-2"
+                          />
                           {order.status === 'DELIVERED' && (
                             <Button size="sm">
                               Reorder

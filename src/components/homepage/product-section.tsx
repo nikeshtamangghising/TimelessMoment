@@ -102,12 +102,12 @@ export default function ProductSection({
   }
 
   return (
-    <section className={compact ? `py-6 ${className}` : `py-20 ${className}`}>
+    <section className={compact ? `py-3 ${className}` : `py-20 ${className}`}>
       <div className={compact ? "max-w-full mx-auto px-2 sm:px-3 lg:px-4" : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"}>
-        <div className={compact ? "flex flex-col lg:flex-row lg:justify-between lg:items-end mb-4" : "flex flex-col lg:flex-row lg:justify-between lg:items-end mb-16"}>
-          <div className={compact ? "mb-3 lg:mb-0" : "mb-8 lg:mb-0"}>
+        <div className={compact ? "flex flex-col lg:flex-row lg:justify-between lg:items-end mb-2" : "flex flex-col lg:flex-row lg:justify-between lg:items-end mb-16"}>
+          <div className={compact ? "mb-2 lg:mb-0" : "mb-8 lg:mb-0"}>
             {!compact && getVariantBadge()}
-            <h2 className={compact ? "text-lg md:text-xl font-bold text-gray-900 mb-1 flex items-center gap-2" : "text-4xl md:text-5xl font-bold text-gray-900 mb-4 flex items-center gap-3"}>
+            <h2 className={compact ? "text-lg md:text-xl font-bold text-gray-900 mb-0.5 flex items-center gap-2" : "text-4xl md:text-5xl font-bold text-gray-900 mb-4 flex items-center gap-3"}>
               {title}
               {!compact && getVariantIcon()}
             </h2>
@@ -135,8 +135,8 @@ export default function ProductSection({
 
         {/* Products Grid */}
         <div className={compact 
-          ? "grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 sm:gap-4"
-          : "grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 sm:gap-6 lg:gap-8"
+          ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-6 gap-2 sm:gap-3"
+          : "grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-6 gap-4 sm:gap-6 lg:gap-8"
         }>
           {products.map((product, index) => (
             <div 

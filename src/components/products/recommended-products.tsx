@@ -5,6 +5,9 @@ import { useSession } from 'next-auth/react'
 import { Product } from '@/types'
 import ProductCard from './product-card'
 import { ProductCardSkeleton } from '@/components/ui/skeleton'
+import ScrollSentinel from '@/components/ui/scroll-sentinel'
+import { Button } from '@/components/ui/button'
+import { ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 
 interface RecommendedProductsProps {
   productId: string
@@ -28,6 +31,7 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
   const { data: session } = useSession()
   const [items, setItems] = useState<MixedRecommendationItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [limit] = useState(8)
   const [offset, setOffset] = useState(0)
@@ -35,15 +39,22 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
 
   const userId = session?.user?.id || 'guest'
 
-  const sentinelRef = useRef<HTMLDivElement | null>(null)
   const fetchingRef = useRef(false)
   const seenIdsRef = useRef<Set<string>>(new Set())
   const abortRef = useRef<AbortController | null>(null)
+  const retryCountRef = useRef(0)
+  const maxRetries = 3
 
   const fetchPage = useCallback(async (nextOffset: number, append: boolean) => {
     if (fetchingRef.current) return
     fetchingRef.current = true
-    setLoading(true)
+    
+    if (append) {
+      setLoadingMore(true)
+    } else {
+      setLoading(true)
+    }
+    setError(null)
 
     // Abort any in-flight request
     if (abortRef.current) {
@@ -52,12 +63,29 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
     const controller = new AbortController()
     abortRef.current = controller
 
+    // Set up timeout (10 seconds)
+    const timeoutId = setTimeout(() => {
+      controller.abort()
+    }, 10000)
+
     try {
       const params = new URLSearchParams({ userId, limit: String(limit), offset: String(nextOffset) })
-      const response = await fetch(`/api/products/${productId}/mixed-recommendations?${params.toString()}` , { signal: controller.signal })
+      const response = await fetch(`/api/products/${productId}/mixed-recommendations?${params.toString()}`, { 
+        signal: controller.signal,
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
+
+      clearTimeout(timeoutId)
+
       if (!response.ok) {
-        throw new Error('Failed to load recommendations')
+        throw new Error(`Failed to load recommendations: ${response.status} ${response.statusText}`)
       }
+      
       const data: RecommendationData = await response.json()
       if (data.success) {
         // Deduplicate on client side as a safety net
@@ -66,17 +94,27 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
         setItems(prev => append ? [...prev, ...deduped] : deduped)
         setHasMore(deduped.length >= limit)
         setOffset(nextOffset)
+        retryCountRef.current = 0 // Reset retry count on success
       } else {
-        setError('Failed to load recommendations')
+        throw new Error('Invalid response format')
       }
-    } catch (err) {
-      if ((err as any)?.name === 'AbortError') {
-        // ignore aborts
-      } else {
-        setError('Failed to load recommendations')
+    } catch (err: any) {
+      clearTimeout(timeoutId)
+      
+      if (err.name === 'AbortError') {
+        // Check if it was a timeout or manual abort
+        if (fetchingRef.current) {
+          setError('Request timed out. Please check your connection and try again.')
+        }
+        return
       }
+      
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load recommendations'
+      setError(errorMessage)
+      console.error('Error fetching recommendations:', err)
     } finally {
       setLoading(false)
+      setLoadingMore(false)
       fetchingRef.current = false
     }
   }, [productId, userId, limit])
@@ -91,23 +129,45 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
     fetchPage(0, false)
   }, [productId, userId, fetchPage])
 
+  const handleScrollIntersect = useCallback(() => {
+    if (!loadingMore && hasMore && !error && !fetchingRef.current) {
+      const nextOffset = offset + limit
+      fetchPage(nextOffset, true)
+    }
+  }, [offset, limit, hasMore, loadingMore, error, fetchPage])
+
+  const retry = useCallback(async () => {
+    if (retryCountRef.current >= maxRetries) {
+      setError('Maximum retry attempts reached. Please refresh the page.')
+      return
+    }
+
+    retryCountRef.current += 1
+    
+    if (items.length === 0) {
+      // Retry initial load
+      setItems([])
+      setOffset(0)
+      setHasMore(true)
+      seenIdsRef.current = new Set()
+      await fetchPage(0, false)
+    } else {
+      // Retry loading more
+      await fetchPage(offset + limit, true)
+    }
+  }, [items.length, offset, limit, fetchPage])
+
+  // Cleanup on unmount
   useEffect(() => {
-    if (!sentinelRef.current) return
+    return () => {
+      if (abortRef.current) {
+        abortRef.current.abort()
+      }
+    }
+  }, [])
 
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting && hasMore && !fetchingRef.current) {
-          const nextOffset = offset + limit
-          fetchPage(nextOffset, true)
-        }
-      })
-    }, { rootMargin: '200px 0px' })
-
-    observer.observe(sentinelRef.current)
-    return () => observer.disconnect()
-  }, [offset, limit, hasMore, fetchPage])
-
-  if ((loading && items.length === 0)) {
+  // Show initial loading skeleton
+  if (loading && items.length === 0) {
     return (
       <div className={`${className}`}>
         <h2 className="text-3xl font-bold text-gray-900 mb-8">You May Also Like</h2>
@@ -120,7 +180,32 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
     )
   }
 
-  if (error || items.length === 0) {
+  // Show error state if no items loaded
+  if (error && items.length === 0) {
+    return (
+      <div className={`${className}`}>
+        <h2 className="text-3xl font-bold text-gray-900 mb-8">You May Also Like</h2>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
+          <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-red-800 mb-2">
+            Unable to load recommendations
+          </h3>
+          <p className="text-red-600 mb-6">{error}</p>
+          <Button 
+            onClick={retry} 
+            variant="outline"
+            className="border-red-300 text-red-700 hover:bg-red-50"
+          >
+            <ArrowPathIcon className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render if no items and no error (empty state)
+  if (items.length === 0) {
     return null
   }
 
@@ -171,19 +256,55 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
         ))}
       </div>
 
-      {/* Infinite scroll sentinel */}
-      <div ref={sentinelRef} className="h-8" />
-      {loading && items.length > 0 && (
-        <div className="flex justify-center mt-8">
-          <div className="flex items-center gap-3 text-gray-500 bg-gray-50 px-6 py-3 rounded-full">
-            <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Loading more recommendations...
+      {/* Loading More State */}
+      {loadingMore && (
+        <div className="flex justify-center items-center py-8">
+          <div className="flex items-center gap-3 text-gray-600 bg-gray-50 px-6 py-3 rounded-full border">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+            <span className="text-sm font-medium">Loading more recommendations...</span>
           </div>
         </div>
       )}
+
+      {/* Error State for Loading More */}
+      {error && items.length > 0 && (
+        <div className="flex justify-center items-center py-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md text-center">
+            <ExclamationTriangleIcon className="h-8 w-8 text-red-500 mx-auto mb-3" />
+            <p className="text-red-600 mb-4 text-sm">{error}</p>
+            <Button 
+              onClick={retry} 
+              size="sm"
+              variant="outline"
+              className="border-red-300 text-red-700 hover:bg-red-50"
+            >
+              <ArrowPathIcon className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* End of Results Message */}
+      {!hasMore && items.length > 0 && !loadingMore && (
+        <div className="flex justify-center items-center py-8">
+          <div className="text-center">
+            <div className="text-2xl mb-2">✨</div>
+            <p className="text-gray-500 text-sm">
+              That's all the recommendations we have for you!
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Scroll Sentinel */}
+      <ScrollSentinel
+        onIntersect={handleScrollIntersect}
+        loading={loadingMore}
+        hasMore={hasMore}
+        threshold="200px"
+        disabled={!!error}
+      />
     </div>
   )
 }

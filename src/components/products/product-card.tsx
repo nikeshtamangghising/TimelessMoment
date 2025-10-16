@@ -2,20 +2,14 @@ import { memo, useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 
-import { useRouter } from "next/navigation";
-import Button from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useCart } from "@/contexts/cart-context";
-import { useCartStore } from "@/stores/cart-store";
 import { useFavorites } from "@/hooks/use-favorites";
-import { createViewTracker, trackActivity } from "@/lib/activity-tracker";
+import { createViewTracker } from "@/lib/activity-tracker";
 import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currency";
 import { ProductWithCategory } from "@/types";
 interface ProductCardProps {
   product: ProductWithCategory;
-  onAddToCart?: (productId: string) => void;
   onProductClick?: (product: ProductWithCategory) => void;
-  loading?: boolean;
   showFavoriteButton?: boolean;
   trackViews?: boolean;
   compact?: boolean;
@@ -23,22 +17,15 @@ interface ProductCardProps {
 
 function ProductCard({
   product,
-  onAddToCart,
   onProductClick,
-  loading,
   showFavoriteButton = true,
   trackViews = true,
   compact = false,
 }: ProductCardProps) {
   const { data: session } = useSession();
-  const { addToCart } = useCart(); // Removed cartLoading from destructuring
-  const { openCart } = useCartStore();
   const { isInFavorites, toggleFavorite, isOperationLoading } = useFavorites();
-  const router = useRouter();
   const cardRef = useRef<HTMLDivElement>(null);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
-  const [isAdding, setIsAdding] = useState(false); // Local loading state for this product
-  const [isBuying, setIsBuying] = useState(false);
 
   // Long-press detection state
   const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -64,43 +51,6 @@ function ProductCard({
     }
   }, [product.id, session?.user?.id, trackViews]);
 
-  const handleAddToCart = async () => {
-    const productCopy = JSON.parse(JSON.stringify(product));
-
-    if (onAddToCart) {
-      onAddToCart(productCopy.id);
-    } else {
-      setIsAdding(true);
-      try {
-        const success = await addToCart(productCopy, 1);
-        if (success) {
-          trackActivity({
-            productId: productCopy.id,
-            activityType: "CART_ADD",
-            userId: session?.user?.id,
-          });
-          openCart();
-        }
-      } finally {
-        setIsAdding(false);
-      }
-    }
-  };
-
-  const handleBuyNow = async () => {
-    if (product.inventory === 0) return;
-    const productCopy = JSON.parse(JSON.stringify(product));
-    setIsBuying(true);
-    try {
-      const success = await addToCart(productCopy, 1);
-      if (success) {
-        router.push("/checkout");
-      }
-    } finally {
-      setIsBuying(false);
-    }
-  };
-
   const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -113,15 +63,13 @@ function ProductCard({
     await toggleFavorite(product.id);
   };
 
-  // Use local loading state instead of global cart loading state
-  const isButtonLoading = loading || isAdding;
   const isFavoriteLoading = isOperationLoading(product.id);
   const isFavorited = isInFavorites(product.id);
 
   // Navigation helper
   const navigateToProduct = () => {
     const href = `/products/${product.slug || product.id}`;
-    router.push(href);
+    window.location.href = href;
   };
 
   // Pointer/long-press handlers for image/title area
@@ -312,7 +260,7 @@ function ProductCard({
           </div>
         </div>
       </div>
-      <CardContent className={compact ? "p-3" : "p-5"}>
+      <CardContent className={compact ? "p-2" : "p-5"}>
         {/* Category Badge */}
         {!compact && (
           <div className="mb-3">
@@ -326,7 +274,7 @@ function ProductCard({
         <h3
           className={
             compact
-              ? "text-sm font-semibold text-gray-900 line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors mb-2 leading-tight"
+              ? "text-sm font-semibold text-gray-900 line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors mb-1 leading-tight"
               : "text-base font-bold text-gray-900 line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors mb-3 leading-tight"
           }
         >
@@ -337,7 +285,7 @@ function ProductCard({
         <div
           className={
             compact
-              ? "flex items-center flex-wrap gap-2 mb-3"
+              ? "flex items-center flex-wrap gap-1 mb-2"
               : "flex items-center flex-wrap gap-3 mb-4"
           }
         >
@@ -346,8 +294,8 @@ function ProductCard({
               <span
                 className={
                   compact
-                    ? "text-lg font-bold text-emerald-600"
-                    : "text-xl font-bold text-emerald-600"
+                    ? "text-sm sm:text-base font-bold text-emerald-600"
+                    : "text-base sm:text-lg font-bold text-emerald-600"
                 }
               >
                 {formatCurrency(
@@ -358,8 +306,8 @@ function ProductCard({
               <span
                 className={
                   compact
-                    ? "text-sm text-gray-500 line-through"
-                    : "text-base text-gray-500 line-through"
+                    ? "text-xs sm:text-sm text-gray-500 line-through"
+                    : "text-sm sm:text-base text-gray-500 line-through"
                 }
               >
                 {formatCurrency(
@@ -367,7 +315,7 @@ function ProductCard({
                   product.currency || DEFAULT_CURRENCY
                 )}
               </span>
-              <span className="text-xs bg-gradient-to-r from-red-500 to-pink-500 text-white px-2.5 py-1 rounded-full font-bold shadow-sm">
+              <span className="text-xs bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full font-bold shadow-sm">
                 {Math.round(
                   ((product.price - product.discountPrice) / product.price) *
                     100
@@ -379,8 +327,8 @@ function ProductCard({
             <span
               className={
                 compact
-                  ? "text-lg font-bold text-slate-800"
-                  : "text-xl font-bold text-slate-800"
+                  ? "text-sm sm:text-base font-bold text-slate-800"
+                  : "text-base sm:text-lg font-bold text-slate-800"
               }
             >
               {formatCurrency(
@@ -389,116 +337,6 @@ function ProductCard({
               )}
             </span>
           )}
-        </div>
-
-        {/* Action Buttons */}
-        <div
-          className={
-            compact ? "mt-3 flex flex-col gap-2" : "mt-4 flex flex-col gap-3"
-          }
-        >
-          <Button
-            onClick={handleAddToCart}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-            }}
-            onPointerUp={(e) => {
-              e.stopPropagation();
-            }}
-            disabled={product.inventory === 0 || isButtonLoading}
-            className={`w-full ${
-              product.inventory === 0
-                ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
-                : "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl border-0"
-            } ${
-              compact ? "!px-3 !py-2 !text-sm" : "!px-4 !py-3 !text-base"
-            } font-semibold rounded-xl transition-all duration-300 hover:scale-105 active:scale-95`}
-            size={compact ? "sm" : "md"}
-          >
-            {isButtonLoading ? (
-              <div className="flex items-center justify-center">
-                <svg
-                  className={`animate-spin ${
-                    compact ? "h-4 w-4 mr-2" : "h-5 w-5 mr-2"
-                  } text-current`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                {compact ? "Adding..." : "Adding to Cart..."}
-              </div>
-            ) : product.inventory === 0 ? (
-              compact ? (
-                "❌ Sold Out"
-              ) : (
-                "❌ Sold Out"
-              )
-            ) : compact ? (
-              "🛒 Add"
-            ) : (
-              "🛒 Add to Cart"
-            )}
-          </Button>
-
-          {/* Buy Now button */}
-          <Button
-            onClick={handleBuyNow}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-            }}
-            onPointerUp={(e) => {
-              e.stopPropagation();
-            }}
-            disabled={product.inventory === 0 || isBuying || isButtonLoading}
-            className={`w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hover:shadow-xl disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed disabled:border disabled:border-gray-200 ${
-              compact ? "!px-3 !py-2 !text-sm" : "!px-4 !py-3 !text-base"
-            } font-semibold rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 border-0`}
-            size={compact ? "sm" : "md"}
-          >
-            {isBuying ? (
-              <div className="flex items-center justify-center">
-                <svg
-                  className={`animate-spin ${
-                    compact ? "h-4 w-4 mr-2" : "h-5 w-5 mr-2"
-                  } text-white`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                {compact ? "Processing..." : "Processing..."}
-              </div>
-            ) : compact ? (
-              "⚡ Buy"
-            ) : (
-              "⚡ Buy Now"
-            )}
-          </Button>
         </div>
       </CardContent>
     </Card>
@@ -523,7 +361,7 @@ function areEqual(
   const bImg = Array.isArray(b.images) && b.images.length ? b.images[0] : "";
   if (aImg !== bImg) return false;
   // For the rest (handlers, flags), assume stable usage; compare simple flags
-  if ((prev.loading || false) !== (next.loading || false)) return false;
+
   if ((prev.showFavoriteButton || true) !== (next.showFavoriteButton || true))
     return false;
   if ((prev.trackViews || true) !== (next.trackViews || true)) return false;

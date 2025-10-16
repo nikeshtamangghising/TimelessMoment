@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import MainLayout from '@/components/layout/main-layout';
-import RecommendationsSection from './recommendations-section';
+import TabbedRecommendations from './tabbed-recommendations';
 
 export default function HomepageClient() {
   const [mounted, setMounted] = useState(false);
@@ -32,8 +32,8 @@ export default function HomepageClient() {
   return (
     <MainLayout>
       <div className="min-h-screen bg-gray-50">
-        {/* All product sections now handled by RecommendationsSection */}
-        <RecommendationsSection />
+        {/* Unified tabbed recommendations interface */}
+        <TabbedRecommendations />
       </div>
     </MainLayout>
   );

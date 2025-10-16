@@ -19,6 +19,7 @@ import Input from '@/components/ui/input'
 import Loading from '@/components/ui/loading'
 import { OrderWithItems, PaginatedResponse, OrderStatus } from '@/types'
 import { formatPrice } from '@/lib/cart-utils'
+import DownloadInvoiceButton from '@/components/orders/download-invoice-button'
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<PaginatedResponse<OrderWithItems> | null>(null)
@@ -409,11 +410,20 @@ export default function AdminOrdersPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              <Link href={`/admin/orders/${order.id}`}>
-                                <Button variant="ghost" size="sm">
-                                  <EyeIcon className="h-4 w-4" />
-                                </Button>
-                              </Link>
+                              <div className="flex items-center justify-end space-x-2">
+                                <Link href={`/admin/orders/${order.id}`}>
+                                  <Button variant="ghost" size="sm">
+                                    <EyeIcon className="h-4 w-4" />
+                                  </Button>
+                                </Link>
+                                <DownloadInvoiceButton 
+                                  orderId={order.id} 
+                                  variant="ghost"
+                                  size="sm" 
+                                  showText={false}
+                                  className="!px-2"
+                                />
+                              </div>
                             </td>
                           </tr>
                         ))}

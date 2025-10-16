@@ -57,17 +57,17 @@ export default function RecommendationsSection() {
 
   if (loading) {
     return (
-      <section className="py-6 bg-gray-50">
+      <section className="py-3 bg-gray-50">
         <div className="max-w-full mx-auto px-2 sm:px-3 lg:px-4">
-          <div className="mb-4">
+          <div className="mb-2">
             <div className="animate-pulse">
-              <div className="h-5 bg-gray-300 rounded w-32 mb-4"></div>
+              <div className="h-5 bg-gray-300 rounded w-32 mb-2"></div>
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 md:gap-2.5">
-              {Array.from({ length: 30 }).map((_, index) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-6 gap-2 sm:gap-3">
+              {Array.from({ length: 21 }).map((_, index) => (
                 <div key={index} className="animate-pulse">
-                  <div className="bg-gray-300 rounded-lg aspect-square mb-2"></div>
-                  <div className="h-3 bg-gray-300 rounded w-3/4 mb-1"></div>
+                  <div className="bg-gray-300 rounded-lg aspect-square mb-1"></div>
+                  <div className="h-3 bg-gray-300 rounded w-3/4 mb-0.5"></div>
                   <div className="h-3 bg-gray-300 rounded w-1/2"></div>
                 </div>
               ))}
