@@ -80,8 +80,13 @@ export default function MobileBottomNav() {
     return null
   }
 
+  // Check if we're on a product page to adjust positioning
+  const isProductPage = pathname.startsWith('/products/') && pathname !== '/products'
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+    <div className={`fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 ${
+      isProductPage ? 'transition-transform duration-300' : ''
+    }`}>
       <div className="flex">
         {navigation.map((item) => {
           const Icon = item.isActive ? item.iconActive : item.icon

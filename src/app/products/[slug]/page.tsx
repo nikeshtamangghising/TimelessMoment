@@ -10,6 +10,7 @@ import ProductTabs from '@/components/products/product-tabs'
 import RecommendedProducts from '@/components/products/recommended-products'
 import ProductImageGallery from '@/components/products/product-image-gallery'
 import ProductInfoSection from '@/components/products/product-info-section'
+import MobileProductActions from '@/components/products/mobile-product-actions'
 import ScrollToTop from '@/components/ui/scroll-to-top'
 
 interface ProductPageProps {
@@ -85,7 +86,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     <MainLayout>
       <StructuredData data={structuredData} />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32 md:pb-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Product Images */}
           <div>
@@ -114,6 +115,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
       
       {/* Scroll to Top Button */}
       <ScrollToTop />
+      
+      {/* Mobile Fixed Action Buttons */}
+      <MobileProductActions product={product} />
     </MainLayout>
   )
 }

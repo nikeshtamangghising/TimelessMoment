@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { MinusIcon, PlusIcon } from '@heroicons/react/24/outline'
 import Button from '@/components/ui/button'
@@ -14,9 +14,24 @@ interface AddToCartSectionProps {
 
 export default function AddToCartSection({ product }: AddToCartSectionProps) {
   const [quantity, setQuantity] = useState(1)
+  const [isMobile, setIsMobile] = useState(false)
   const { addToCart, isLoading } = useCart()
   const { openCart } = useCartStore()
   const router = useRouter()
+
+  // Check if we're on mobile device
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768) // md breakpoint
+    }
+    
+    checkIsMobile()
+    window.addEventListener('resize', checkIsMobile)
+    
+    return () => {
+      window.removeEventListener('resize', checkIsMobile)
+    }
+  }, [])
 
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity >= 1 && newQuantity <= product.inventory) {
@@ -45,6 +60,11 @@ export default function AddToCartSection({ product }: AddToCartSectionProps) {
   const isOutOfStock = product.inventory === 0
   const isMaxQuantity = quantity >= product.inventory
   const isMinQuantity = quantity <= 1
+
+  // Hide on mobile since we have the fixed mobile actions
+  if (isMobile) {
+    return null
+  }
 
   return (
     <div className="space-y-4">
