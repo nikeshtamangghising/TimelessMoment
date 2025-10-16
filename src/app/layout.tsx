@@ -101,8 +101,11 @@ export default async function RootLayout({
         <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
         
-        {/* Favicon - use manifest icons and fallback to placeholder if missing */}
-        <link rel="icon" href="/placeholder-product.svg" />
+        {/* Favicon */}
+        <link rel="icon" href="/fav.png" />
+        <link rel="shortcut icon" href="/fav.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/fav.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/fav.png" />
         
         {/* Preload critical resources (fonts served via next/font) */}
         
