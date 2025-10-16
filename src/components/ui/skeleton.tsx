@@ -20,14 +20,37 @@ export function Skeleton({ className, animate = true }: SkeletonProps) {
 // Product card skeleton
 export function ProductCardSkeleton() {
   return (
-    <div className="border rounded-lg p-4 space-y-4">
-      <Skeleton className="aspect-square w-full" />
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-3/4" />
-        <Skeleton className="h-4 w-1/2" />
-        <Skeleton className="h-6 w-1/4" />
+    <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-sm">
+      {/* Image skeleton */}
+      <div className="aspect-square w-full bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-pulse" 
+             style={{ animationDelay: '0.5s', animationDuration: '2s' }} />
       </div>
-      <Skeleton className="h-10 w-full" />
+      
+      {/* Content skeleton */}
+      <div className="p-5 space-y-4">
+        {/* Category badge */}
+        <Skeleton className="h-6 w-20 rounded-full" />
+        
+        {/* Title */}
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-5 w-3/4" />
+        </div>
+        
+        {/* Price */}
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-5 w-12 rounded-full" />
+        </div>
+        
+        {/* Buttons */}
+        <div className="space-y-3 pt-2">
+          <Skeleton className="h-12 w-full rounded-xl" />
+          <Skeleton className="h-12 w-full rounded-xl" />
+        </div>
+      </div>
     </div>
   )
 }
@@ -35,7 +58,7 @@ export function ProductCardSkeleton() {
 // Product grid skeleton
 export function ProductGridSkeleton({ count = 12 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 sm:gap-6">
       {Array.from({ length: count }).map((_, i) => (
         <ProductCardSkeleton key={i} />
       ))}

@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import Link from 'next/link'
-import Image from 'next/image'
 import { useSession } from 'next-auth/react'
 import { Product } from '@/types'
-import { formatCurrency, DEFAULT_CURRENCY } from '@/lib/currency'
+import ProductCard from './product-card'
+import { ProductCardSkeleton } from '@/components/ui/skeleton'
 
 interface RecommendedProductsProps {
   productId: string
@@ -111,14 +110,10 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
   if ((loading && items.length === 0)) {
     return (
       <div className={`${className}`}>
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">You May Also Like</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="animate-pulse">
-              <div className="bg-gray-200 aspect-square rounded-lg mb-4"></div>
-              <div className="h-4 bg-gray-200 rounded mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            </div>
+        <h2 className="text-3xl font-bold text-gray-900 mb-8">You May Also Like</h2>
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-6">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <ProductCardSkeleton key={index} />
           ))}
         </div>
       </div>
@@ -131,75 +126,55 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
 
   return (
     <div className={`${className}`}>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">You May Also Like</h2>
-        <div className="text-sm text-gray-500">Mixed: Similar • Trending • Popular{session?.user ? ' • Personalized' : ''}</div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
+        <h2 className="text-3xl font-bold text-gray-900">You May Also Like</h2>
+        <div className="text-sm text-gray-500 bg-gray-50 px-4 py-2 rounded-full border">
+          Mixed: Similar • Trending • Popular{session?.user ? ' • Personalized' : ''}
+        </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      
+      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-6">
         {items.map(({ product, reason }) => (
-          <Link
-            key={product.id}
-            href={`/products/${product.slug}`}
-            className="group block bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
-          >
-            <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-t-lg">
-              <Image
-                src={product.images[0] || '/placeholder-product.jpg'}
-                alt={product.name}
-                width={300}
-                height={300}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-              />
+          <div key={product.id} className="relative">
+            <ProductCard
+              product={product as any}
+              trackViews={false}
+              compact={true}
+              onProductClick={() => {
+                // Navigate to product page
+                window.location.href = `/products/${product.slug}`
+              }}
+            />
+            {/* Recommendation reason badge */}
+            <div className="absolute top-4 left-4 z-20">
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold shadow-lg backdrop-blur-sm border border-white/20 ${
+                reason === 'similar' ? 'bg-blue-500/90 text-white' :
+                reason === 'trending' ? 'bg-orange-500/90 text-white' :
+                reason === 'popular' ? 'bg-green-500/90 text-white' :
+                'bg-purple-500/90 text-white'
+              }`}>
+                {reason === 'similar' ? '🔗 Similar' :
+                 reason === 'trending' ? '📈 Trending' :
+                 reason === 'popular' ? '🔥 Popular' :
+                 '✨ For You'}
+              </span>
             </div>
-            <div className="p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900 group-hover:text-indigo-600 transition-colors duration-200 line-clamp-2">
-                  {product.name}
-                </h3>
-                <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 uppercase tracking-wide">{reason}</span>
-              </div>
-              <div className="mt-2 flex items-center justify-between">
-                <span className="text-xl font-bold text-indigo-600">
-                  {formatCurrency(product.discountPrice || product.price, (product as any).currency || DEFAULT_CURRENCY)}
-                </span>
-                {product.ratingAvg && product.ratingCount > 0 && (
-                  <div className="flex items-center">
-                    <div className="flex items-center">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <svg
-                          key={i}
-                          className={`w-4 h-4 ${
-                            i < Math.floor(product.ratingAvg || 0)
-                              ? 'text-yellow-400'
-                              : 'text-gray-300'
-                          }`}
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      ))}
-                    </div>
-                    <span className="ml-1 text-sm text-gray-600">
-                      ({product.ratingCount})
-                    </span>
-                  </div>
-                )}
-              </div>
-              {product.inventory <= (product.lowStockThreshold || 5) && product.inventory > 0 && (
-                <div className="mt-2 text-sm text-yellow-600">
-                  Only {product.inventory} left in stock
-                </div>
-              )}
-            </div>
-          </Link>
+          </div>
         ))}
       </div>
 
       {/* Infinite scroll sentinel */}
       <div ref={sentinelRef} className="h-8" />
-      {loading && (
-        <div className="flex justify-center mt-4 text-sm text-gray-500">Loading more…</div>
+      {loading && items.length > 0 && (
+        <div className="flex justify-center mt-8">
+          <div className="flex items-center gap-3 text-gray-500 bg-gray-50 px-6 py-3 rounded-full">
+            <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading more recommendations...
+          </div>
+        </div>
       )}
     </div>
   )

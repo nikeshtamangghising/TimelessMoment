@@ -383,7 +383,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
   }
   
   if (searchParams.search) {
-    breadcrumbs.push({ name: `Search: "${searchParams.search}"`, href: `/categories?search=${searchParams.search}` })
+    breadcrumbs.push({ name: `Search: "${searchParams.search}"`, href: `/search?q=${searchParams.search}` })
   }
 
   return (
@@ -534,26 +534,30 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
             
             {/* Products Content */}
             <div className="flex-1">
-              {/* Filter & View Controls */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="flex items-center space-x-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowFilters(!showFilters)}
-                      className="lg:hidden"
-                    >
-                      <FunnelIcon className="h-4 w-4 mr-2" />
-                      Filters
-                    </Button>
-                    <span className="text-sm text-gray-600">
-                      <strong>{productsData.pagination?.total || 0}</strong> products found
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center space-x-4">
-                    {/* View Mode Toggle */}
-                    <div className="hidden sm:flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+              {/* Enhanced Responsive Filter & View Controls */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+                {/* Mobile-First Layout */}
+                <div className="space-y-4">
+                  {/* Top Row: Results Count & Mobile Filters */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowFilters(!showFilters)}
+                        className="lg:hidden flex items-center gap-2 px-3 py-2 text-sm"
+                      >
+                        <FunnelIcon className="h-4 w-4" />
+                        <span className="hidden xs:inline">Filters</span>
+                      </Button>
+                      <div className="text-sm text-gray-600">
+                        <span className="font-semibold text-gray-900">{productsData.pagination?.total || 0}</span>
+                        <span className="hidden xs:inline"> products found</span>
+                        <span className="xs:hidden"> found</span>
+                      </div>
+                    </div>
+                    
+                    {/* Mobile View Mode Toggle */}
+                    <div className="sm:hidden flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
                       <button
                         onClick={() => setViewMode('grid')}
                         className={`p-2 rounded-md transition-colors ${
@@ -561,6 +565,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                             ? 'bg-white text-gray-900 shadow-sm' 
                             : 'text-gray-600 hover:text-gray-900'
                         }`}
+                        title="Grid view"
                       >
                         <Squares2X2Icon className="w-4 h-4" />
                       </button>
@@ -571,48 +576,135 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                             ? 'bg-white text-gray-900 shadow-sm' 
                             : 'text-gray-600 hover:text-gray-900'
                         }`}
+                        title="List view"
                       >
                         <ListBulletIcon className="w-4 h-4" />
                       </button>
                     </div>
-                    
-                    {/* Grid Density (only for grid view) */}
+                  </div>
+
+                  {/* Desktop Controls Row */}
+                  <div className="hidden sm:flex items-center justify-between gap-4">
+                    {/* Left Side: View Mode Toggle */}
+                    <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+                      <button
+                        onClick={() => setViewMode('grid')}
+                        className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                          viewMode === 'grid' 
+                            ? 'bg-white text-gray-900 shadow-sm' 
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <Squares2X2Icon className="w-4 h-4" />
+                        <span className="hidden md:inline">Grid</span>
+                      </button>
+                      <button
+                        onClick={() => setViewMode('list')}
+                        className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                          viewMode === 'list' 
+                            ? 'bg-white text-gray-900 shadow-sm' 
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <ListBulletIcon className="w-4 h-4" />
+                        <span className="hidden md:inline">List</span>
+                      </button>
+                    </div>
+
+                    {/* Right Side: Density & Sort Controls */}
+                    <div className="flex items-center gap-3">
+                      {/* Grid Density (only for grid view) */}
+                      {viewMode === 'grid' && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500 hidden lg:inline">Density:</span>
+                          <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+                            {[
+                              { value: 3, label: 'L', fullLabel: 'Large' },
+                              { value: 4, label: 'M', fullLabel: 'Medium' },
+                              { value: 5, label: 'D', fullLabel: 'Dense' },
+                              { value: 6, label: 'C', fullLabel: 'Compact' }
+                            ].map((option) => (
+                              <button
+                                key={option.value}
+                                onClick={() => setGridColumns(option.value)}
+                                className={`px-2 py-1 text-sm rounded-md transition-colors min-w-[32px] ${
+                                  gridColumns === option.value 
+                                    ? 'bg-white text-gray-900 shadow-sm' 
+                                    : 'text-gray-600 hover:text-gray-900'
+                                }`}
+                                title={option.fullLabel}
+                              >
+                                <span className="lg:hidden">{option.label}</span>
+                                <span className="hidden lg:inline">{option.fullLabel}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Sort Dropdown */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 hidden md:inline">Sort:</span>
+                        <select
+                          value={searchParams.sort || ''}
+                          onChange={(e) => updateFilters({ sort: e.target.value || null })}
+                          className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors min-w-[120px]"
+                        >
+                          <option value="">Default</option>
+                          <option value="newest">Newest</option>
+                          <option value="price-low">Price ↑</option>
+                          <option value="price-high">Price ↓</option>
+                          <option value="rating">Rating</option>
+                          <option value="popular">Popular</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mobile-Only Controls Row */}
+                  <div className="sm:hidden space-y-3">
+                    {/* Grid Density for Mobile (only for grid view) */}
                     {viewMode === 'grid' && (
-                      <div className="hidden md:flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
-                        {[
-                          { value: 3, label: 'Large' },
-                          { value: 4, label: 'Medium' },
-                          { value: 5, label: 'Dense' },
-                          { value: 6, label: 'Compact' }
-                        ].map((option) => (
-                          <button
-                            key={option.value}
-                            onClick={() => setGridColumns(option.value)}
-                            className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                              gridColumns === option.value 
-                                ? 'bg-white text-gray-900 shadow-sm' 
-                                : 'text-gray-600 hover:text-gray-900'
-                            }`}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-gray-500 font-medium">Density:</span>
+                        <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1 flex-1">
+                          {[
+                            { value: 3, label: 'Large' },
+                            { value: 4, label: 'Medium' },
+                            { value: 5, label: 'Dense' }
+                          ].map((option) => (
+                            <button
+                              key={option.value}
+                              onClick={() => setGridColumns(option.value)}
+                              className={`flex-1 px-2 py-1.5 text-xs rounded-md transition-colors ${
+                                gridColumns === option.value 
+                                  ? 'bg-white text-gray-900 shadow-sm font-medium' 
+                                  : 'text-gray-600 hover:text-gray-900'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                     
-                    {/* Sort Dropdown */}
-                    <select
-                      value={searchParams.sort || ''}
-                      onChange={(e) => updateFilters({ sort: e.target.value || null })}
-                      className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      <option value="">Sort by</option>
-                      <option value="newest">Newest First</option>
-                      <option value="price-low">Price: Low to High</option>
-                      <option value="price-high">Price: High to Low</option>
-                      <option value="rating">Highest Rated</option>
-                      <option value="popular">Most Popular</option>
-                    </select>
+                    {/* Sort for Mobile */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-gray-500 font-medium">Sort by:</span>
+                      <select
+                        value={searchParams.sort || ''}
+                        onChange={(e) => updateFilters({ sort: e.target.value || null })}
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Default</option>
+                        <option value="newest">Newest First</option>
+                        <option value="price-low">Price: Low to High</option>
+                        <option value="price-high">Price: High to Low</option>
+                        <option value="rating">Highest Rated</option>
+                        <option value="popular">Most Popular</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -621,11 +713,11 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
               {displayedProducts && displayedProducts.length > 0 ? (
                 <div>
                   {viewMode === 'grid' ? (
-                    <div className={`grid gap-3 md:gap-4 ${
-                      gridColumns === 3 ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3' :
-                      gridColumns === 4 ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' :
-                      gridColumns === 5 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5' :
-                      'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
+                    <div className={`grid gap-4 sm:gap-6 ${
+                      gridColumns === 3 ? 'grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3' :
+                      gridColumns === 4 ? 'grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' :
+                      gridColumns === 5 ? 'grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5' :
+                      'grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7'
                     }`}>
                       {displayedProducts.map((product) => (
                         <ProductCard
@@ -637,58 +729,126 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                       ))}
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {displayedProducts.map((product) => (
-                        <div key={product.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
-                          <div className="flex items-center space-x-4">
-                            <div className="w-20 h-20 flex-shrink-0">
+                        <div 
+                          key={product.id} 
+                          className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-gray-300 transition-all duration-200 overflow-hidden group cursor-pointer"
+                          onClick={() => handleProductClick(product)}
+                        >
+                          <div className="flex items-center p-4 gap-4">
+                            {/* Compact Product Image */}
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 relative">
                               <Image
                                 src={product.images[0] || '/placeholder-product.jpg'}
                                 alt={product.name}
                                 fill
-                                sizes="(max-width: 768px) 25vw, 15vw"
-                                className="w-full h-full object-cover rounded-lg"
+                                sizes="(max-width: 640px) 64px, 80px"
+                                className="object-cover rounded-lg group-hover:scale-105 transition-transform duration-300"
                               />
+                              
+                              {/* Quick badges on image */}
+                              {product.isNewArrival && (
+                                <div className="absolute -top-1 -left-1">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm">
+                                    NEW
+                                  </span>
+                                </div>
+                              )}
                             </div>
+
+                            {/* Product Info - Responsive Layout */}
                             <div className="flex-1 min-w-0">
-                              <h3 className="text-lg font-medium text-gray-900 truncate">{product.name}</h3>
-                              <p className="text-sm text-gray-500 line-clamp-2 mt-1">{product.description}</p>
-                              <div className="flex items-center mt-2 space-x-4">
-                                <span className="text-xl font-bold text-indigo-600">{formatCurrency(product.price, product.currency || DEFAULT_CURRENCY)}</span>
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                  {product.category.name}
-                                </span>
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  product.inventory === 0 
-                                    ? 'bg-red-100 text-red-800'
-                                    : product.inventory <= (product.lowStockThreshold || 5)
-                                      ? 'bg-yellow-100 text-yellow-800'
-                                      : 'bg-green-100 text-green-800'
-                                }`}>
-                                  {product.inventory === 0 
-                                    ? 'Out of Stock'
-                                    : product.inventory <= (product.lowStockThreshold || 5)
-                                      ? `${product.inventory} left`
-                                      : 'In Stock'
-                                  }
-                                </span>
+                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
+                                {/* Left: Product Details */}
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                                    {product.name}
+                                  </h3>
+                                  
+                                  {/* Category & Stock - Mobile Row */}
+                                  <div className="flex items-center gap-2 mt-1 sm:mt-2">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                      {product.category.name}
+                                    </span>
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                      product.inventory === 0 
+                                        ? 'bg-red-50 text-red-700 border border-red-200'
+                                        : product.inventory <= (product.lowStockThreshold || 5)
+                                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                          : 'bg-green-50 text-green-700 border border-green-200'
+                                    }`}>
+                                      {product.inventory === 0 
+                                        ? '❌ Out of Stock'
+                                        : product.inventory <= (product.lowStockThreshold || 5)
+                                          ? `⚡ ${product.inventory} left`
+                                          : '✅ In Stock'
+                                      }
+                                    </span>
+                                  </div>
+
+                                  {/* Description - Hidden on mobile */}
+                                  <p className="hidden sm:block text-sm text-gray-500 line-clamp-1 mt-1">
+                                    {product.shortDescription || product.description}
+                                  </p>
+                                </div>
+
+                                {/* Right: Price & Actions */}
+                                <div className="flex items-center justify-between sm:flex-col sm:items-end gap-3">
+                                  {/* Price */}
+                                  <div className="text-right">
+                                    {product.discountPrice ? (
+                                      <div className="space-y-1">
+                                        <div className="text-lg sm:text-xl font-bold text-emerald-600">
+                                          {formatCurrency(product.discountPrice, product.currency || DEFAULT_CURRENCY)}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm text-gray-500 line-through">
+                                            {formatCurrency(product.price, product.currency || DEFAULT_CURRENCY)}
+                                          </span>
+                                          <span className="text-xs bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-0.5 rounded-full font-bold">
+                                            {Math.round(((product.price - product.discountPrice) / product.price) * 100)}% OFF
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="text-lg sm:text-xl font-bold text-slate-800">
+                                        {formatCurrency(product.price, product.currency || DEFAULT_CURRENCY)}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Action Buttons */}
+                                  <div className="flex gap-2 sm:flex-col sm:w-24">
+                                    <Button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleProductClick(product)
+                                      }}
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-xs px-3 py-1.5 sm:w-full"
+                                    >
+                                      👁️ View
+                                    </Button>
+                                    <Button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        // Add to cart logic here
+                                      }}
+                                      disabled={product.inventory === 0}
+                                      size="sm"
+                                      className={`text-xs px-3 py-1.5 sm:w-full ${
+                                        product.inventory === 0
+                                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                          : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white'
+                                      }`}
+                                    >
+                                      {product.inventory === 0 ? '❌ Sold Out' : '🛒 Add'}
+                                    </Button>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                            <div className="flex flex-col space-y-2">
-                              <Button
-                                onClick={() => handleProductClick(product)}
-                                variant="outline"
-                                size="sm"
-                              >
-                                View Details
-                              </Button>
-                              <Button
-                                onClick={() => {}}
-                                disabled={product.inventory === 0}
-                                size="sm"
-                              >
-                                {product.inventory === 0 ? 'Out of Stock' : 'Add to Cart'}
-                              </Button>
                             </div>
                           </div>
                         </div>

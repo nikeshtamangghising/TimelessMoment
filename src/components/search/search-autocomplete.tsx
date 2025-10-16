@@ -87,7 +87,7 @@ export default function SearchAutocomplete({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (query.trim()) {
-      router.push(`/categories?search=${encodeURIComponent(query.trim())}`)
+      router.push(`/search?q=${encodeURIComponent(query.trim())}`)
       setQuery('')
       setIsOpen(false)
       onClose?.()
