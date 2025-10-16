@@ -41,9 +41,7 @@ export default function ProductGrid({ products, onAddToCart, loading }: ProductG
           <ProductCard
             key={product.id}
             product={product as any}
-            onAddToCart={onAddToCart}
             onProductClick={handleProductClick}
-            loading={loading}
           />
         ))}
       </div>

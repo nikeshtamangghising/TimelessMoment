@@ -69,7 +69,7 @@ export async function GET(
     headers.set('Content-Disposition', `attachment; filename="invoice-${order.id.slice(-8).toUpperCase()}.txt"`)
     headers.set('Content-Length', invoiceBuffer.length.toString())
 
-    return new NextResponse(invoiceBuffer, {
+    return new NextResponse(invoiceBuffer as BodyInit, {
       status: 200,
       headers
     })

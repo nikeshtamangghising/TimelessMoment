@@ -149,9 +149,6 @@ export default function ProductCardShowcase() {
                 onProductClick={(product) => {
                   alert(`Quick view: ${product.name}`)
                 }}
-                onAddToCart={(productId) => {
-                  alert(`Added product ${productId} to cart`)
-                }}
               />
             ))
           )}
