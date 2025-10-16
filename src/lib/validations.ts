@@ -108,7 +108,7 @@ export const productFiltersSchema = z.object({
   maxPrice: z.number().positive().optional(),
   search: z.string().optional(),
   isActive: z.boolean().optional(),
-  sort: z.enum(['newest', 'price-low', 'price-high', 'rating', 'popular']).optional(),
+  sort: z.enum(['newest', 'price-low', 'price-high', 'price-asc', 'price-desc', 'rating', 'popular', 'trending', 'name-asc', 'name-desc']).optional(),
   lowStock: z.boolean().optional(),
   outOfStock: z.boolean().optional(),
 })

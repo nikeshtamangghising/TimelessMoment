@@ -80,6 +80,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
   const [allProducts, setAllProducts] = useState<ProductWithCategory[]>([])
   const [displayedProducts, setDisplayedProducts] = useState<ProductWithCategory[]>([])
   const [loadingMore, setLoadingMore] = useState(false)
+  const [sortingProducts, setSortingProducts] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -155,7 +156,12 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        setLoadingProducts(true)
+        // Show sorting indicator if this is a sort change (not initial load)
+        if (initialized && searchParams.sort) {
+          setSortingProducts(true)
+        } else {
+          setLoadingProducts(true)
+        }
         setError(null)
         setCurrentPage(1)
 
@@ -177,6 +183,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
         else if (sort === 'rating') params.set('sort', 'rating')
         else if (sort === 'popular') params.set('sort', 'popular')
         else if (sort === 'newest') params.set('sort', 'newest')
+        else if (sort) params.set('sort', sort) // Pass through any other sort values
 
         // Pagination
         params.set('page', '1')
@@ -184,12 +191,19 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
 
         // Add isActive=true to only show active products
         params.set('isActive', 'true')
-        // Add cache busting
-        params.set('_t', Date.now().toString())
+        // Add cache busting with sort parameter to ensure fresh data
+        params.set('_t', `${Date.now()}-${sort || 'default'}`)
+
+        // Debug: Uncomment to see API parameters
+        // console.log('Fetching products with params:', params.toString())
 
         const productsResponse = await fetch(`/api/products?${params.toString()}`, {
           cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache' },
+          headers: { 
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
           signal: controller.signal,
         })
         if (!productsResponse.ok) {
@@ -227,6 +241,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
         setError(err instanceof Error ? err.message : 'Failed to load data')
       } finally {
         setLoadingProducts(false)
+        setSortingProducts(false)
         setInitialized(true)
       }
     }
@@ -621,8 +636,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                             {[
                               { value: 3, label: 'L', fullLabel: 'Large' },
                               { value: 4, label: 'M', fullLabel: 'Medium' },
-                              { value: 5, label: 'D', fullLabel: 'Dense' },
-                              { value: 6, label: 'C', fullLabel: 'Compact' }
+                              { value: 5, label: 'D', fullLabel: 'Dense' }
                             ].map((option) => (
                               <button
                                 key={option.value}
@@ -645,10 +659,16 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                       {/* Sort Dropdown */}
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-gray-500 hidden md:inline">Sort:</span>
+                        {sortingProducts && (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        )}
                         <select
                           value={searchParams.sort || ''}
                           onChange={(e) => updateFilters({ sort: e.target.value || null })}
-                          className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors min-w-[120px]"
+                          disabled={sortingProducts}
+                          className={`border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors min-w-[120px] ${
+                            sortingProducts ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
                         >
                           <option value="">Default</option>
                           <option value="newest">Newest</option>
@@ -692,10 +712,16 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                     {/* Sort for Mobile */}
                     <div className="flex items-center gap-3">
                       <span className="text-sm text-gray-500 font-medium">Sort by:</span>
+                      {sortingProducts && (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      )}
                       <select
                         value={searchParams.sort || ''}
                         onChange={(e) => updateFilters({ sort: e.target.value || null })}
-                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={sortingProducts}
+                        className={`flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          sortingProducts ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                       >
                         <option value="">Default</option>
                         <option value="newest">Newest First</option>
@@ -716,8 +742,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                     <div className={`grid gap-4 sm:gap-6 ${
                       gridColumns === 3 ? 'grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3' :
                       gridColumns === 4 ? 'grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' :
-                      gridColumns === 5 ? 'grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5' :
-                      'grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7'
+                      'grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5'
                     }`}>
                       {displayedProducts.map((product) => (
                         <ProductCard
