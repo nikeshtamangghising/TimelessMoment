@@ -7,15 +7,13 @@ import {
   HomeIcon, 
   Squares2X2Icon, 
   ShoppingBagIcon, 
-  UserIcon,
-  MagnifyingGlassIcon
+  UserIcon
 } from '@heroicons/react/24/outline'
 import { 
   HomeIcon as HomeIconSolid, 
   Squares2X2Icon as Squares2X2IconSolid, 
   ShoppingBagIcon as ShoppingBagIconSolid, 
-  UserIcon as UserIconSolid,
-  MagnifyingGlassIcon as MagnifyingGlassIconSolid
+  UserIcon as UserIconSolid
 } from '@heroicons/react/24/solid'
 import { useCartStore } from '@/stores/cart-store'
 import { useAuth } from '@/hooks/use-auth'
@@ -59,13 +57,6 @@ export default function MobileBottomNav() {
       icon: Squares2X2Icon,
       iconActive: Squares2X2IconSolid,
       isActive: pathname === '/categories'
-    },
-    {
-      name: 'Search',
-      href: '/search',
-      icon: MagnifyingGlassIcon,
-      iconActive: MagnifyingGlassIconSolid,
-      isActive: pathname === '/search'
     },
     {
       name: 'Cart',
@@ -118,6 +109,8 @@ export default function MobileBottomNav() {
               </button>
             )
           }
+
+
 
           return (
             <Link

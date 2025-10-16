@@ -3,19 +3,26 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { signOut } from 'next-auth/react'
 import Button from '@/components/ui/button'
-import { UserIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
+import { UserIcon, Bars3Icon, XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import ProfileDropdown from './profile-dropdown'
 import CartIcon from '@/components/cart/cart-icon'
 import SearchAutocomplete from '@/components/search/search-autocomplete'
+import MobileSearchModal from '@/components/search/mobile-search-modal'
 
 export default function Header() {
   const { user, isAuthenticated, isAdmin } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
+  const pathname = usePathname()
+  const router = useRouter()
+  
+  // Hide search bar when on search page to avoid duplicate
+  const isOnSearchPage = pathname === '/search'
 
   const handleSignOut = () => {
     signOut({ callbackUrl: '/' })
@@ -48,10 +55,12 @@ export default function Header() {
             </Link>
           </div>
 
-          {/* Search Bar - Desktop */}
-          <div className="hidden md:flex flex-1 max-w-lg mx-8">
-            <SearchAutocomplete className="w-full" />
-          </div>
+          {/* Search Bar - Desktop (hidden on search page) */}
+          {!isOnSearchPage && (
+            <div className="hidden md:flex flex-1 max-w-lg mx-8">
+              <SearchAutocomplete className="w-full" />
+            </div>
+          )}
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
@@ -88,6 +97,15 @@ export default function Header() {
 
           {/* Right side */}
           <div className="flex items-center space-x-2 sm:space-x-4">
+            {/* Mobile Search Icon */}
+            <button
+              className="md:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 transition-colors"
+              onClick={() => setIsMobileSearchOpen(true)}
+              aria-label="Search products"
+            >
+              <MagnifyingGlassIcon className="h-6 w-6" aria-hidden="true" />
+            </button>
+
             {/* Cart */}
             <CartIcon />
 
@@ -167,13 +185,15 @@ export default function Header() {
       {/* Mobile navigation */}
       {isMobileMenuOpen && (
         <div className="md:hidden border-t border-gray-200 bg-white">
-          {/* Mobile Search */}
-          <div className="px-4 py-3 border-b border-gray-200">
-            <SearchAutocomplete 
-              className="w-full" 
-              onClose={() => setIsMobileMenuOpen(false)}
-            />
-          </div>
+          {/* Mobile Search (hidden on search page) */}
+          {!isOnSearchPage && (
+            <div className="px-4 py-3 border-b border-gray-200">
+              <SearchAutocomplete 
+                className="w-full" 
+                onClose={() => setIsMobileMenuOpen(false)}
+              />
+            </div>
+          )}
           <div className="px-4 py-3 space-y-1">
             <Link
               href="/categories"
@@ -273,6 +293,12 @@ export default function Header() {
           </div>
         </div>
       )}
+
+      {/* Mobile Search Modal */}
+      <MobileSearchModal 
+        isOpen={isMobileSearchOpen} 
+        onClose={() => setIsMobileSearchOpen(false)} 
+      />
     </header>
   )
 }

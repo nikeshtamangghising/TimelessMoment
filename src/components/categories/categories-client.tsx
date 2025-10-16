@@ -71,12 +71,13 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
   const [loadingCategories, setLoadingCategories] = useState(true)
   const [loadingProducts, setLoadingProducts] = useState(true)
   const [initialized, setInitialized] = useState(false)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<ProductWithCategory | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [gridColumns, setGridColumns] = useState(5)
+  const [gridColumns, setGridColumns] = useState(4)
   const [allProducts, setAllProducts] = useState<ProductWithCategory[]>([])
   const [displayedProducts, setDisplayedProducts] = useState<ProductWithCategory[]>([])
   const [loadingMore, setLoadingMore] = useState(false)
@@ -92,6 +93,9 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
 
   // Always show products interface - no category browsing mode
   const hasActiveFilters = true
+
+  // Prevent flash by ensuring we always show loading initially
+  const isAnyLoading = loadingProducts || sortingProducts || isInitialLoad || !initialized
 
   // Category icons mapping
   const categoryIcons: Record<string, string> = {
@@ -151,6 +155,20 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
     }
     fetchCategoriesOnce()
   }, [])
+
+  // Ensure initial loading state is maintained
+  useEffect(() => {
+    // Keep initial load state true until first products are loaded
+    if (!initialized) {
+      setIsInitialLoad(true)
+    }
+  }, [initialized])
+
+  // Reset initial load state when navigating to the page
+  useEffect(() => {
+    setIsInitialLoad(true)
+    setLoadingProducts(true)
+  }, [urlSearchParams.toString()])
 
   // Fetch products whenever filters/search change
   useEffect(() => {
@@ -243,6 +261,10 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
         setLoadingProducts(false)
         setSortingProducts(false)
         setInitialized(true)
+        // Small delay to ensure smooth transition
+        setTimeout(() => {
+          setIsInitialLoad(false)
+        }, 100)
       }
     }
 
@@ -736,21 +758,45 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
               </div>
 
               {/* Products Grid */}
-              {displayedProducts && displayedProducts.length > 0 ? (
+              {isAnyLoading ? (
+                /* Loading State */
+                <div className="space-y-6">
+                  <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
+                    {Array.from({ length: 20 }).map((_, i) => (
+                      <div key={i} className="animate-pulse">
+                        <div className="bg-gray-200 aspect-square rounded-2xl mb-4"></div>
+                        <div className="space-y-2">
+                          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                          <div className="h-8 bg-gray-200 rounded"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : displayedProducts && displayedProducts.length > 0 ? (
                 <div>
                   {viewMode === 'grid' ? (
-                    <div className={`grid gap-4 sm:gap-6 ${
-                      gridColumns === 3 ? 'grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3' :
-                      gridColumns === 4 ? 'grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' :
-                      'grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5'
+                    <div className={`grid gap-3 sm:gap-4 md:gap-6 ${
+                      gridColumns === 3 ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3' :
+                      gridColumns === 4 ? 'grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4' :
+                      'grid-cols-3 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5'
                     }`}>
-                      {displayedProducts.map((product) => (
-                        <ProductCard
+                      {displayedProducts.map((product, index) => (
+                        <div 
                           key={product.id}
-                          product={product}
-                          onProductClick={handleProductClick}
-                          trackViews={false}
-                        />
+                          className="transform transition-all duration-500 hover:scale-105"
+                          style={{
+                            animationDelay: `${index * 50}ms`,
+                          }}
+                        >
+                          <ProductCard
+                            product={product}
+                            onProductClick={handleProductClick}
+                            trackViews={false}
+                            compact={true}
+                          />
+                        </div>
                       ))}
                     </div>
                   ) : (
@@ -940,7 +986,8 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
               )}
             </div>
           </div>
-        ) : (
+        ) : !isAnyLoading ? (
+          /* Empty State - Only show when not loading */
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
             <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-xl font-medium text-gray-900 mb-2">
@@ -955,7 +1002,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
               </Button>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Product Modal */}
         <ProductModal 

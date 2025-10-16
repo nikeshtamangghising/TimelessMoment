@@ -111,7 +111,7 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
     return (
       <div className={`${className}`}>
         <h2 className="text-3xl font-bold text-gray-900 mb-8">You May Also Like</h2>
-        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-6">
           {Array.from({ length: 8 }).map((_, index) => (
             <ProductCardSkeleton key={index} />
           ))}
@@ -133,7 +133,7 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
         </div>
       </div>
       
-      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-6">
         {items.map(({ product, reason }) => (
           <div key={product.id} className="relative">
             <ProductCard
@@ -146,17 +146,25 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
               }}
             />
             {/* Recommendation reason badge */}
-            <div className="absolute top-4 left-4 z-20">
-              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold shadow-lg backdrop-blur-sm border border-white/20 ${
+            <div className="absolute top-2 left-2 sm:top-4 sm:left-4 z-20">
+              <span className={`inline-flex items-center px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-semibold shadow-lg backdrop-blur-sm border border-white/20 ${
                 reason === 'similar' ? 'bg-blue-500/90 text-white' :
                 reason === 'trending' ? 'bg-orange-500/90 text-white' :
                 reason === 'popular' ? 'bg-green-500/90 text-white' :
                 'bg-purple-500/90 text-white'
               }`}>
-                {reason === 'similar' ? '🔗 Similar' :
-                 reason === 'trending' ? '📈 Trending' :
-                 reason === 'popular' ? '🔥 Popular' :
-                 '✨ For You'}
+                <span className="hidden sm:inline">
+                  {reason === 'similar' ? '🔗 Similar' :
+                   reason === 'trending' ? '📈 Trending' :
+                   reason === 'popular' ? '🔥 Popular' :
+                   '✨ For You'}
+                </span>
+                <span className="sm:hidden">
+                  {reason === 'similar' ? '🔗' :
+                   reason === 'trending' ? '📈' :
+                   reason === 'popular' ? '🔥' :
+                   '✨'}
+                </span>
               </span>
             </div>
           </div>
