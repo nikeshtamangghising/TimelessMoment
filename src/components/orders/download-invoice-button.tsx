@@ -24,21 +24,32 @@ export default function DownloadInvoiceButton({
   const handleDownload = async () => {
     try {
       setIsDownloading(true)
+      console.log('Starting download for order:', orderId)
       
       const response = await fetch(`/api/orders/${orderId}/invoice`)
+      console.log('Response status:', response.status)
       
       if (!response.ok) {
-        throw new Error('Failed to download invoice')
+        const errorText = await response.text()
+        console.error('API Error:', errorText)
+        throw new Error(`Failed to download invoice: ${response.status} - ${errorText}`)
       }
 
-      // Get the PDF blob
+      // Get the invoice content
       const blob = await response.blob()
+      console.log('Blob size:', blob.size)
+      
+      // Always use PDF extension since we're generating PDF invoices
+      const fileExtension = 'pdf'
+      
+      const filename = `invoice-${orderId.slice(-8).toUpperCase()}.${fileExtension}`
+      console.log('Download filename:', filename)
       
       // Create download link
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `invoice-${orderId.slice(-8).toUpperCase()}.pdf`
+      link.download = filename
       
       // Trigger download
       document.body.appendChild(link)
@@ -48,9 +59,11 @@ export default function DownloadInvoiceButton({
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
       
+      console.log('Download completed successfully')
+      
     } catch (error) {
       console.error('Download error:', error)
-      alert('Failed to download invoice. Please try again.')
+      alert(`Failed to download invoice: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsDownloading(false)
     }

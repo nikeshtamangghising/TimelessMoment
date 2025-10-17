@@ -37,8 +37,7 @@ export async function GET(
               }
             }
           }
-        },
-        shippingAddress: true
+        }
       }
     })
 
@@ -60,14 +59,22 @@ export async function GET(
       )
     }
 
-    // Generate invoice (text format for now - install PDFKit for PDF)
+    // Generate PDF invoice
+    console.log('Generating PDF invoice for order:', orderId)
     const invoiceBuffer = await generateInvoicePDF(order)
+    console.log('Invoice buffer generated, size:', invoiceBuffer.length)
+    
+    if (!invoiceBuffer || invoiceBuffer.length === 0) {
+      console.error('Invoice buffer is empty or null')
+      throw new Error('Failed to generate invoice content - empty buffer')
+    }
 
-    // Set response headers for text download (change to PDF when PDFKit is installed)
+    // Set response headers for PDF download
     const headers = new Headers()
-    headers.set('Content-Type', 'text/plain')
-    headers.set('Content-Disposition', `attachment; filename="invoice-${order.id.slice(-8).toUpperCase()}.txt"`)
+    headers.set('Content-Type', 'application/pdf')
+    headers.set('Content-Disposition', `attachment; filename="invoice-${order.id.slice(-8).toUpperCase()}.pdf"`)
     headers.set('Content-Length', invoiceBuffer.length.toString())
+    headers.set('Cache-Control', 'no-cache')
 
     return new NextResponse(invoiceBuffer as BodyInit, {
       status: 200,
@@ -76,8 +83,12 @@ export async function GET(
 
   } catch (error) {
     console.error('Invoice generation error:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
     return NextResponse.json(
-      { error: 'Failed to generate invoice' },
+      { 
+        error: 'Failed to generate invoice',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }

@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { orderRepository } from '@/lib/order-repository'
 import { paginationSchema } from '@/lib/validations'
 import { createAuthHandler, createAdminHandler } from '@/lib/auth-middleware'
-import { getServerSession } from '@/lib/auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export const GET = createAuthHandler(async (request: NextRequest) => {
   try {
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
     const { searchParams } = new URL(request.url)
     
     // Parse pagination parameters

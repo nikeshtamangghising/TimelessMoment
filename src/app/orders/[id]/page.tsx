@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import Button from '@/components/ui/button'
 import Loading from '@/components/ui/loading'
 import ShippingAddressForm from '@/components/orders/shipping-address-form'
+import DownloadInvoiceButton from '@/components/orders/download-invoice-button'
 import { OrderWithItems } from '@/types'
 import { formatPrice } from '@/lib/cart-utils'
 
@@ -679,9 +680,13 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                     Reorder Items
                   </Button>
                 )}
-                <Button variant="outline" className="w-full">
-                  Download Invoice
-                </Button>
+                <DownloadInvoiceButton 
+                  orderId={order.id}
+                  variant="outline"
+                  size="md"
+                  className="w-full"
+                  showText={true}
+                />
                 <Link href="/contact" className="block">
                   <Button variant="outline" className="w-full">
                     Contact Support

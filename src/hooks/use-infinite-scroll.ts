@@ -42,6 +42,7 @@ export function useInfiniteScroll({
   const maxRetries = 3
   const requestCacheRef = useRef<Map<string, PaginatedResponse<ProductWithCategory>>>(new Map())
   const lastRequestKeyRef = useRef<string>('')
+  const initialDataRef = useRef(initialData)
 
   // Calculate hasMore based on current page and total pages
   const hasMore = currentPage < totalPages
@@ -228,23 +229,29 @@ export function useInfiniteScroll({
     }
   }, [products.length, buildFetchUrl, fetchNextPage])
 
+  // Update the ref when initialData changes
+  useEffect(() => {
+    initialDataRef.current = initialData
+  }, [initialData])
+
   const reset = useCallback(() => {
     // Cancel any in-flight requests
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
     }
     
-    // Reset all state to initial values
-    setProducts(initialData.data)
-    setCurrentPage(initialData.pagination.page)
-    setTotalPages(initialData.pagination.totalPages)
-    setTotalCount(initialData.pagination.total)
+    // Reset all state to initial values using the ref
+    const currentInitialData = initialDataRef.current
+    setProducts(currentInitialData.data)
+    setCurrentPage(currentInitialData.pagination.page)
+    setTotalPages(currentInitialData.pagination.totalPages)
+    setTotalCount(currentInitialData.pagination.total)
     setLoading(false)
     setLoadingMore(false)
     setError(null)
     fetchingRef.current = false
     retryCountRef.current = 0
-  }, [initialData])
+  }, []) // No dependencies - stable function
 
   // Reset when search parameters change
   useEffect(() => {

@@ -7,44 +7,66 @@ export async function GET(
 ) {
   try {
     const searchParams = request.nextUrl.searchParams
-    const limit = Math.min(parseInt(searchParams.get('limit') || '24'), 50)
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const limit = Math.min(parseInt(searchParams.get('limit') || '12'), 50)
+    const offset = (page - 1) * limit
 
     const resolvedParams = await params
     const userId = resolvedParams.userId === 'guest' ? undefined : resolvedParams.userId
 
-    // Get popular products
-    const popular = await RecommendationEngine.getPopularProducts(limit)
-
-    // Fetch full product details
     const { PrismaClient } = require('@prisma/client')
     const prisma = new PrismaClient()
 
-    const productIds = popular.map(r => r.productId)
+    // Get all active products sorted by popularity score
     const products = await prisma.product.findMany({
       where: {
-        id: { in: productIds },
         isActive: true
       },
       include: {
         category: true,
         brand: true
+      },
+      orderBy: [
+        {
+          popularityScore: 'desc'
+        },
+        {
+          orderCount: 'desc'
+        },
+        {
+          viewCount: 'desc'
+        }
+      ],
+      skip: offset,
+      take: limit
+    })
+
+    // Get total count for pagination
+    const totalCount = await prisma.product.count({
+      where: {
+        isActive: true
       }
     })
 
-    // Combine recommendations with product data
-    const productMap = Object.fromEntries(products.map(p => [p.id, p]))
-    
-    const result = popular
-      .filter(rec => productMap[rec.productId])
-      .map(rec => ({
-        ...rec,
-        product: productMap[rec.productId]
-      }))
+    // Transform to recommendation format
+    const result = products.map(product => ({
+      productId: product.id,
+      score: product.popularityScore,
+      reason: 'popular',
+      product
+    }))
 
     return NextResponse.json({
       success: true,
       products: result,
-      count: result.length
+      total: totalCount,
+      pagination: {
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+        hasNext: page < Math.ceil(totalCount / limit),
+        hasPrev: page > 1
+      }
     })
 
   } catch (error) {
@@ -54,7 +76,14 @@ export async function GET(
         success: false, 
         error: 'Failed to fetch popular recommendations',
         products: [],
-        count: 0
+        total: 0,
+        pagination: {
+          page: 1,
+          limit: 12,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false
+        }
       },
       { status: 500 }
     )

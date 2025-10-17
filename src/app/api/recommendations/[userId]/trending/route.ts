@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { RecommendationEngine } from '@/lib/recommendation-engine'
 
 export async function GET(
   request: NextRequest,
@@ -7,54 +6,101 @@ export async function GET(
 ) {
   try {
     const searchParams = request.nextUrl.searchParams
-    const limit = Math.min(parseInt(searchParams.get('limit') || '24'), 50)
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const limit = Math.min(parseInt(searchParams.get('limit') || '12'), 50)
+    const offset = (page - 1) * limit
 
     const resolvedParams = await params
     const userId = resolvedParams.userId === 'guest' ? undefined : resolvedParams.userId
 
-    // Get trending products
-    const trending = await RecommendationEngine.getTrendingProducts(limit)
-
-    // Fetch full product details
     const { PrismaClient } = require('@prisma/client')
     const prisma = new PrismaClient()
 
-    const productIds = trending.map(r => r.productId)
+    // Get trending products based on recent activity (last 7 days)
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() - 7)
+
+    // Get all active products with trending score calculation
     const products = await prisma.product.findMany({
       where: {
-        id: { in: productIds },
         isActive: true
       },
       include: {
         category: true,
-        brand: true
+        brand: true,
+        _count: {
+          select: {
+            activities: {
+              where: {
+                createdAt: { gte: cutoffDate }
+              }
+            }
+          }
+        }
+      },
+      orderBy: [
+        {
+          activities: {
+            _count: 'desc'
+          }
+        },
+        {
+          popularityScore: 'desc'
+        },
+        {
+          createdAt: 'desc'
+        }
+      ],
+      skip: offset,
+      take: limit
+    })
+
+    // Get total count for pagination
+    const totalCount = await prisma.product.count({
+      where: {
+        isActive: true
       }
     })
 
-    // Combine recommendations with product data
-    const productMap = Object.fromEntries(products.map(p => [p.id, p]))
-    
-    const result = trending
-      .filter(rec => productMap[rec.productId])
-      .map(rec => ({
-        ...rec,
-        product: productMap[rec.productId]
-      }))
+    // Transform to recommendation format
+    const result = products.map(product => ({
+      productId: product.id,
+      score: product._count.activities * 1.5 + product.popularityScore, // Trending boost
+      reason: 'trending',
+      product: {
+        ...product,
+        _count: undefined // Remove the count from the product object
+      }
+    }))
 
     return NextResponse.json({
       success: true,
       products: result,
-      count: result.length
+      total: totalCount,
+      pagination: {
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+        hasNext: page < Math.ceil(totalCount / limit),
+        hasPrev: page > 1
+      }
     })
 
   } catch (error) {
     console.error('Trending recommendations error:', error)
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to fetch trending recommendations',
         products: [],
-        count: 0
+        total: 0,
+        pagination: {
+          page: 1,
+          limit: 12,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false
+        }
       },
       { status: 500 }
     )

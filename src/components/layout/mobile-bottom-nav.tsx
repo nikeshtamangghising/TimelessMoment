@@ -7,12 +7,14 @@ import {
   HomeIcon, 
   Squares2X2Icon, 
   ShoppingBagIcon, 
+  ClipboardDocumentListIcon,
   UserIcon
 } from '@heroicons/react/24/outline'
 import { 
   HomeIcon as HomeIconSolid, 
   Squares2X2Icon as Squares2X2IconSolid, 
   ShoppingBagIcon as ShoppingBagIconSolid, 
+  ClipboardDocumentListIcon as ClipboardDocumentListIconSolid,
   UserIcon as UserIconSolid
 } from '@heroicons/react/24/solid'
 import { useCartStore } from '@/stores/cart-store'
@@ -57,6 +59,14 @@ export default function MobileBottomNav() {
       icon: Squares2X2Icon,
       iconActive: Squares2X2IconSolid,
       isActive: pathname === '/categories'
+    },
+    {
+      name: 'Orders',
+      href: isAuthenticated ? '/orders' : '/auth/signin?redirect=/orders',
+      icon: ClipboardDocumentListIcon,
+      iconActive: ClipboardDocumentListIconSolid,
+      isActive: pathname === '/orders' || pathname.startsWith('/orders/'),
+      requiresAuth: true
     },
     {
       name: 'Cart',
@@ -124,6 +134,8 @@ export default function MobileBottomNav() {
               className={`flex-1 flex flex-col items-center justify-center px-2 py-2 text-xs font-medium transition-colors ${
                 item.isActive
                   ? 'text-indigo-600 bg-indigo-50'
+                  : item.requiresAuth && !isAuthenticated
+                  ? 'text-gray-400'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
