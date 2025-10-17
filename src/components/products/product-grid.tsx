@@ -1,9 +1,5 @@
-'use client'
-
-import { useState } from 'react'
 import { Product } from '@/types'
 import ProductCard from './product-card'
-import ProductModal from './product-modal'
 
 interface ProductGridProps {
   products: Product[]
@@ -12,19 +8,6 @@ interface ProductGridProps {
 }
 
 export default function ProductGrid({ products, onAddToCart, loading }: ProductGridProps) {
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-
-  const handleProductClick = (product: Product) => {
-    setSelectedProduct(product)
-    setIsModalOpen(true)
-  }
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false)
-    setSelectedProduct(null)
-  }
-
   if (products.length === 0) {
     return (
       <div className="text-center py-12">
@@ -35,23 +18,13 @@ export default function ProductGrid({ products, onAddToCart, loading }: ProductG
   }
 
   return (
-    <>
-      <div className="grid grid-cols-1 gap-4 xs:grid-cols-2 sm:gap-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-        {products.map((product) => (
-          <ProductCard
-            key={product.id}
-            product={product as any}
-            onProductClick={handleProductClick}
-          />
-        ))}
-      </div>
-      
-      {/* Product Modal */}
-      <ProductModal 
-        product={selectedProduct as any}
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-      />
-    </>
+    <div className="grid grid-cols-1 gap-4 xs:grid-cols-2 sm:gap-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+      {products.map((product) => (
+        <ProductCard
+          key={product.id}
+          product={product as any}
+        />
+      ))}
+    </div>
   )
 }

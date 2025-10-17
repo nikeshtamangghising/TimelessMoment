@@ -225,10 +225,7 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
               product={product as any}
               trackViews={false}
               compact={true}
-              onProductClick={() => {
-                // Navigate to product page
-                window.location.href = `/products/${product.slug}`
-              }}
+
             />
             {/* Recommendation reason badge */}
             <div className="absolute top-2 left-2 sm:top-4 sm:left-4 z-20">

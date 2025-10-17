@@ -530,7 +530,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
                 apiEndpoint="/api/products"
                 gridColumns={gridColumns}
                 viewMode={viewMode}
-                onProductClick={handleProductClick}
+
                 trackViews={false}
                 compact={true}
                 pageSize={pageSize}

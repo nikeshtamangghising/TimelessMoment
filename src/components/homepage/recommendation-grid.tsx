@@ -18,7 +18,7 @@ interface RecommendationItem {
 
 interface RecommendationGridProps {
   apiEndpoint: string
-  onProductClick?: (product: ProductWithCategory) => void
+
   compact?: boolean
   className?: string
   pageSize?: number
@@ -32,7 +32,7 @@ const EMPTY_INITIAL_DATA: PaginatedResponse<ProductWithCategory> = {
 
 export default function RecommendationGrid({
   apiEndpoint,
-  onProductClick,
+
   compact = false,
   className = '',
   pageSize = 12
@@ -141,7 +141,7 @@ export default function RecommendationGrid({
           <ProductCard
             key={product.id}
             product={product}
-            onProductClick={onProductClick}
+
             compact={compact}
           />
         ))}

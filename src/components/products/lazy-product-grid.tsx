@@ -16,7 +16,7 @@ interface LazyProductGridProps {
   className?: string
   gridColumns?: number
   viewMode?: 'grid' | 'list'
-  onProductClick?: (product: ProductWithCategory) => void
+
   showFavoriteButton?: boolean
   trackViews?: boolean
   compact?: boolean
@@ -30,7 +30,7 @@ export default function LazyProductGrid({
   className = '',
   gridColumns = 4,
   viewMode = 'grid',
-  onProductClick,
+
   showFavoriteButton = true,
   trackViews = true,
   compact = false,
@@ -68,14 +68,7 @@ export default function LazyProductGrid({
     }
   }, [loadingMore, error, hasMore, products.length, totalCount, loadedCount])
 
-  const handleProductClick = useCallback((product: ProductWithCategory) => {
-    if (onProductClick) {
-      onProductClick(product)
-    } else {
-      // Default behavior: navigate to product page
-      window.location.href = `/products/${product.slug}`
-    }
-  }, [onProductClick])
+
 
   const handleScrollIntersect = useCallback(() => {
     if (!loadingMore && hasMore && !error && 'fetchNextPage' in infiniteScrollResult) {
@@ -182,7 +175,7 @@ export default function LazyProductGrid({
           >
             <ProductCard
               product={product}
-              onProductClick={handleProductClick}
+
               showFavoriteButton={showFavoriteButton}
               trackViews={trackViews}
               compact={compact}

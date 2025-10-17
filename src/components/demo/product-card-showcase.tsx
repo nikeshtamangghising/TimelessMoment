@@ -146,9 +146,7 @@ export default function ProductCardShowcase() {
                 key={product.id}
                 product={product as any}
                 compact={compactMode}
-                onProductClick={(product) => {
-                  alert(`Quick view: ${product.name}`)
-                }}
+
               />
             ))
           )}

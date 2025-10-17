@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { ProductWithCategory } from '@/types'
 import ProductCard from '@/components/products/product-card'
-import ProductModal from '@/components/products/product-modal'
+
 // Inline SVG icons to avoid import issues
 const StarIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
@@ -43,22 +43,13 @@ export default function ProductSection({
   variant = 'default',
   compact = false
 }: ProductSectionProps) {
-  const [selectedProduct, setSelectedProduct] = useState<ProductWithCategory | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
+
 
   if (products.length === 0) {
     return null
   }
 
-  const handleProductClick = (product: ProductWithCategory) => {
-    setSelectedProduct(product)
-    setIsModalOpen(true)
-  }
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false)
-    setSelectedProduct(null)
-  }
 
   const getVariantIcon = () => {
     switch (variant) {
@@ -148,7 +139,7 @@ export default function ProductSection({
             >
               <ProductCard 
                 product={product} 
-                onProductClick={handleProductClick}
+
                 compact={compact}
               />
             </div>
@@ -170,13 +161,7 @@ export default function ProductSection({
           </div>
         )}
       </div>
-      
-      {/* Product Modal */}
-      <ProductModal 
-        product={selectedProduct}
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-      />
+
     </section>
   )
 }

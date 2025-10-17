@@ -9,7 +9,6 @@ import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currency";
 import { ProductWithCategory } from "@/types";
 interface ProductCardProps {
   product: ProductWithCategory;
-  onProductClick?: (product: ProductWithCategory) => void;
   showFavoriteButton?: boolean;
   trackViews?: boolean;
   compact?: boolean;
@@ -17,7 +16,6 @@ interface ProductCardProps {
 
 function ProductCard({
   product,
-  onProductClick,
   showFavoriteButton = true,
   trackViews = true,
   compact = false,
@@ -27,9 +25,7 @@ function ProductCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
 
-  // Long-press detection state
-  const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const longPressTriggeredRef = useRef(false);
+
 
   // Set up view tracking
   useEffect(() => {
@@ -72,85 +68,30 @@ function ProductCard({
     window.location.href = href;
   };
 
-  // Pointer/long-press handlers for image/title area
-  const handlePointerDown = () => {
-    longPressTriggeredRef.current = false;
-    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
-    pressTimerRef.current = setTimeout(() => {
-      longPressTriggeredRef.current = true;
-      if (onProductClick) {
-        onProductClick(product);
-      }
-    }, 450); // ~0.45s long-press threshold
-  };
-
-  const clearPressTimer = () => {
-    if (pressTimerRef.current) {
-      clearTimeout(pressTimerRef.current);
-      pressTimerRef.current = null;
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    // Always clear timer first
-    clearPressTimer();
-
-    if (longPressTriggeredRef.current) {
-      // Quick view already opened, prevent navigation bubbling (e.g., parent Link)
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
-
-    // Short click: open product page
+  // Simple click handler for navigation
+  const handleCardClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     navigateToProduct();
   };
 
-  const handlePointerLeave = () => {
-    clearPressTimer();
-  };
-
-  const handlePointerCancel = () => {
-    clearPressTimer();
-  };
-
-  // Keyboard support: Enter -> navigate, Space -> quick view
-  const handleKeyDownInteractive = (e: React.KeyboardEvent) => {
+  // Keyboard support: Enter -> navigate
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
       e.stopPropagation();
       navigateToProduct();
-    } else if (e.key === " " || e.code === "Space") {
-      if (onProductClick) {
-        e.preventDefault();
-        e.stopPropagation();
-        onProductClick(product);
-      }
     }
-  };
-
-  // Quick view button click
-  const handleQuickViewClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onProductClick) onProductClick(product);
   };
 
   return (
     <Card
       ref={cardRef}
-      className="group hover:shadow-2xl transition-all duration-500 hover:-translate-y-3 border border-gray-100 hover:border-blue-200 overflow-hidden bg-white relative select-none rounded-2xl shadow-sm hover:shadow-blue-100/50"
+      className="group hover:shadow-2xl transition-all duration-500 hover:-translate-y-3 border border-gray-100 hover:border-blue-200 overflow-hidden bg-white relative select-none rounded-2xl shadow-sm hover:shadow-blue-100/50 cursor-pointer"
       role="link"
       tabIndex={0}
-      onKeyDown={handleKeyDownInteractive}
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerLeave}
-      onPointerCancel={handlePointerCancel}
-      onContextMenu={(e) => e.preventDefault()}
-      style={{ WebkitTouchCallout: "none" }}
+      onKeyDown={handleKeyDown}
+      onClick={handleCardClick}
     >
       <div className="relative">
         <div className="aspect-square w-full overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 cursor-pointer relative rounded-t-2xl">
@@ -180,10 +121,6 @@ function ProductCard({
           {showFavoriteButton && session?.user && (
             <button
               onClick={handleFavoriteClick}
-              onPointerDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
               disabled={isFavoriteLoading}
               className="absolute top-4 right-4 z-10 p-2.5 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 border border-white/20"
             >
@@ -237,27 +174,7 @@ function ProductCard({
             </div>
           )}
 
-          {/* Quick view overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center">
-            <div className="opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-4 group-hover:translate-y-0 scale-95 group-hover:scale-100">
-              <button
-                type="button"
-                onClick={handleQuickViewClick}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                className="bg-white/95 backdrop-blur-sm text-gray-900 px-6 py-3 rounded-full text-sm font-semibold shadow-xl hover:bg-white hover:shadow-2xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 border border-white/20"
-                aria-label="Open quick view"
-              >
-                👁️ Quick View
-              </button>
-            </div>
-          </div>
+
         </div>
       </div>
       <CardContent className={compact ? "p-2" : "p-5"}>

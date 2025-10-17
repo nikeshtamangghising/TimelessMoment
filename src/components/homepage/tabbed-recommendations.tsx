@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { ProductWithCategory } from '@/types'
 import RecommendationGrid from './recommendation-grid'
-import ProductModal from '@/components/products/product-modal'
 
 type TabType = 'trending' | 'personalized' | 'popular'
 
@@ -18,8 +16,6 @@ interface Tab {
 export default function TabbedRecommendations() {
   const { data: session } = useSession()
   const [activeTab, setActiveTab] = useState<TabType>('trending')
-  const [selectedProduct, setSelectedProduct] = useState<ProductWithCategory | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
 
   // Define available tabs
   const getTabs = (): Tab[] => {
@@ -67,15 +63,7 @@ export default function TabbedRecommendations() {
     setActiveTab(tabType)
   }
 
-  const handleProductClick = (product: ProductWithCategory) => {
-    setSelectedProduct(product)
-    setIsModalOpen(true)
-  }
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false)
-    setSelectedProduct(null)
-  }
 
   if (tabs.length === 0) {
     return null
@@ -119,18 +107,13 @@ export default function TabbedRecommendations() {
           <RecommendationGrid
             key={activeTab} // Force re-render when tab changes
             apiEndpoint={apiEndpoint}
-            onProductClick={handleProductClick}
+
             compact={true}
           />
         )}
       </div>
 
-      {/* Product Modal */}
-      <ProductModal 
-        product={selectedProduct}
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-      />
+
     </section>
   )
 }
