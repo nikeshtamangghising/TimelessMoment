@@ -66,7 +66,7 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [gridColumns, setGridColumns] = useState(4)
-  const pageSize = 12 // Changed to 12 as per requirements
+  const pageSize = 8 // Reduced for faster initial load
 
   const router = useRouter()
   const urlSearchParams = useSearchParams()
@@ -135,19 +135,14 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
         else if (sort === 'newest') params.set('sort', 'newest')
         else if (sort) params.set('sort', sort)
 
-        // Initial page with new page size
+        // Initial page with minimal page size for ultra-fast load
         params.set('page', '1')
-        params.set('limit', String(pageSize))
+        params.set('limit', '4') // Load only 4 products initially for premium feel
         params.set('isActive', 'true')
-        params.set('_t', Date.now().toString())
 
         const productsResponse = await fetch(`/api/products?${params.toString()}`, {
-          cache: 'no-store',
-          headers: { 
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          },
+          cache: 'force-cache', // Use aggressive caching for instant feel
+          priority: 'high', // Hint to browser for faster loading
           signal: controller.signal,
         })
         
@@ -156,6 +151,11 @@ export default function CategoriesClient({ searchParams }: CategoriesClientProps
         }
         
         const productsResult = await productsResponse.json()
+        // Adjust pagination to reflect the actual limit used (4 instead of pageSize)
+        if (productsResult.pagination) {
+          productsResult.pagination.limit = 4
+          productsResult.pagination.totalPages = Math.ceil(productsResult.pagination.total / 4)
+        }
         setProductsData(productsResult)
         setInitialized(true)
       } catch (err: any) {

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { reviews } from '@/lib/db/schema'
+import { eq, and, sql } from 'drizzle-orm'
 
 interface RouteParams {
   params: Promise<{
@@ -24,12 +26,11 @@ export async function POST(
     }
 
     // Check if review exists and belongs to the product
-    const review = await prisma.review.findFirst({
-      where: {
-        id: reviewId,
-        productId: id
-      }
-    })
+    const reviewResult = await db.select()
+      .from(reviews)
+      .where(and(eq(reviews.id, reviewId), eq(reviews.productId, id)))
+      .limit(1)
+    const review = reviewResult[0] || null
 
     if (!review) {
       return NextResponse.json(
@@ -39,24 +40,22 @@ export async function POST(
     }
 
     // Increment helpful votes
-    const updatedReview = await prisma.review.update({
-      where: { id: reviewId },
-      data: {
-        helpfulVotes: {
-          increment: 1
-        }
-      },
-      select: {
-        id: true,
-        helpfulVotes: true
-      }
-    })
+    const [updatedReview] = await db.update(reviews)
+      .set({
+        helpfulCount: sql`${reviews.helpfulCount} + 1`,
+        updatedAt: new Date()
+      })
+      .where(eq(reviews.id, reviewId))
+      .returning({
+        id: reviews.id,
+        helpfulCount: reviews.helpfulCount
+      })
 
     return NextResponse.json({
       success: true,
       data: {
         reviewId: updatedReview.id,
-        helpfulVotes: updatedReview.helpfulVotes
+        helpfulVotes: updatedReview.helpfulCount
       }
     })
 

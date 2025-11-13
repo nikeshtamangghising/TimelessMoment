@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db-utils'
+import { db } from '@/lib/db-utils'
+import { users } from '@/lib/db/schema'
+import { eq, gt, and } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
@@ -14,14 +16,15 @@ export async function POST(request: NextRequest) {
     const { token, password } = resetPasswordSchema.parse(body)
 
     // Find user with valid reset token
-    const user = await prisma.user.findFirst({
-      where: {
-        resetToken: token,
-        resetTokenExpiry: {
-          gt: new Date() // Token must not be expired
-        }
-      }
-    })
+    const userResult = await db.select().from(users)
+      .where(
+        and(
+          eq(users.resetToken, token),
+          gt(users.resetTokenExpiry, new Date()) // Token must not be expired
+        )
+      )
+      .limit(1)
+    const user = userResult[0] || null
 
     if (!user) {
       return NextResponse.json(
@@ -34,14 +37,14 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Update user password and clear reset token
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
+    await db.update(users)
+      .set({
         password: hashedPassword,
         resetToken: null,
         resetTokenExpiry: null,
-      }
-    })
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id))
 
 
     return NextResponse.json({

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { orders, orderItems, products, users } from '@/lib/db/schema'
+import { eq, gte, lt, ne, and, sql, desc, inArray } from 'drizzle-orm'
 import { createAdminHandler } from '@/lib/auth-middleware'
 
 export const GET = createAdminHandler(async (request: NextRequest) => {
@@ -29,7 +31,12 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
     }
 
     // Get basic stats
-    const [
+    let totalRevenue, totalOrders, totalCustomers, totalProducts
+    let previousPeriodRevenue, previousPeriodOrders, previousPeriodCustomers
+    let topSellingProducts, recentOrders, recentCustomers
+
+    try {
+      [
       totalRevenue,
       totalOrders,
       totalCustomers,
@@ -42,120 +49,152 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
       recentCustomers
     ] = await Promise.all([
       // Current period revenue
-      prisma.order.aggregate({
-        where: {
-          createdAt: { gte: startDate },
-          status: { not: 'CANCELLED' }
-        },
-        _sum: { total: true }
-      }),
+      db.select({ sum: sql<number>`sum(${orders.total})` })
+        .from(orders)
+        .where(and(
+          gte(orders.createdAt, startDate),
+          ne(orders.status, 'CANCELLED')
+        ))
+        .then(result => ({
+          _sum: { total: parseFloat(result[0]?.sum?.toString() || '0') }
+        })),
       
       // Current period orders
-      prisma.order.count({
-        where: {
-          createdAt: { gte: startDate },
-          status: { not: 'CANCELLED' }
-        }
-      }),
+      db.select({ count: sql<number>`count(*)` })
+        .from(orders)
+        .where(and(
+          gte(orders.createdAt, startDate),
+          ne(orders.status, 'CANCELLED')
+        ))
+        .then(result => Number(result[0]?.count || 0)),
       
       // Total customers
-      prisma.user.count({
-        where: { role: 'CUSTOMER' }
-      }),
+      db.select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(eq(users.role, 'CUSTOMER'))
+        .then(result => Number(result[0]?.count || 0)),
       
       // Total products
-      prisma.product.count({
-        where: { isActive: true }
-      }),
+      db.select({ count: sql<number>`count(*)` })
+        .from(products)
+        .where(eq(products.isActive, true))
+        .then(result => Number(result[0]?.count || 0)),
       
       // Previous period revenue for comparison
-      prisma.order.aggregate({
-        where: {
-          createdAt: {
-            gte: new Date(startDate.getTime() - (now.getTime() - startDate.getTime())),
-            lt: startDate
-          },
-          status: { not: 'CANCELLED' }
-        },
-        _sum: { total: true }
-      }),
+      (async () => {
+        const periodStart = new Date(startDate.getTime() - (now.getTime() - startDate.getTime()))
+        const result = await db.select({ sum: sql<number>`sum(${orders.total})` })
+          .from(orders)
+          .where(and(
+            gte(orders.createdAt, periodStart),
+            lt(orders.createdAt, startDate),
+            ne(orders.status, 'CANCELLED')
+          ))
+        return {
+          _sum: { total: parseFloat(result[0]?.sum?.toString() || '0') }
+        }
+      })(),
       
       // Previous period orders
-      prisma.order.count({
-        where: {
-          createdAt: {
-            gte: new Date(startDate.getTime() - (now.getTime() - startDate.getTime())),
-            lt: startDate
-          },
-          status: { not: 'CANCELLED' }
-        }
-      }),
+      (async () => {
+        const periodStart = new Date(startDate.getTime() - (now.getTime() - startDate.getTime()))
+        const result = await db.select({ count: sql<number>`count(*)` })
+          .from(orders)
+          .where(and(
+            gte(orders.createdAt, periodStart),
+            lt(orders.createdAt, startDate),
+            ne(orders.status, 'CANCELLED')
+          ))
+        return Number(result[0]?.count || 0)
+      })(),
       
       // Previous period customers (approximate)
-      prisma.user.count({
-        where: {
-          role: 'CUSTOMER',
-          createdAt: {
-            gte: new Date(startDate.getTime() - (now.getTime() - startDate.getTime())),
-            lt: startDate
-          }
-        }
-      }),
+      (async () => {
+        const periodStart = new Date(startDate.getTime() - (now.getTime() - startDate.getTime()))
+        const result = await db.select({ count: sql<number>`count(*)` })
+          .from(users)
+          .where(and(
+            eq(users.role, 'CUSTOMER'),
+            gte(users.createdAt, periodStart),
+            lt(users.createdAt, startDate)
+          ))
+        return Number(result[0]?.count || 0)
+      })(),
       
-      // Top selling products
-      prisma.orderItem.groupBy({
-        by: ['productId'],
-        where: {
-          order: {
-            createdAt: { gte: startDate },
-            status: { not: 'CANCELLED' }
-          }
-        },
-        _sum: {
-          quantity: true,
-          price: true
-        },
-        orderBy: {
+      // Top selling products (using raw SQL for groupBy)
+      (async () => {
+        try {
+          const result = await db.execute(sql`
+            SELECT 
+              oi."productId",
+              SUM(oi.quantity)::int as "total_quantity",
+              SUM(oi.price * oi.quantity)::decimal as "total_revenue"
+            FROM order_items oi
+            INNER JOIN orders o ON oi."orderId" = o.id
+            WHERE o."createdAt" >= ${startDate}
+              AND o.status != 'CANCELLED'
+            GROUP BY oi."productId"
+            ORDER BY total_quantity DESC
+            LIMIT 5
+          `) as Array<{ productId: string; total_quantity: string | number; total_revenue: string | number }>
+          return result.map(row => ({
+            productId: row.productId,
           _sum: {
-            quantity: 'desc'
+              quantity: Number(row.total_quantity) || 0,
+              price: Number(row.total_revenue) || 0
           }
-        },
-        take: 5
-      }),
+          }))
+        } catch (error) {
+          console.error('Error fetching top selling products:', error)
+          return []
+        }
+      })(),
       
       // Recent orders
-      prisma.order.findMany({
-        where: {
-          createdAt: { gte: startDate }
-        },
-        include: {
+      db.query.orders.findMany({
+        where: and(
+          gte(orders.createdAt, startDate)
+        ),
+        with: {
           user: {
-            select: { name: true, email: true }
+            columns: { name: true, email: true }
           }
         },
-        orderBy: { createdAt: 'desc' },
-        take: 10
+        orderBy: desc(orders.createdAt),
+        limit: 10
       }),
       
       // Recent customers
-      prisma.user.findMany({
-        where: {
-          role: 'CUSTOMER',
-          createdAt: { gte: startDate }
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 10
+      db.query.users.findMany({
+        where: and(
+          eq(users.role, 'CUSTOMER'),
+          gte(users.createdAt, startDate)
+        ),
+        orderBy: desc(users.createdAt),
+        limit: 10
       })
     ])
+    } catch (error) {
+      console.error('Error in Promise.all for analytics:', error)
+      throw error
+    }
 
     // Get product details for top selling products
     const productIds = topSellingProducts.map(item => item.productId)
-    const products = await prisma.product.findMany({
-      where: { id: { in: productIds } },
-      select: { id: true, name: true }
+    let productMap: Record<string, string> = {}
+    
+    if (productIds.length > 0) {
+      try {
+        const productsResult = await db.query.products.findMany({
+          where: inArray(products.id, productIds),
+          columns: { id: true, name: true }
     })
-
-    const productMap = Object.fromEntries(products.map(p => [p.id, p.name]))
+        productMap = Object.fromEntries(productsResult.map(p => [p.id, p.name]))
+      } catch (error) {
+        console.error('Error fetching product details:', error)
+        // Continue with empty productMap
+      }
+    }
 
     // Calculate changes
     const revenueChange = previousPeriodRevenue._sum.total 
@@ -182,20 +221,27 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
       const periodStart = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000)
       const periodEnd = new Date(periodStart.getTime() + interval * 24 * 60 * 60 * 1000)
       
-      const periodRevenue = await prisma.order.aggregate({
-        where: {
-          createdAt: { gte: periodStart, lt: periodEnd },
-          status: { not: 'CANCELLED' }
-        },
-        _sum: { total: true }
-      })
+      const [periodRevenueResult, periodOrdersResult] = await Promise.all([
+        db.select({ sum: sql<number>`sum(${orders.total})` })
+          .from(orders)
+          .where(and(
+            gte(orders.createdAt, periodStart),
+            lt(orders.createdAt, periodEnd),
+            ne(orders.status, 'CANCELLED')
+          )),
+        db.select({ count: sql<number>`count(*)` })
+          .from(orders)
+          .where(and(
+            gte(orders.createdAt, periodStart),
+            lt(orders.createdAt, periodEnd),
+            ne(orders.status, 'CANCELLED')
+          ))
+      ])
       
-      const periodOrders = await prisma.order.count({
-        where: {
-          createdAt: { gte: periodStart, lt: periodEnd },
-          status: { not: 'CANCELLED' }
-        }
-      })
+      const periodRevenue = {
+        _sum: { total: parseFloat(periodRevenueResult[0]?.sum?.toString() || '0') }
+      }
+      const periodOrders = Number(periodOrdersResult[0]?.count || 0)
       
       salesData.push({
         period: timeRange === '7d' ? `Day ${Math.floor(i / interval) + 1}` : 
@@ -238,7 +284,7 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
         id: item.productId,
         name: productMap[item.productId] || 'Unknown Product',
         sales: item._sum.quantity || 0,
-        revenue: (item._sum.price || 0) * (item._sum.quantity || 0)
+        revenue: item._sum.price || 0
       })),
       recentActivity,
       salesData
@@ -246,8 +292,12 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
 
     return NextResponse.json(analytics)
   } catch (error) {
+    console.error('Error fetching analytics:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch analytics' },
+      { 
+        error: 'Failed to fetch analytics',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }

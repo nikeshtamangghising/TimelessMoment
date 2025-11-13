@@ -113,7 +113,7 @@ export default async function RootLayout({
         <link rel="dns-prefetch" href="//js.stripe.com" />
         <link rel="dns-prefetch" href="//api.stripe.com" />
       </head>
-      <body className={inter.className}>
+      <body className={inter.className} suppressHydrationWarning>
         <ChunkErrorHandler />
         <AuthSessionProvider session={session}>
           <CartProvider>

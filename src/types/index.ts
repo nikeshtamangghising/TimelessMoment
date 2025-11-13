@@ -1,7 +1,30 @@
-import { User, Product, Order, OrderItem, Role, OrderStatus, InventoryChangeType, Category, Brand, Address, AddressType, Review, EmailLog } from '@prisma/client'
+import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
+import { 
+  users, 
+  products, 
+  orders, 
+  orderItems, 
+  categories, 
+  brands, 
+  addresses, 
+  reviews, 
+  emailLogs 
+} from '@/lib/db/schema';
+import { Role, OrderStatus, InventoryChangeType, AddressType } from '@/lib/db/schema';
 
-// Re-export Prisma types
-export type { User, Product, Order, OrderItem, Role, OrderStatus, InventoryChangeType, Category, Brand, Address, AddressType, Review, EmailLog }
+// Infer types from Drizzle schema
+export type User = InferSelectModel<typeof users>;
+export type Product = InferSelectModel<typeof products>;
+export type Order = InferSelectModel<typeof orders>;
+export type OrderItem = InferSelectModel<typeof orderItems>;
+export type Category = InferSelectModel<typeof categories>;
+export type Brand = InferSelectModel<typeof brands>;
+export type Address = InferSelectModel<typeof addresses>;
+export type Review = InferSelectModel<typeof reviews>;
+export type EmailLog = InferSelectModel<typeof emailLogs>;
+
+// Re-export enums
+export type { Role, OrderStatus, InventoryChangeType, AddressType };
 
 // Extended types with relations
 export type UserWithOrders = User & {

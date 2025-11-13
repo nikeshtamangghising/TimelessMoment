@@ -1,7 +1,32 @@
-import { prisma } from '@/lib/db';
-import { ActivityType } from '@prisma/client';
+import { db } from '@/lib/db';
+import { 
+  userActivities, 
+  products, 
+  userInterests, 
+  categories 
+} from '@/lib/db/schema';
+import { 
+  eq, 
+  and, 
+  gte, 
+  lt, 
+  count, 
+  sum, 
+  desc,
+  sql
+} from 'drizzle-orm';
 import { getSessionId } from '@/lib/activity-utils';
 import { queueProductUpdate } from '@/lib/smart-score-updater';
+
+// Define activity types as constants since we're not using Prisma enums
+export const ActivityType = {
+  VIEW: 'VIEW',
+  CART_ADD: 'CART_ADD',
+  FAVORITE: 'FAVORITE',
+  ORDER: 'ORDER',
+} as const;
+
+export type ActivityType = typeof ActivityType[keyof typeof ActivityType];
 
 export interface ActivityData {
   userId?: string;
@@ -30,49 +55,38 @@ export class ActivityTracker {
     }
 
     try {
-      await prisma.$transaction(async (tx) => {
-        // 1. Create activity record
-        // Build the data object carefully to avoid Prisma validation issues
-        const activityData: {
-          productId: string;
-          activityType: any;
-          userId?: string;
-          sessionId?: string;
-        } = {
-          productId,
-          activityType,
-        };
-        
-        // Add userId or sessionId based on what's available
-        if (userId) {
-          activityData.userId = userId;
-        }
-        if (sessionId && !userId) {
-          activityData.sessionId = sessionId;
-        }
-        
-        await tx.userActivity.create({
-          data: activityData,
-        });
-
-        // 2. Update product counters
-        const updateField = this.getProductCounterField(activityType);
-        if (updateField) {
-          await tx.product.update({
-            where: { id: productId },
-            data: {
-              [updateField]: { increment: 1 },
-            },
-          });
-        }
-
-        // 3. Update user interests (only for logged-in users)
-        if (userId) {
-          await this.updateUserInterests(tx, userId, productId, activityType);
-        }
-      });
+      // 1. Create activity record
+      const activityData: typeof userActivities.$inferInsert = {
+        productId,
+        activityType,
+      } as any;
       
-      // 4. Queue product for smart score update (after transaction completes)
+      // Add userId or sessionId based on what's available
+      if (userId) {
+        activityData.userId = userId;
+      }
+      if (sessionId && !userId) {
+        activityData.sessionId = sessionId;
+      }
+      
+      await db.insert(userActivities).values(activityData);
+
+      // 2. Update product counters
+      const updateField = this.getProductCounterField(activityType);
+      if (updateField) {
+        await db.update(products)
+          .set({ 
+            [updateField]: sql`${products[updateField]} + 1`
+          } as any)
+          .where(eq(products.id, productId));
+      }
+
+      // 3. Update user interests (only for logged-in users)
+      if (userId) {
+        await this.updateUserInterests(userId, productId, activityType);
+      }
+      
+      // 4. Queue product for smart score update
       queueProductUpdate(parseInt(productId));
     } catch (error) {
       throw new Error('Failed to track activity');
@@ -84,52 +98,42 @@ export class ActivityTracker {
    */
   static async trackActivities(activities: ActivityData[]): Promise<void> {
     try {
-      await prisma.$transaction(async (tx) => {
-        for (const activity of activities) {
-          const activityData: {
-            productId: string;
-            activityType: any;
-            userId?: string;
-            sessionId?: string;
-          } = {
-            productId: activity.productId,
-            activityType: activity.activityType,
-          };
-          
-          // Add userId or sessionId based on what's available
-          if (activity.userId) {
-            activityData.userId = activity.userId;
-          }
-          if (activity.sessionId && !activity.userId) {
-            activityData.sessionId = activity.sessionId;
-          }
-          
-          await tx.userActivity.create({
-            data: activityData,
-          });
-
-          // Update product counters
-          const updateField = this.getProductCounterField(activity.activityType);
-          if (updateField) {
-            await tx.product.update({
-              where: { id: activity.productId },
-              data: {
-                [updateField]: { increment: 1 },
-              },
-            });
-          }
-
-          // Update user interests for logged-in users
-          if (activity.userId) {
-            await this.updateUserInterests(
-              tx,
-              activity.userId,
-              activity.productId,
-              activity.activityType
-            );
-          }
+      // Process each activity
+      for (const activity of activities) {
+        const activityData: typeof userActivities.$inferInsert = {
+          productId: activity.productId,
+          activityType: activity.activityType,
+        } as any;
+        
+        // Add userId or sessionId based on what's available
+        if (activity.userId) {
+          activityData.userId = activity.userId;
         }
-      });
+        if (activity.sessionId && !activity.userId) {
+          activityData.sessionId = activity.sessionId;
+        }
+        
+        await db.insert(userActivities).values(activityData);
+
+        // Update product counters
+        const updateField = this.getProductCounterField(activity.activityType);
+        if (updateField) {
+          await db.update(products)
+            .set({ 
+              [updateField]: sql`${products[updateField]} + 1`
+            } as any)
+            .where(eq(products.id, activity.productId));
+        }
+
+        // Update user interests for logged-in users
+        if (activity.userId) {
+          await this.updateUserInterests(
+            activity.userId,
+            activity.productId,
+            activity.activityType
+          );
+        }
+      }
     } catch (error) {
       throw new Error('Failed to track activities');
     }
@@ -142,13 +146,17 @@ export class ActivityTracker {
     identifier: { userId: string } | { sessionId: string },
     limit: number = 50
   ) {
-    return await prisma.userActivity.findMany({
-      where: identifier,
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      include: {
+    const whereCondition = 'userId' in identifier 
+      ? eq(userActivities.userId, identifier.userId)
+      : eq(userActivities.sessionId, identifier.sessionId);
+
+    return await db.query.userActivities.findMany({
+      where: whereCondition,
+      orderBy: desc(userActivities.createdAt),
+      limit,
+      with: {
         product: {
-          select: {
+          columns: {
             id: true,
             name: true,
             slug: true,
@@ -176,63 +184,80 @@ export class ActivityTracker {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - timeMap[timeframe]);
 
-    const whereClause: any = {
-      createdAt: { gte: cutoffDate },
-    };
-
+    const whereConditions = [gte(userActivities.createdAt, cutoffDate)];
+    
     if (productId) {
-      whereClause.productId = productId;
+      whereConditions.push(eq(userActivities.productId, productId));
     }
 
-    return await prisma.userActivity.groupBy({
-      by: ['activityType'],
-      where: whereClause,
+    const result = await db.select({
+      activityType: userActivities.activityType,
+      count: count()
+    })
+    .from(userActivities)
+    .where(and(...whereConditions))
+    .groupBy(userActivities.activityType);
+
+    return result.map(item => ({
+      activityType: item.activityType,
       _count: {
-        id: true,
-      },
-    });
+        id: item.count
+      }
+    }));
   }
 
   /**
    * Update user interest profile based on activity
    */
   private static async updateUserInterests(
-    tx: any,
     userId: string,
     productId: string,
     activityType: ActivityType
   ): Promise<void> {
     // Get product category
-    const product = await tx.product.findUnique({
-      where: { id: productId },
-      select: { categoryId: true },
-    });
+    const productResult = await db.select({ 
+      categoryId: products.categoryId 
+    })
+    .from(products)
+    .where(eq(products.id, productId))
+    .limit(1);
 
-    if (!product) return;
+    if (!productResult.length) return;
 
+    const product = productResult[0];
     const interestScore = this.INTEREST_WEIGHTS[activityType];
 
-    // Upsert user interest
-    await tx.userInterest.upsert({
-      where: {
-        userId_categoryId: {
-          userId,
-          categoryId: product.categoryId,
-        },
-      },
-      update: {
-        interestScore: { increment: interestScore },
-        interactionCount: { increment: 1 },
-        lastInteraction: new Date(),
-      },
-      create: {
+    // Check if user interest exists
+    const existingInterest = await db.select()
+      .from(userInterests)
+      .where(and(
+        eq(userInterests.userId, userId),
+        eq(userInterests.categoryId, product.categoryId)
+      ))
+      .limit(1);
+
+    if (existingInterest.length > 0) {
+      // Update existing interest
+      await db.update(userInterests)
+        .set({
+          interestScore: sql`${userInterests.interestScore} + ${interestScore}`,
+          interactionCount: sql`${userInterests.interactionCount} + 1`,
+          lastInteraction: new Date(),
+        })
+        .where(and(
+          eq(userInterests.userId, userId),
+          eq(userInterests.categoryId, product.categoryId)
+        ));
+    } else {
+      // Create new interest
+      await db.insert(userInterests).values({
         userId,
         categoryId: product.categoryId,
-        interestScore,
+        interestScore: interestScore.toString(),
         interactionCount: 1,
         lastInteraction: new Date(),
-      },
-    });
+      });
+    }
   }
 
   /**
@@ -255,11 +280,8 @@ export class ActivityTracker {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
 
-    await prisma.userActivity.deleteMany({
-      where: {
-        createdAt: { lt: cutoffDate },
-      },
-    });
+    await db.delete(userActivities)
+      .where(lt(userActivities.createdAt, cutoffDate));
   }
 
   /**
@@ -269,12 +291,12 @@ export class ActivityTracker {
     userId: string,
     productId: string
   ) {
-    return await prisma.userActivity.findMany({
-      where: {
-        userId,
-        productId,
-      },
-      orderBy: { createdAt: 'desc' },
+    return await db.query.userActivities.findMany({
+      where: and(
+        eq(userActivities.userId, userId),
+        eq(userActivities.productId, productId)
+      ),
+      orderBy: desc(userActivities.createdAt),
     });
   }
 
@@ -289,13 +311,13 @@ export class ActivityTracker {
     const cutoffDate = new Date();
     cutoffDate.setHours(cutoffDate.getHours() - hours);
 
-    const recentView = await prisma.userActivity.findFirst({
-      where: {
-        userId,
-        productId,
-        activityType: 'VIEW',
-        createdAt: { gte: cutoffDate },
-      },
+    const recentView = await db.query.userActivities.findFirst({
+      where: and(
+        eq(userActivities.userId, userId),
+        eq(userActivities.productId, productId),
+        eq(userActivities.activityType, 'VIEW'),
+        gte(userActivities.createdAt, cutoffDate)
+      ),
     });
 
     return !!recentView;
@@ -308,13 +330,11 @@ export class ActivityTracker {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
-    const trendingData = await prisma.userActivity.findMany({
-      where: {
-        createdAt: { gte: cutoffDate },
-      },
-      include: {
+    const trendingData = await db.query.userActivities.findMany({
+      where: gte(userActivities.createdAt, cutoffDate),
+      with: {
         product: {
-          select: { categoryId: true },
+          columns: { categoryId: true },
         },
       },
     });
@@ -332,14 +352,16 @@ export class ActivityTracker {
       .slice(0, limit);
 
     // Get category details
+    if (sorted.length === 0) return [];
+
     const categoryIds = sorted.map(([categoryId]) => categoryId);
-    const categories = await prisma.category.findMany({
-      where: { id: { in: categoryIds } },
-      select: { id: true, name: true, slug: true },
+    const categoriesResult = await db.query.categories.findMany({
+      where: sql`id IN (${categoryIds.map(() => '?').join(',')})`,
+      columns: { id: true, name: true, slug: true },
     });
 
     const categoryMap = Object.fromEntries(
-      categories.map(cat => [cat.id, cat])
+      categoriesResult.map(cat => [cat.id, cat])
     );
 
     return sorted.map(([categoryId, count]) => ({

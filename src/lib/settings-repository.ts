@@ -1,5 +1,10 @@
-import { SiteSettings, SettingType } from '@prisma/client'
-import { prisma } from './db'
+import { db } from './db'
+import { siteSettings } from './db/schema'
+import { eq, asc } from 'drizzle-orm'
+import type { InferSelectModel } from 'drizzle-orm'
+import { SettingType } from './db/schema'
+
+type SiteSettings = InferSelectModel<typeof siteSettings>
 
 export interface SettingInput {
   key: string
@@ -13,9 +18,8 @@ export interface SettingInput {
 export class SettingsRepository {
   // Get a setting by key
   static async get(key: string): Promise<SiteSettings | null> {
-    return await prisma.siteSettings.findUnique({
-      where: { key }
-    })
+    const result = await db.select().from(siteSettings).where(eq(siteSettings.key, key)).limit(1)
+    return result[0] || null
   }
 
   // Get a setting value by key with default fallback
@@ -58,44 +62,52 @@ export class SettingsRepository {
   static async set(key: string, value: any, options: Partial<SettingInput> = {}): Promise<SiteSettings> {
     const stringValue = typeof value === 'object' ? JSON.stringify(value) : value.toString()
     
-    let type: SettingType = 'STRING'
-    if (typeof value === 'number') type = 'NUMBER'
-    else if (typeof value === 'boolean') type = 'BOOLEAN'
-    else if (typeof value === 'object') type = 'JSON'
+    let type: keyof typeof SettingType = SettingType.STRING
+    if (typeof value === 'number') type = SettingType.NUMBER
+    else if (typeof value === 'boolean') type = SettingType.BOOLEAN
+    else if (typeof value === 'object') type = SettingType.JSON
 
-    return await prisma.siteSettings.upsert({
-      where: { key },
-      update: {
+    const existing = await this.get(key)
+    
+    if (existing) {
+      const [updated] = await db.update(siteSettings)
+        .set({
         value: stringValue,
         type: options.type || type,
         description: options.description,
         category: options.category,
         isPublic: options.isPublic,
-      },
-      create: {
+          updatedAt: new Date(),
+        })
+        .where(eq(siteSettings.key, key))
+        .returning()
+      return updated
+    } else {
+      const [created] = await db.insert(siteSettings)
+        .values({
         key,
         value: stringValue,
         type: options.type || type,
         description: options.description || '',
         category: options.category || 'general',
         isPublic: options.isPublic || false,
+        })
+        .returning()
+      return created
       }
-    })
   }
 
   // Get all settings by category
   static async getByCategory(category: string): Promise<SiteSettings[]> {
-    return await prisma.siteSettings.findMany({
-      where: { category },
-      orderBy: { key: 'asc' }
-    })
+    return await db.select().from(siteSettings)
+      .where(eq(siteSettings.category, category))
+      .orderBy(asc(siteSettings.key))
   }
 
   // Get all public settings
   static async getPublicSettings(): Promise<Record<string, any>> {
-    const settings = await prisma.siteSettings.findMany({
-      where: { isPublic: true }
-    })
+    const settings = await db.select().from(siteSettings)
+      .where(eq(siteSettings.isPublic, true))
 
     const result: Record<string, any> = {}
     for (const setting of settings) {
@@ -107,9 +119,7 @@ export class SettingsRepository {
   // Delete a setting
   static async delete(key: string): Promise<boolean> {
     try {
-      await prisma.siteSettings.delete({
-        where: { key }
-      })
+      await db.delete(siteSettings).where(eq(siteSettings.key, key))
       return true
     } catch {
       return false
@@ -119,12 +129,8 @@ export class SettingsRepository {
   // Get all settings
   static async getAll(): Promise<SiteSettings[]> {
     try {
-      const settings = await prisma.siteSettings.findMany({
-        orderBy: [
-          { category: 'asc' },
-          { key: 'asc' }
-        ]
-      })
+      const settings = await db.select().from(siteSettings)
+        .orderBy(asc(siteSettings.category), asc(siteSettings.key))
       return settings
     } catch (error) {
       throw error

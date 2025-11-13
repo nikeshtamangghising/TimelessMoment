@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { reviews, products, users } from '@/lib/db/schema'
+import { eq, and, desc, sql, count } from 'drizzle-orm'
 import { getToken } from 'next-auth/jwt'
 import { z } from 'zod'
 
@@ -42,9 +44,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if product exists
-    const product = await prisma.product.findUnique({
-      where: { id: productId, isActive: true }
-    })
+    const productResult = await db.select()
+      .from(products)
+      .where(and(eq(products.id, productId), eq(products.isActive, true)))
+      .limit(1)
+    const product = productResult[0] || null
 
     if (!product) {
       return NextResponse.json(
@@ -55,12 +59,11 @@ export async function POST(request: NextRequest) {
 
     // Check if user already reviewed this product
     if (isAuthenticated) {
-      const existingReview = await prisma.review.findFirst({
-        where: {
-          productId,
-          userId: token.sub
-        }
-      })
+      const existingReviewResult = await db.select()
+        .from(reviews)
+        .where(and(eq(reviews.productId, productId), eq(reviews.userId, token.sub!)))
+        .limit(1)
+      const existingReview = existingReviewResult[0] || null
 
       if (existingReview) {
         return NextResponse.json(
@@ -71,29 +74,32 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the review
-    const review = await prisma.review.create({
-      data: {
+    const [review] = await db.insert(reviews)
+      .values({
         productId,
-        userId: isAuthenticated ? token.sub : null,
+        userId: isAuthenticated ? token.sub! : null,
         rating,
-        title,
-        content,
-        guestName: !isAuthenticated ? guestName : null,
-        guestEmail: !isAuthenticated ? guestEmail : null,
+        title: title || null,
+        comment: content || null,
         isApproved: true, // Auto-approve for now, can add moderation later
-      },
-      include: {
-        user: {
-          select: { name: true }
-        }
-      }
-    })
+      })
+      .returning()
+
+    // Get user info if authenticated
+    let reviewWithUser: any = review
+    if (isAuthenticated && review.userId) {
+      const userResult = await db.query.users.findFirst({
+        where: eq(users.id, review.userId),
+        columns: { name: true }
+      })
+      reviewWithUser = { ...review, user: userResult || null }
+    }
 
     // Update product rating statistics
     await updateProductRatingStats(productId)
 
     return NextResponse.json({
-      review,
+      review: reviewWithUser,
       message: 'Review submitted successfully'
     }, { status: 201 })
 
@@ -120,35 +126,48 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const skip = (page - 1) * limit
-    const whereClause: any = {
-      productId,
-      isApproved: true
-    }
+    const offset = (page - 1) * limit
+    const conditions = [
+      eq(reviews.productId, productId),
+      eq(reviews.isApproved, true)
+    ]
 
     if (rating) {
-      whereClause.rating = parseInt(rating)
+      conditions.push(eq(reviews.rating, parseInt(rating)))
     }
 
-    const [reviews, totalCount] = await Promise.all([
-      prisma.review.findMany({
-        where: whereClause,
-        include: {
-          user: {
-            select: { name: true }
-          }
-        },
-        orderBy: {
-          createdAt: 'desc'
-        },
-        skip,
-        take: limit
-      }),
-      prisma.review.count({ where: whereClause })
+    const whereClause = and(...conditions)
+
+    const [reviewsResult, totalCountResult] = await Promise.all([
+      db.select()
+        .from(reviews)
+        .where(whereClause)
+        .orderBy(desc(reviews.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ count: sql<number>`count(*)` })
+        .from(reviews)
+        .where(whereClause)
     ])
 
+    // Get user info for each review
+    const reviewsWithUsers = await Promise.all(
+      reviewsResult.map(async (review) => {
+        if (review.userId) {
+          const userResult = await db.query.users.findFirst({
+            where: eq(users.id, review.userId),
+            columns: { name: true }
+          })
+          return { ...review, user: userResult || null }
+        }
+        return { ...review, user: null }
+      })
+    )
+
+    const totalCount = Number(totalCountResult[0]?.count || 0)
+
     return NextResponse.json({
-      reviews,
+      reviews: reviewsWithUsers,
       pagination: {
         page,
         limit,
@@ -167,26 +186,20 @@ export async function GET(request: NextRequest) {
 
 // Helper function to update product rating statistics
 async function updateProductRatingStats(productId: string) {
-  const reviews = await prisma.review.findMany({
-    where: {
-      productId,
-      isApproved: true
-    },
-    select: {
-      rating: true
-    }
-  })
+  const reviewsResult = await db.select({ rating: reviews.rating })
+    .from(reviews)
+    .where(and(eq(reviews.productId, productId), eq(reviews.isApproved, true)))
 
-  const totalReviews = reviews.length
+  const totalReviews = reviewsResult.length
   const averageRating = totalReviews > 0 
-    ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
+    ? reviewsResult.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
     : 0
 
-  await prisma.product.update({
-    where: { id: productId },
-    data: {
-      ratingAvg: averageRating,
-      ratingCount: totalReviews
-    }
-  })
+  await db.update(products)
+    .set({
+      ratingAvg: averageRating.toString(),
+      ratingCount: totalReviews,
+      updatedAt: new Date()
+    })
+    .where(eq(products.id, productId))
 }

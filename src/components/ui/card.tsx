@@ -22,6 +22,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
           className
         )}
         {...props}
+        suppressHydrationWarning
       />
     )
   }
@@ -35,6 +36,7 @@ const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
       ref={ref}
       className={clsx('px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-200', className)}
       {...props}
+      suppressHydrationWarning
     />
   )
 )
@@ -47,6 +49,7 @@ const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
       ref={ref}
       className={clsx('px-4 py-3 sm:px-6 sm:py-4', className)}
       {...props}
+      suppressHydrationWarning
     />
   )
 )
@@ -59,6 +62,7 @@ const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingEleme
       ref={ref}
       className={clsx('text-lg font-semibold leading-6 text-gray-900', className)}
       {...props}
+      suppressHydrationWarning
     />
   )
 )
@@ -71,6 +75,7 @@ const CardDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLPara
       ref={ref}
       className={clsx('text-sm text-gray-600 mt-1', className)}
       {...props}
+      suppressHydrationWarning
     />
   )
 )
@@ -83,6 +88,7 @@ const CardFooter = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
       ref={ref}
       className={clsx('px-4 py-3 sm:px-6 sm:py-4 border-t border-gray-200', className)}
       {...props}
+      suppressHydrationWarning
     />
   )
 )

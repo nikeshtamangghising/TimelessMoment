@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { categories, products } from '@/lib/db/schema'
+import { eq, and, or, ne, asc, sql, count } from 'drizzle-orm'
 import { createAdminHandler } from '@/lib/auth-middleware'
 
 interface RouteParams {
@@ -14,58 +16,53 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const category = await prisma.category.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        parentId: true,
-        metaTitle: true,
-        metaDescription: true,
-        image: true,
-        isActive: true,
-        sortOrder: true,
-        createdAt: true,
-        updatedAt: true,
-        parent: {
-          select: {
+    const category = await db.query.categories.findFirst({
+      where: eq(categories.id, id),
+      with: {
+        parentCategory: {
+          columns: {
             id: true,
             name: true
           }
         },
-        children: {
-          select: {
+        childCategories: {
+          columns: {
             id: true,
             name: true,
             slug: true,
-            isActive: true,
-            _count: {
-              select: {
-                products: true
-              }
-            }
+            isActive: true
           },
-          orderBy: { sortOrder: 'asc' }
-        },
-        _count: {
-          select: {
-            products: true,
-            children: true
-          }
+          orderBy: asc(categories.sortOrder)
         }
       }
     })
 
-    if (!category) {
-      return NextResponse.json(
-        { error: 'Category not found' },
-        { status: 404 }
-      )
+    if (category) {
+      // Get product count and children count
+      const [productCount, childrenCount] = await Promise.all([
+        db.select({ count: sql<number>`count(*)` })
+          .from(products)
+          .where(eq(products.categoryId, id)),
+        db.select({ count: sql<number>`count(*)` })
+          .from(categories)
+          .where(eq(categories.parentId, id))
+      ])
+
+      // Add counts to category object
+      const categoryWithCounts = {
+        ...category,
+        _count: {
+          products: Number(productCount[0]?.count || 0),
+          children: Number(childrenCount[0]?.count || 0)
+        }
+      }
+      return NextResponse.json(categoryWithCounts)
     }
 
-    return NextResponse.json(category)
+    return NextResponse.json(
+      { error: 'Category not found' },
+      { status: 404 }
+    )
 
   } catch (error) {
     return NextResponse.json(
@@ -93,7 +90,7 @@ export const PUT = createAdminHandler<RouteParams>(async (
       paramsPromise
     ])
     
-    const { name, slug, description, parentId, metaTitle, metaDescription, image, isActive, sortOrder } = body
+    const { name, slug, description, parentId, metaTitle, metaDescription, isActive, sortOrder } = body
 
     // Basic validation
     if (!name || !slug) {
@@ -104,9 +101,11 @@ export const PUT = createAdminHandler<RouteParams>(async (
     }
 
     // Check if category exists
-    const existingCategory = await prisma.category.findUnique({
-      where: { id: params.id }
-    })
+    const existingCategoryResult = await db.select()
+      .from(categories)
+      .where(eq(categories.id, params.id))
+      .limit(1)
+    const existingCategory = existingCategoryResult[0] || null
 
     if (!existingCategory) {
       return NextResponse.json(
@@ -116,19 +115,19 @@ export const PUT = createAdminHandler<RouteParams>(async (
     }
 
     // Check if name or slug conflicts with other categories
-    const conflictingCategory = await prisma.category.findFirst({
-      where: {
-        AND: [
-          { id: { not: params.id } },
-          {
-            OR: [
-              { name: name },
-              { slug: slug }
-            ]
-          }
-        ]
-      }
-    })
+    const conflictingCategoryResult = await db.select()
+      .from(categories)
+      .where(
+        and(
+          ne(categories.id, params.id),
+          or(
+            eq(categories.name, name),
+            eq(categories.slug, slug)
+          )
+        )
+      )
+      .limit(1)
+    const conflictingCategory = conflictingCategoryResult[0] || null
 
     if (conflictingCategory) {
       return NextResponse.json(
@@ -146,9 +145,11 @@ export const PUT = createAdminHandler<RouteParams>(async (
         )
       }
 
-      const parentCategory = await prisma.category.findUnique({
-        where: { id: parentId }
-      })
+      const parentCategoryResult = await db.select()
+        .from(categories)
+        .where(eq(categories.id, parentId))
+        .limit(1)
+      const parentCategory = parentCategoryResult[0] || null
 
       if (!parentCategory) {
         return NextResponse.json(
@@ -167,59 +168,67 @@ export const PUT = createAdminHandler<RouteParams>(async (
           )
         }
         
-        const parentOfParent = await prisma.category.findUnique({
-          where: { id: currentParentId },
-          select: { parentId: true }
-        })
+        const parentOfParentResult = await db.select({ parentId: categories.parentId })
+          .from(categories)
+          .where(eq(categories.id, currentParentId))
+          .limit(1)
+        const parentOfParent = parentOfParentResult[0]
         
         currentParentId = parentOfParent?.parentId || null
       }
     }
 
-    const updatedCategory = await prisma.category.update({
-      where: { id: params.id },
-      data: {
+    const [updatedCategory] = await db.update(categories)
+      .set({
         name,
         slug,
         description: description || null,
         parentId: parentId || null,
         metaTitle: metaTitle || null,
         metaDescription: metaDescription || null,
-        image: image || null,
+        image: null,
         isActive: isActive ?? true,
-        sortOrder: sortOrder ?? existingCategory.sortOrder
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        parentId: true,
-        metaTitle: true,
-        metaDescription: true,
-        image: true,
-        isActive: true,
-        sortOrder: true,
-        createdAt: true,
-        updatedAt: true,
-        parent: {
-          select: {
+        sortOrder: sortOrder ?? existingCategory.sortOrder,
+        updatedAt: new Date()
+      })
+      .where(eq(categories.id, params.id))
+      .returning()
+
+    // Get related data
+    const categoryWithRelations = await db.query.categories.findFirst({
+      where: eq(categories.id, params.id),
+      with: {
+        parentCategory: {
+          columns: {
             id: true,
             name: true
-          }
-        },
-        _count: {
-          select: {
-            products: true,
-            children: true
           }
         }
       }
     })
 
+    // Get counts
+    const [productCount, childrenCount] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` })
+        .from(products)
+        .where(eq(products.categoryId, params.id)),
+      db.select({ count: sql<number>`count(*)` })
+        .from(categories)
+        .where(eq(categories.parentId, params.id))
+    ])
+
+    const categoryWithCounts = {
+      ...updatedCategory,
+      parent: categoryWithRelations?.parentCategory || null,
+      _count: {
+        products: Number(productCount[0]?.count || 0),
+        children: Number(childrenCount[0]?.count || 0)
+      }
+    }
+
     return NextResponse.json({
       message: 'Category updated successfully',
-      category: updatedCategory
+      category: categoryWithCounts
     })
 
   } catch (error) {
@@ -254,33 +263,40 @@ export const DELETE = createAdminHandler<RouteParams>(async (
     const params = await paramsPromise
 
     // Check if category exists and has products or children
-    const categoryWithRelations = await prisma.category.findUnique({
-      where: { id: params.id },
-      include: {
-        _count: {
-          select: {
-            products: true,
-            children: true
-          }
-        }
-      }
-    })
+    const categoryResult = await db.select()
+      .from(categories)
+      .where(eq(categories.id, params.id))
+      .limit(1)
+    const categoryToDelete = categoryResult[0] || null
 
-    if (!categoryWithRelations) {
+    if (!categoryToDelete) {
       return NextResponse.json(
         { error: 'Category not found' },
         { status: 404 }
       )
     }
 
-    if (categoryWithRelations._count.products > 0) {
+    // Get counts
+    const [productCount, childrenCount] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` })
+        .from(products)
+        .where(eq(products.categoryId, params.id)),
+      db.select({ count: sql<number>`count(*)` })
+        .from(categories)
+        .where(eq(categories.parentId, params.id))
+    ])
+
+    const productCountNum = Number(productCount[0]?.count || 0)
+    const childrenCountNum = Number(childrenCount[0]?.count || 0)
+
+    if (productCountNum > 0) {
       return NextResponse.json(
         { error: 'Cannot delete category with associated products. Move products to another category first.' },
         { status: 400 }
       )
     }
 
-    if (categoryWithRelations._count.children > 0) {
+    if (childrenCountNum > 0) {
       return NextResponse.json(
         { error: 'Cannot delete category with child categories. Delete or move child categories first.' },
         { status: 400 }
@@ -288,9 +304,9 @@ export const DELETE = createAdminHandler<RouteParams>(async (
     }
 
     // Safe to delete
-    const deletedCategory = await prisma.category.delete({
-      where: { id: params.id }
-    })
+    const [deletedCategory] = await db.delete(categories)
+      .where(eq(categories.id, params.id))
+      .returning()
 
     return NextResponse.json({
       message: 'Category deleted successfully',

@@ -1,4 +1,6 @@
-import { prisma } from './db'
+import { db } from './db'
+import { orders, orderItems, products, categories, users, inventoryAdjustments } from './db/schema'
+import { eq, and, or, desc, asc, gte, lte, sql, ilike, inArray } from 'drizzle-orm'
 import { 
   CreateOrderInput, 
   PaginationInput,
@@ -23,10 +25,13 @@ export class OrderRepository {
   async create(data: CreateOrderInput): Promise<OrderWithItems> {
     // First, validate inventory availability
     for (const item of data.items) {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId },
-        select: { inventory: true, name: true }
+      const [product] = await db.select({
+        inventory: products.inventory,
+        name: products.name
       })
+      .from(products)
+      .where(eq(products.id, item.productId))
+      .limit(1)
       
       if (!product) {
         throw new Error(`Product ${item.productId} not found`)
@@ -37,60 +42,49 @@ export class OrderRepository {
       }
     }
 
-    // Create order and related updates using a batched transaction (PgBouncer-safe)
-    const createOrderQuery = prisma.order.create({
-      data: {
-        userId: data.userId,
-        total: data.total,
-        stripePaymentIntentId: data.stripePaymentIntentId,
-        status: 'PENDING',
-        shippingAddress: data.shippingAddress ? data.shippingAddress : undefined,
-        items: {
-          create: data.items.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.price
-          })),
-        },
-      } as any, // Type assertion to bypass Prisma type checking
-      include: {
-        items: {
-          include: {
-            product: true,
-          },
-        },
-        user: true,
-      },
-    })
+    // Create order
+    const [newOrder] = await db.insert(orders).values({
+      userId: data.userId,
+      total: data.total.toString(),
+      stripePaymentIntentId: data.stripePaymentIntentId,
+      status: 'PENDING',
+      shippingAddress: data.shippingAddress ? data.shippingAddress : undefined,
+    }).returning()
 
-    const inventoryQueries = data.items.flatMap(item => [
-      prisma.product.update({
-        where: { id: item.productId },
-        data: {
-          inventory: { decrement: item.quantity },
-          orderCount: { increment: 1 },
-          purchaseCount: { increment: item.quantity },
-        },
-      }),
-      prisma.inventoryAdjustment.create({
-        data: {
-          productId: item.productId,
-          quantity: -item.quantity,
-          type: 'ORDER_PLACED',
-          reason: `Inventory reduced for order`,
-        },
-      }),
-    ])
+    // Create order items
+    const itemsData = data.items.map(item => ({
+      orderId: newOrder.id,
+      productId: item.productId,
+      quantity: item.quantity,
+      price: item.price.toString()
+    }))
+    await db.insert(orderItems).values(itemsData)
 
-    const [order] = await prisma.$transaction([
-      createOrderQuery,
-      ...inventoryQueries,
-    ]) as [OrderWithItems, ...any[]]
+    // Update product inventory and create adjustments
+    for (const item of data.items) {
+      await db.update(products)
+        .set({ 
+          inventory: sql`${products.inventory} - ${item.quantity}`,
+          orderCount: sql`${products.orderCount} + 1`,
+          purchaseCount: sql`${products.purchaseCount} + ${item.quantity}`
+        })
+        .where(eq(products.id, item.productId))
+
+      await db.insert(inventoryAdjustments).values({
+        productId: item.productId,
+        quantity: -item.quantity,
+        changeType: 'ORDER_PLACED',
+        reason: `Inventory reduced for order`,
+      })
+    }
+
+    // Fetch the complete order with relations
+    const order = await this.findById(newOrder.id)
 
     // Invalidate related caches
-    await invalidateOrder(order.id)
+    await invalidateOrder(newOrder.id)
 
-    return order as unknown as OrderWithItems
+    return order!
   }
 
   async createGuestOrder(data: {
@@ -103,10 +97,13 @@ export class OrderRepository {
   }): Promise<OrderWithItems> {
     // First, validate inventory availability
     for (const item of data.items) {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId },
-        select: { inventory: true, name: true }
+      const [product] = await db.select({
+        inventory: products.inventory,
+        name: products.name
       })
+      .from(products)
+      .where(eq(products.id, item.productId))
+      .limit(1)
       
       if (!product) {
         throw new Error(`Product ${item.productId} not found`)
@@ -117,63 +114,52 @@ export class OrderRepository {
       }
     }
 
-    // Create guest order and related updates using a batched transaction (PgBouncer-safe)
-    const createOrderQuery = prisma.order.create({
-      data: {
-        userId: null, // No user for guest orders
-        guestEmail: data.guestEmail,
-        guestName: data.guestName,
-        isGuestOrder: true,
-        total: data.total,
-        stripePaymentIntentId: data.stripePaymentIntentId,
-        status: 'PENDING',
-        shippingAddress: data.shippingAddress,
-        items: {
-          create: data.items.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.price
-          })),
-        },
-      } as any, // Type assertion to bypass Prisma type checking
-      include: {
-        items: {
-          include: {
-            product: true,
-          },
-        },
-        user: true,
-      },
-    })
+    // Create guest order
+    const [newOrder] = await db.insert(orders).values({
+      userId: null,
+      guestEmail: data.guestEmail,
+      guestName: data.guestName,
+      isGuestOrder: true,
+      total: data.total.toString(),
+      stripePaymentIntentId: data.stripePaymentIntentId,
+      status: 'PENDING',
+      shippingAddress: data.shippingAddress,
+    }).returning()
 
-    const inventoryQueries = data.items.flatMap(item => [
-      prisma.product.update({
-        where: { id: item.productId },
-        data: {
-          inventory: { decrement: item.quantity },
-          orderCount: { increment: 1 },
-          purchaseCount: { increment: item.quantity },
-        },
-      }),
-      prisma.inventoryAdjustment.create({
-        data: {
-          productId: item.productId,
-          quantity: -item.quantity,
-          type: 'ORDER_PLACED',
-          reason: `Inventory reduced for guest order`,
-        },
-      }),
-    ])
+    // Create order items
+    const itemsData = data.items.map(item => ({
+      orderId: newOrder.id,
+      productId: item.productId,
+      quantity: item.quantity,
+      price: item.price.toString()
+    }))
+    await db.insert(orderItems).values(itemsData)
 
-    const [order] = await prisma.$transaction([
-      createOrderQuery,
-      ...inventoryQueries,
-    ]) as [OrderWithItems, ...any[]]
+    // Update product inventory and create adjustments
+    for (const item of data.items) {
+      await db.update(products)
+        .set({ 
+          inventory: sql`${products.inventory} - ${item.quantity}`,
+          orderCount: sql`${products.orderCount} + 1`,
+          purchaseCount: sql`${products.purchaseCount} + ${item.quantity}`
+        })
+        .where(eq(products.id, item.productId))
+
+      await db.insert(inventoryAdjustments).values({
+        productId: item.productId,
+        quantity: -item.quantity,
+        changeType: 'ORDER_PLACED',
+        reason: `Inventory reduced for guest order`,
+      })
+    }
+
+    // Fetch the complete order with relations
+    const order = await this.findById(newOrder.id)
 
     // Invalidate related caches
-    await invalidateOrder(order.id)
+    await invalidateOrder(newOrder.id)
 
-    return order as unknown as OrderWithItems
+    return order!
   }
 
   async findById(id: string): Promise<OrderWithItems | null> {
@@ -181,21 +167,24 @@ export class OrderRepository {
     
     return getCachedData(
       cacheKey,
-      () => prisma.order.findUnique({
-        where: { id },
-        include: {
-          items: {
-            include: {
-              product: {
-                include: {
-                  category: true,
+      async () => {
+        const result = await db.query.orders.findFirst({
+          where: eq(orders.id, id),
+          with: {
+            items: {
+              with: {
+                product: {
+                  with: {
+                    category: true,
+                  },
                 },
               },
             },
+            user: true,
           },
-          user: true,
-        },
-      }),
+        })
+        return result as OrderWithItems | null
+      },
       {
         memoryTtl: CACHE_DURATIONS.SHORT,
         nextjsTags: [CACHE_TAGS.ORDER, `${CACHE_TAGS.ORDER}:${id}`],
@@ -209,19 +198,19 @@ export class OrderRepository {
     pagination: PaginationInput = { page: 1, limit: 10 }
   ): Promise<PaginatedResponse<OrderWithItems>> {
     const { page, limit } = pagination
-    const skip = (page - 1) * limit
+    const offset = (page - 1) * limit
 
-    const [orders, total] = await Promise.all([
-      prisma.order.findMany({
-        where: { userId },
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
+    const [ordersData, [{ count: totalCount }]] = await Promise.all([
+      db.query.orders.findMany({
+        where: eq(orders.userId, userId),
+        offset,
+        limit,
+        orderBy: desc(orders.createdAt),
+        with: {
           items: {
-            include: {
+            with: {
               product: {
-                include: {
+                with: {
                   category: true,
                 },
               },
@@ -230,16 +219,18 @@ export class OrderRepository {
           user: true,
         },
       }),
-      prisma.order.count({ where: { userId } }),
+      db.select({ count: sql<number>`cast(count(*) as integer)` })
+        .from(orders)
+        .where(eq(orders.userId, userId)),
     ])
 
     return {
-      data: orders,
+      data: ordersData as OrderWithItems[],
       pagination: {
         page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
       },
     }
   }
@@ -249,22 +240,22 @@ export class OrderRepository {
     pagination: PaginationInput = { page: 1, limit: 10 }
   ): Promise<PaginatedResponse<OrderWithItems>> {
     const { page, limit } = pagination
-    const skip = (page - 1) * limit
+    const offset = (page - 1) * limit
 
-    const [orders, total] = await Promise.all([
-      prisma.order.findMany({
-        where: { 
-          guestEmail,
-          isGuestOrder: true 
-        },
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
+    const [ordersData, [{ count: totalCount }]] = await Promise.all([
+      db.query.orders.findMany({
+        where: and(
+          eq(orders.guestEmail, guestEmail),
+          eq(orders.isGuestOrder, true)
+        ),
+        offset,
+        limit,
+        orderBy: desc(orders.createdAt),
+        with: {
           items: {
-            include: {
+            with: {
               product: {
-                include: {
+                with: {
                   category: true,
                 },
               },
@@ -273,21 +264,21 @@ export class OrderRepository {
           user: true,
         },
       }),
-      prisma.order.count({ 
-        where: { 
-          guestEmail,
-          isGuestOrder: true 
-        } 
-      }),
+      db.select({ count: sql<number>`cast(count(*) as integer)` })
+        .from(orders)
+        .where(and(
+          eq(orders.guestEmail, guestEmail),
+          eq(orders.isGuestOrder, true)
+        )),
     ])
 
     return {
-      data: orders,
+      data: ordersData as OrderWithItems[],
       pagination: {
         page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
       },
     }
   }
@@ -302,39 +293,39 @@ export class OrderRepository {
     } = {}
   ): Promise<PaginatedResponse<OrderWithItems>> {
     const { page, limit } = pagination
-    const skip = (page - 1) * limit
+    const offset = (page - 1) * limit
 
-    const where: any = {}
+    const conditions = []
 
     if (filters.status) {
-      where.status = filters.status
+      conditions.push(eq(orders.status, filters.status))
     }
 
     if (filters.userId) {
-      where.userId = filters.userId
+      conditions.push(eq(orders.userId, filters.userId))
     }
 
-    if (filters.dateFrom || filters.dateTo) {
-      where.createdAt = {}
-      if (filters.dateFrom) {
-        where.createdAt.gte = filters.dateFrom
-      }
-      if (filters.dateTo) {
-        where.createdAt.lte = filters.dateTo
-      }
+    if (filters.dateFrom) {
+      conditions.push(gte(orders.createdAt, filters.dateFrom))
     }
 
-    const [orders, total] = await Promise.all([
-      prisma.order.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
+    if (filters.dateTo) {
+      conditions.push(lte(orders.createdAt, filters.dateTo))
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined
+
+    const [ordersData, [{ count: totalCount }]] = await Promise.all([
+      db.query.orders.findMany({
+        where: whereClause,
+        offset,
+        limit,
+        orderBy: desc(orders.createdAt),
+        with: {
           items: {
-            include: {
+            with: {
               product: {
-                include: {
+                with: {
                   category: true,
                 },
               },
@@ -343,28 +334,30 @@ export class OrderRepository {
           user: true,
         },
       }),
-      prisma.order.count({ where }),
+      db.select({ count: sql<number>`cast(count(*) as integer)` })
+        .from(orders)
+        .where(whereClause),
     ])
 
     return {
-      data: orders,
+      data: ordersData as OrderWithItems[],
       pagination: {
         page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
       },
     }
   }
 
   async updateStatus(id: string, status: OrderStatus): Promise<Order> {
-    const order = await prisma.order.findUnique({
-      where: { id },
-      include: {
+    const order = await db.query.orders.findFirst({
+      where: eq(orders.id, id),
+      with: {
         items: {
-          include: {
+          with: {
             product: {
-              include: {
+              with: {
                 category: true,
               },
             },
@@ -379,7 +372,7 @@ export class OrderRepository {
 
     const oldStatus = order.status
 
-    // Update order status and related adjustments using a batched transaction (PgBouncer-safe)
+    // Prepare update data
     const updateData: any = {
       status,
       updatedAt: new Date(),
@@ -390,53 +383,36 @@ export class OrderRepository {
       updateData.trackingNumber = trackingNumber
     }
 
-    const updateOrderQuery = prisma.order.update({
-      where: { id },
-      data: updateData,
-    })
+    // Update order status
+    const [updatedOrder] = await db.update(orders)
+      .set(updateData)
+      .where(eq(orders.id, id))
+      .returning()
 
-    const adjustQueries: any[] = []
-
+    // Handle inventory adjustments for cancellations/refunds
     if (oldStatus === 'PENDING' && (status === 'CANCELLED' || status === 'REFUNDED')) {
       for (const item of order.items) {
-        adjustQueries.push(
-          prisma.product.update({
-            where: { id: item.productId },
-            data: { inventory: { increment: item.quantity } },
-          }),
-          prisma.inventoryAdjustment.create({
-            data: {
-              productId: item.productId,
-              quantity: item.quantity,
-              type: 'ORDER_RETURNED',
-              reason: `Inventory restored from ${status.toLowerCase()} order`,
-            },
-          }),
-        )
+        await db.update(products)
+          .set({ inventory: sql`${products.inventory} + ${item.quantity}` })
+          .where(eq(products.id, item.productId))
+
+        await db.insert(inventoryAdjustments).values({
+          productId: item.productId,
+          quantity: item.quantity,
+          changeType: 'ORDER_RETURNED',
+          reason: `Inventory restored from ${status.toLowerCase()} order`,
+        })
       }
     }
 
-    const trackingLogQuery = prisma.orderTracking.create({
-      data: {
-        orderId: id,
-        status,
-        message: `Order status updated from ${oldStatus} to ${status}`,
-      },
-    })
-
-    const [updatedOrder] = await prisma.$transaction([
-      updateOrderQuery,
-      ...adjustQueries,
-      trackingLogQuery,
-    ]) as [Order, ...any[]]
-
-    return updatedOrder
+    return updatedOrder as Order
   }
 
   async updateShippingAddress(id: string, data: UpdateShippingAddressInput): Promise<Order> {
-    const order = await prisma.order.findUnique({
-      where: { id }
-    })
+    const [order] = await db.select()
+      .from(orders)
+      .where(eq(orders.id, id))
+      .limit(1)
 
     if (!order) {
       throw new Error('Order not found')
@@ -447,28 +423,28 @@ export class OrderRepository {
       throw new Error('Shipping address can only be updated for pending orders')
     }
 
-    const updatedOrder = await prisma.order.update({
-      where: { id },
-      data: {
+    const [updatedOrder] = await db.update(orders)
+      .set({
         shippingAddress: data.shippingAddress,
         updatedAt: new Date(),
-      } as any, // Type assertion to bypass Prisma type checking
-    })
+      })
+      .where(eq(orders.id, id))
+      .returning()
 
     // Invalidate cache
     await invalidateOrder(id)
 
-    return updatedOrder
+    return updatedOrder as Order
   }
 
   async findByStripePaymentIntentId(paymentIntentId: string): Promise<OrderWithItems | null> {
-    return prisma.order.findFirst({
-      where: { stripePaymentIntentId: paymentIntentId },
-      include: {
+    const result = await db.query.orders.findFirst({
+      where: eq(orders.stripePaymentIntentId, paymentIntentId),
+      with: {
         items: {
-          include: {
+          with: {
             product: {
-              include: {
+              with: {
                 category: true,
               },
             },
@@ -477,17 +453,18 @@ export class OrderRepository {
         user: true,
       },
     })
+    return result as OrderWithItems | null
   }
 
   async getRecentOrders(limit: number = 10): Promise<OrderWithItems[]> {
-    return prisma.order.findMany({
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-      include: {
+    const result = await db.query.orders.findMany({
+      limit,
+      orderBy: desc(orders.createdAt),
+      with: {
         items: {
-          include: {
+          with: {
             product: {
-              include: {
+              with: {
                 category: true,
               },
             },
@@ -496,6 +473,7 @@ export class OrderRepository {
         user: true,
       },
     })
+    return result as OrderWithItems[]
   }
 
   async searchOrders(
@@ -505,36 +483,45 @@ export class OrderRepository {
     const { page, limit } = pagination
     const skip = (page - 1) * limit
 
-    const where = {
-      OR: [
-        { id: { contains: query, mode: 'insensitive' as const } },
-        { stripePaymentIntentId: { contains: query, mode: 'insensitive' as const } },
-        { user: { name: { contains: query, mode: 'insensitive' as const } } },
-        { user: { email: { contains: query, mode: 'insensitive' as const } } },
-      ],
+    // Build Drizzle where conditions for search
+    const conditions: any[] = []
+    if (query) {
+      conditions.push(
+        or(
+          ilike(orders.id, `%${query}%`),
+          ilike(orders.stripePaymentIntentId, `%${query}%`),
+          sql`EXISTS (SELECT 1 FROM ${users} WHERE ${users.id} = ${orders.userId} AND (${ilike(users.name, `%${query}%`)} OR ${ilike(users.email, `%${query}%`)}))`
+        )
+      )
     }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
-    const [orders, total] = await Promise.all([
-      prisma.order.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
+    const [ordersResult, totalResult] = await Promise.all([
+      db.query.orders.findMany({
+        where: whereClause,
+        limit,
+        offset: skip,
+        orderBy: desc(orders.createdAt),
+        with: {
           items: {
-            include: {
+            with: {
               product: {
-                include: {
-                  category: true,
-                },
-              },
-            },
+                with: {
+                  category: true
+                }
+              }
+            }
           },
-          user: true,
-        },
+          user: true
+        }
       }),
-      prisma.order.count({ where }),
+      db.select({ count: sql<number>`count(*)` })
+        .from(orders)
+        .where(whereClause)
     ])
+    
+    const orders = ordersResult
+    const total = Number(totalResult[0]?.count || 0)
 
     return {
       data: orders,
@@ -548,22 +535,22 @@ export class OrderRepository {
   }
 
   async getOrdersRequiringFulfillment(): Promise<OrderWithItems[]> {
-    return prisma.order.findMany({
-      where: { status: 'PROCESSING' },
-      orderBy: { createdAt: 'asc' },
-      include: {
+    return db.query.orders.findMany({
+      where: eq(orders.status, 'PROCESSING'),
+      orderBy: asc(orders.createdAt),
+      with: {
         items: {
-          include: {
+          with: {
             product: {
-              include: {
-                category: true,
-              },
-            },
-          },
+              with: {
+                category: true
+              }
+            }
+          }
         },
-        user: true,
-      },
-    })
+        user: true
+      }
+    }) as Promise<OrderWithItems[]>
   }
 
   async getOrderStats(userId?: string): Promise<{
@@ -572,26 +559,29 @@ export class OrderRepository {
     averageOrderValue: number
     ordersByStatus: Record<OrderStatus, number>
   }> {
-    const where = userId ? { userId } : {}
+    const whereClause = userId ? eq(orders.userId, userId) : undefined
 
     const [
-      totalOrders,
+      totalOrdersResult,
       revenueResult,
-      ordersByStatus
+      ordersByStatusResult
     ] = await Promise.all([
-      prisma.order.count({ where }),
-      prisma.order.aggregate({
-        where,
-        _sum: { total: true },
-      }),
-      prisma.order.groupBy({
-        by: ['status'],
-        where,
-        _count: { status: true },
-      }),
+      db.select({ count: sql<number>`count(*)` })
+        .from(orders)
+        .where(whereClause),
+      db.select({ sum: sql<number>`sum(${orders.total})` })
+        .from(orders)
+        .where(whereClause),
+      db.execute(sql`
+        SELECT ${orders.status}, COUNT(*) as count
+        FROM ${orders}
+        ${whereClause ? sql`WHERE ${whereClause}` : sql``}
+        GROUP BY ${orders.status}
+      `) as Promise<Array<{ status: string; count: string }>>
     ])
 
-    const totalRevenue = revenueResult._sum.total || 0
+    const totalOrders = Number(totalOrdersResult[0]?.count || 0)
+    const totalRevenue = parseFloat(revenueResult[0]?.sum?.toString() || '0')
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
 
     const statusCounts: Record<OrderStatus, number> = {
@@ -602,10 +592,15 @@ export class OrderRepository {
       CANCELLED: 0,
       REFUNDED: 0,
     }
-
-    ordersByStatus.forEach(item => {
-      statusCounts[item.status as OrderStatus] = item._count.status
-    })
+    
+    // Process groupBy results
+    const ordersByStatus = await ordersByStatusResult
+    for (const row of ordersByStatus) {
+      const status = row.status as OrderStatus
+      if (status in statusCounts) {
+        statusCounts[status] = parseInt(row.count, 10)
+      }
+    }
 
     return {
       totalOrders,

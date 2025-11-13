@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { RecommendationEngine } from '@/lib/recommendation-engine'
+import { db } from '@/lib/db'
+import { products, userInterests } from '@/lib/db/schema'
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
 
 export async function GET(
   request: NextRequest,
@@ -14,105 +17,75 @@ export async function GET(
     const resolvedParams = await params
     const userId = resolvedParams.userId === 'guest' ? undefined : resolvedParams.userId
 
-    const { PrismaClient } = require('@prisma/client')
-    const prisma = new PrismaClient()
-
-    let products
+    let productsResult
     let totalCount
 
     if (!userId || userId === 'guest') {
       // For guest users, show newest products first
-      products = await prisma.product.findMany({
-        where: {
-          isActive: true
-        },
-        include: {
-          category: true,
-          brand: true
-        },
-        orderBy: [
-          {
-            createdAt: 'desc'
-          },
-          {
-            popularityScore: 'desc'
-          }
-        ],
-        skip: offset,
-        take: limit
-      })
+      productsResult = await db.select()
+        .from(products)
+        .where(eq(products.isActive, true))
+        .orderBy(
+          desc(products.createdAt),
+          desc(products.popularityScore)
+        )
+        .limit(limit)
+        .offset(offset)
 
-      totalCount = await prisma.product.count({
-        where: {
-          isActive: true
-        }
+      const totalCountResult = await db.select({
+        count: sql<number>`count(*)`
       })
+      .from(products)
+      .where(eq(products.isActive, true))
+
+      totalCount = totalCountResult[0]?.count || 0
     } else {
       // For logged-in users, get personalized recommendations based on their interests
-      const userInterests = await prisma.userInterest.findMany({
-        where: { userId },
-        include: { category: true },
-        orderBy: { interestScore: 'desc' }
-      })
+      const userInterestsResult = await db.select()
+        .from(userInterests)
+        .where(eq(userInterests.userId, userId))
+        .orderBy(desc(userInterests.interestScore))
 
       // Get products from interested categories first, then others
-      const categoryIds = userInterests.map(i => i.categoryId)
+      const categoryIds = userInterestsResult.map(i => i.categoryId)
       
       if (categoryIds.length > 0) {
         // Get products from interested categories first
-        products = await prisma.product.findMany({
-          where: {
-            isActive: true
-          },
-          include: {
-            category: true,
-            brand: true
-          },
-          orderBy: [
-            {
-              popularityScore: 'desc'
-            },
-            {
-              createdAt: 'desc'
-            }
-          ],
-          skip: offset,
-          take: limit
-        })
+        productsResult = await db.select()
+          .from(products)
+          .where(eq(products.isActive, true))
+          .orderBy(
+            desc(products.popularityScore),
+            desc(products.createdAt)
+          )
+          .limit(limit)
+          .offset(offset)
       } else {
         // Fallback to popular products for users without interests
-        products = await prisma.product.findMany({
-          where: {
-            isActive: true
-          },
-          include: {
-            category: true,
-            brand: true
-          },
-          orderBy: [
-            {
-              popularityScore: 'desc'
-            },
-            {
-              createdAt: 'desc'
-            }
-          ],
-          skip: offset,
-          take: limit
-        })
+        productsResult = await db.select()
+          .from(products)
+          .where(eq(products.isActive, true))
+          .orderBy(
+            desc(products.popularityScore),
+            desc(products.createdAt)
+          )
+          .limit(limit)
+          .offset(offset)
       }
 
-      totalCount = await prisma.product.count({
-        where: {
-          isActive: true
-        }
+      const totalCountResult = await db.select({
+        count: sql<number>`count(*)`
       })
+      .from(products)
+      .where(eq(products.isActive, true))
+
+      totalCount = totalCountResult[0]?.count || 0
     }
 
     // Transform to recommendation format
-    const result = products.map(product => ({
+    const result = productsResult.map(product => ({
       productId: product.id,
-      score: product.popularityScore,
+      score: parseFloat(product.popularityScore || '0'),
       reason: 'personalized',
       product
     }))

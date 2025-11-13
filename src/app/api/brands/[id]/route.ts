@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { brands, products } from '@/lib/db/schema'
+import { eq, and, or, ne, sql } from 'drizzle-orm'
 import { createAdminHandler } from '@/lib/auth-middleware'
 
 interface RouteParams {
@@ -14,34 +16,29 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const brand = await prisma.brand.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        logo: true,
-        website: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: {
-            products: true
-          }
-        }
-      }
+    const brand = await db.query.brands.findFirst({
+      where: eq(brands.id, id)
     })
 
-    if (!brand) {
-      return NextResponse.json(
-        { error: 'Brand not found' },
-        { status: 404 }
-      )
+    if (brand) {
+      // Get product count
+      const [productCount] = await db.select({ count: sql<number>`count(*)` })
+        .from(products)
+        .where(eq(products.brandId, id))
+
+      const brandWithCount = {
+        ...brand,
+        _count: {
+          products: Number(productCount?.count || 0)
+        }
+      }
+      return NextResponse.json(brandWithCount)
     }
 
-    return NextResponse.json(brand)
+    return NextResponse.json(
+      { error: 'Brand not found' },
+      { status: 404 }
+    )
 
   } catch (error) {
     return NextResponse.json(
@@ -80,9 +77,11 @@ export const PUT = createAdminHandler<RouteParams>(async (
     }
 
     // Check if brand exists
-    const existingBrand = await prisma.brand.findUnique({
-      where: { id: params.id }
-    })
+    const existingBrandResult = await db.select()
+      .from(brands)
+      .where(eq(brands.id, params.id))
+      .limit(1)
+    const existingBrand = existingBrandResult[0] || null
 
     if (!existingBrand) {
       return NextResponse.json(
@@ -92,19 +91,19 @@ export const PUT = createAdminHandler<RouteParams>(async (
     }
 
     // Check if name or slug conflicts with other brands
-    const conflictingBrand = await prisma.brand.findFirst({
-      where: {
-        AND: [
-          { id: { not: params.id } },
-          {
-            OR: [
-              { name: name },
-              { slug: slug }
-            ]
-          }
-        ]
-      }
-    })
+    const conflictingBrandResult = await db.select()
+      .from(brands)
+      .where(
+        and(
+          ne(brands.id, params.id),
+          or(
+            eq(brands.name, name),
+            eq(brands.slug, slug)
+          )
+        )
+      )
+      .limit(1)
+    const conflictingBrand = conflictingBrandResult[0] || null
 
     if (conflictingBrand) {
       return NextResponse.json(
@@ -113,37 +112,34 @@ export const PUT = createAdminHandler<RouteParams>(async (
       )
     }
 
-    const updatedBrand = await prisma.brand.update({
-      where: { id: params.id },
-      data: {
+    const [updatedBrand] = await db.update(brands)
+      .set({
         name,
         slug,
         description: description || null,
         logo: logo || null,
         website: website || null,
-        isActive: isActive ?? true
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        logo: true,
-        website: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: {
-            products: true
-          }
-        }
+        isActive: isActive ?? true,
+        updatedAt: new Date()
+      })
+      .where(eq(brands.id, params.id))
+      .returning()
+
+    // Get product count
+    const [productCount] = await db.select({ count: sql<number>`count(*)` })
+      .from(products)
+      .where(eq(products.brandId, params.id))
+
+    const brandWithCount = {
+      ...updatedBrand,
+      _count: {
+        products: Number(productCount?.count || 0)
       }
-    })
+    }
 
     return NextResponse.json({
       message: 'Brand updated successfully',
-      brand: updatedBrand
+      brand: brandWithCount
     })
 
   } catch (error) {
@@ -178,30 +174,31 @@ export const DELETE = createAdminHandler<RouteParams>(async (
     const params = await paramsPromise
 
     // Check if brand exists and has products
-    const brandWithProducts = await prisma.brand.findUnique({
-      where: { id: params.id },
-      include: {
-        _count: {
-          select: {
-            products: true
-          }
-        }
-      }
-    })
+    const brandResult = await db.select()
+      .from(brands)
+      .where(eq(brands.id, params.id))
+      .limit(1)
+    const brandToDelete = brandResult[0] || null
 
-    if (!brandWithProducts) {
+    if (!brandToDelete) {
       return NextResponse.json(
         { error: 'Brand not found' },
         { status: 404 }
       )
     }
 
-    if (brandWithProducts._count.products > 0) {
+    // Get product count
+    const [productCount] = await db.select({ count: sql<number>`count(*)` })
+      .from(products)
+      .where(eq(products.brandId, params.id))
+    const productCountNum = Number(productCount?.count || 0)
+
+    if (productCountNum > 0) {
       // If brand has products, just deactivate it instead of deleting
-      const updatedBrand = await prisma.brand.update({
-        where: { id: params.id },
-        data: { isActive: false }
-      })
+      const [updatedBrand] = await db.update(brands)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(eq(brands.id, params.id))
+        .returning()
 
       return NextResponse.json({
         message: 'Brand deactivated successfully (has associated products)',
@@ -209,9 +206,9 @@ export const DELETE = createAdminHandler<RouteParams>(async (
       })
     } else {
       // If no products, safe to delete
-      const deletedBrand = await prisma.brand.delete({
-        where: { id: params.id }
-      })
+      const [deletedBrand] = await db.delete(brands)
+        .where(eq(brands.id, params.id))
+        .returning()
 
       return NextResponse.json({
         message: 'Brand deleted successfully',

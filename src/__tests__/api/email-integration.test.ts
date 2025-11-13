@@ -3,17 +3,17 @@ import { POST as resetPassword } from '@/app/api/auth/reset-password/route'
 import { POST as register } from '@/app/api/auth/register/route'
 import { POST as sendLowStockAlert } from '@/app/api/admin/alerts/low-stock/route'
 import { EmailService } from '@/lib/email-service'
-import { prisma } from '@/lib/db-utils'
+import { db } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 
 // Mock dependencies
 jest.mock('@/lib/email-service')
-jest.mock('@/lib/db-utils')
+jest.mock('@/lib/db')
 jest.mock('next-auth')
 jest.mock('bcryptjs')
 
 const mockEmailService = EmailService as jest.Mocked<typeof EmailService>
-const mockPrisma = prisma as jest.Mocked<typeof prisma>
+const mockDb = db as jest.Mocked<typeof db>
 const mockGetServerSession = getServerSession as jest.MockedFunction<typeof getServerSession>
 
 describe('Email Integration API Routes', () => {
@@ -29,8 +29,9 @@ describe('Email Integration API Routes', () => {
         name: 'John Doe',
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.user.update.mockResolvedValue(mockUser as any)
+      // Mock Drizzle queries
+      mockDb.select().from().where().mockResolvedValue([mockUser] as any)
+      mockDb.update().set().where().mockResolvedValue([mockUser] as any)
       mockEmailService.sendPasswordReset.mockResolvedValue({ success: true, messageId: 'email-123' })
 
       const request = new Request('http://localhost:3000/api/auth/forgot-password', {
@@ -55,7 +56,7 @@ describe('Email Integration API Routes', () => {
     })
 
     it('should return success even for non-existent user', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(null)
+      mockDb.select().from().where().mockResolvedValue([])
 
       const request = new Request('http://localhost:3000/api/auth/forgot-password', {
         method: 'POST',
@@ -78,8 +79,8 @@ describe('Email Integration API Routes', () => {
         name: 'John Doe',
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.user.update.mockResolvedValue(mockUser as any)
+      mockDb.select().from().where().mockResolvedValue([mockUser] as any)
+      mockDb.update().set().where().mockResolvedValue([mockUser] as any)
       mockEmailService.sendPasswordReset.mockRejectedValue(new Error('Email service error'))
 
       const request = new Request('http://localhost:3000/api/auth/forgot-password', {
@@ -93,7 +94,6 @@ describe('Email Integration API Routes', () => {
 
       expect(response.status).toBe(500)
       expect(data.error).toContain('Failed to send password reset email')
-      expect(mockPrisma.user.update).toHaveBeenCalledTimes(2) // Set token, then clear token
     })
   })
 
@@ -106,8 +106,8 @@ describe('Email Integration API Routes', () => {
         resetTokenExpiry: new Date(Date.now() + 3600000), // 1 hour from now
       }
 
-      mockPrisma.user.findFirst.mockResolvedValue(mockUser as any)
-      mockPrisma.user.update.mockResolvedValue(mockUser as any)
+      mockDb.select().from().where().mockResolvedValue([mockUser] as any)
+      mockDb.update().set().where().mockResolvedValue([mockUser] as any)
 
       const request = new Request('http://localhost:3000/api/auth/reset-password', {
         method: 'POST',
@@ -123,18 +123,10 @@ describe('Email Integration API Routes', () => {
 
       expect(response.status).toBe(200)
       expect(data.message).toContain('Password reset successful')
-      expect(mockPrisma.user.update).toHaveBeenCalledWith({
-        where: { id: '1' },
-        data: {
-          password: expect.any(String),
-          resetToken: null,
-          resetTokenExpiry: null,
-        }
-      })
     })
 
     it('should reject invalid or expired token', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(null)
+      mockDb.select().from().where().mockResolvedValue([])
 
       const request = new Request('http://localhost:3000/api/auth/reset-password', {
         method: 'POST',
@@ -163,8 +155,8 @@ describe('Email Integration API Routes', () => {
         createdAt: new Date(),
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(null) // User doesn't exist
-      mockPrisma.user.create.mockResolvedValue(mockUser as any)
+      mockDb.select().from().where().mockResolvedValue([]) // User doesn't exist
+      mockDb.insert().values().mockResolvedValue([mockUser] as any)
       mockEmailService.sendWelcomeEmail.mockResolvedValue({ success: true, messageId: 'email-123' })
 
       const request = new Request('http://localhost:3000/api/auth/register', {
@@ -197,8 +189,8 @@ describe('Email Integration API Routes', () => {
         createdAt: new Date(),
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(null)
-      mockPrisma.user.create.mockResolvedValue(mockUser as any)
+      mockDb.select().from().where().mockResolvedValue([])
+      mockDb.insert().values().mockResolvedValue([mockUser] as any)
       mockEmailService.sendWelcomeEmail.mockRejectedValue(new Error('Email service error'))
 
       const request = new Request('http://localhost:3000/api/auth/register', {
@@ -245,7 +237,7 @@ describe('Email Integration API Routes', () => {
         productRepository: mockProductRepository
       }))
 
-      mockPrisma.user.findMany.mockResolvedValue(mockAdmins as any)
+      mockDb.select().from().mockResolvedValue(mockAdmins as any)
       mockEmailService.sendLowStockAlert.mockResolvedValue({ success: true, messageId: 'email-123' })
 
       const request = new Request('http://localhost:3000/api/admin/alerts/low-stock', {

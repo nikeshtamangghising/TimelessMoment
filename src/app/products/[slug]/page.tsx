@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
+import dynamicImport from 'next/dynamic'
 import MainLayout from '@/components/layout/main-layout'
 import { productRepository } from '@/lib/product-repository'
 import { Product } from '@/types'
@@ -7,20 +8,40 @@ import { generateProductMetadata } from '@/lib/metadata'
 import { generateProductSchema, generateBreadcrumbSchema, combineSchemas } from '@/lib/structured-data'
 import StructuredData from '@/components/seo/structured-data'
 import ProductTabs from '@/components/products/product-tabs'
-import RecommendedProducts from '@/components/products/recommended-products'
 import ProductImageGallery from '@/components/products/product-image-gallery'
 import ProductInfoSection from '@/components/products/product-info-section'
 import MobileProductActions from '@/components/products/mobile-product-actions'
 import ScrollToTop from '@/components/ui/scroll-to-top'
+
+// Force dynamic rendering to avoid DYNAMIC_SERVER_USAGE errors
+export const dynamic = 'force-dynamic'
+
+// Lazy load RecommendedProducts to improve initial page load
+const RecommendedProducts = dynamicImport(
+  () => import('@/components/products/recommended-products'),
+  { 
+    loading: () => (
+      <div className="mt-12">
+        <h2 className="text-2xl font-bold mb-6">You May Also Like</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="animate-pulse">
+              <div className="bg-gray-200 aspect-square rounded-lg mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+)
 
 interface ProductPageProps {
   params: Promise<{
     slug: string
   }>
 }
-
-// Force dynamic rendering to avoid DYNAMIC_SERVER_USAGE errors
-export const dynamic = 'force-dynamic'
 
 async function getProduct(slug: string): Promise<Product | null> {
   try {

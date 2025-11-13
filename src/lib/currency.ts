@@ -5,7 +5,7 @@
 export const CURRENCIES = {
   NPR: {
     code: 'NPR',
-    symbol: '₹',
+    symbol: 'NPR',
     name: 'Nepalese Rupee',
     locale: 'ne-NP',
     defaultLocale: 'en-NP', // fallback for better number formatting
@@ -38,7 +38,7 @@ export const CURRENCIES = {
   },
   INR: {
     code: 'INR',
-    symbol: '₹',
+    symbol: 'INR',
     name: 'Indian Rupee',
     locale: 'en-IN',
     decimals: 2,
@@ -201,7 +201,7 @@ export function convertCurrencySync(
  */
 export function parseCurrency(currencyString: string): number {
   // Remove currency symbols and spaces, then parse
-  const cleaned = currencyString.replace(/[₹$€£,\s]/g, '')
+  const cleaned = currencyString.replace(/(NPR|INR|₹|\$|€|£|,|\s)/g, '')
   return parseFloat(cleaned) || 0
 }
 

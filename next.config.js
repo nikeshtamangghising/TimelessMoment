@@ -20,6 +20,12 @@ const nextConfig = {
         fs: false,
         net: false,
         tls: false,
+        perf_hooks: false,
+        crypto: false,
+        stream: false,
+        util: false,
+        buffer: false,
+        events: false,
       };
       
       // Optimize chunk loading

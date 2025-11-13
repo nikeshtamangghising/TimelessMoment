@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { users, orders } from '@/lib/db/schema'
+import { eq, desc } from 'drizzle-orm'
 import { createAdminHandler } from '@/lib/auth-middleware'
 
 export const GET = createAdminHandler(async (request: NextRequest) => {
@@ -7,10 +9,13 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
     const { searchParams } = new URL(request.url)
     const format = (searchParams.get('format') || 'csv').toLowerCase()
 
-    const customers = await prisma.user.findMany({
-      where: { role: 'CUSTOMER' },
-      include: {
-        orders: { select: { total: true, createdAt: true } },
+    const customers = await db.query.users.findMany({
+      where: eq(users.role, 'CUSTOMER'),
+      with: {
+        orders: {
+          columns: { total: true, createdAt: true },
+          orderBy: desc(orders.createdAt)
+        }
       }
     })
 
@@ -20,9 +25,12 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
     ]
 
     const rows = customers.map(c => {
-      const totalOrders = c.orders.length
-      const totalSpent = c.orders.reduce((sum, o) => sum + o.total, 0)
-      const lastOrder = c.orders.sort((a,b) => +b.createdAt - +a.createdAt)[0]
+      const totalOrders = c.orders?.length || 0
+      const totalSpent = (c.orders || []).reduce((sum, o) => {
+        const orderTotal = parseFloat(o.total.toString())
+        return sum + orderTotal
+      }, 0)
+      const lastOrder = c.orders && c.orders.length > 0 ? c.orders[0] : null
       return [
         c.id,
         c.name || '',

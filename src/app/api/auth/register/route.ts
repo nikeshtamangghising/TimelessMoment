@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { users } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { createUserSchema } from '@/lib/validations'
 import { EmailService } from '@/lib/email-service'
 
@@ -20,9 +22,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    })
+    const existingUserResult = await db.select().from(users).where(eq(users.email, email)).limit(1)
+    const existingUser = existingUserResult[0] || null
 
     if (existingUser) {
       return NextResponse.json(
@@ -35,20 +36,17 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Create user
-    const user = await prisma.user.create({
-      data: {
+    const [user] = await db.insert(users).values({
         email: validatedData.email,
         name: validatedData.name,
         password: hashedPassword,
-        role: validatedData.role,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true,
-      }
+      role: validatedData.role || 'CUSTOMER',
+    }).returning({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      role: users.role,
+      createdAt: users.createdAt,
     })
 
     // Send welcome email

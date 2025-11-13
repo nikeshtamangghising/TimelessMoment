@@ -33,7 +33,7 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [limit] = useState(8)
+  const [limit] = useState(4) // Reduced initial limit for faster load
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
 
@@ -66,18 +66,14 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
     // Set up timeout (10 seconds)
     const timeoutId = setTimeout(() => {
       controller.abort()
-    }, 10000)
+    }, 20000)
 
     try {
       const params = new URLSearchParams({ userId, limit: String(limit), offset: String(nextOffset) })
       const response = await fetch(`/api/products/${productId}/mixed-recommendations?${params.toString()}`, { 
         signal: controller.signal,
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
+        cache: 'force-cache', // Use aggressive caching for instant feel
+        priority: 'low', // Lower priority since it's below the fold
       })
 
       clearTimeout(timeoutId)
@@ -91,6 +87,30 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
         // Deduplicate on client side as a safety net
         const deduped = data.data.filter(item => !seenIdsRef.current.has(item.productId))
         deduped.forEach(item => seenIdsRef.current.add(item.productId))
+
+        // Fallback: if nothing came back on first page, load popular
+        if (deduped.length === 0 && nextOffset === 0) {
+          try {
+            const popularRes = await fetch(`/api/recommendations/guest/popular?page=1&limit=${limit}`, { cache: 'force-cache', priority: 'low' as any })
+            if (popularRes.ok) {
+              const popularData = await popularRes.json()
+              if (Array.isArray(popularData.products)) {
+                const popularItems = popularData.products.map((p: any) => ({
+                  productId: p.product.id,
+                  score: p.score || 0,
+                  reason: 'popular',
+                  product: p.product,
+                }))
+                setItems(popularItems)
+                setHasMore(false)
+                setOffset(0)
+                retryCountRef.current = 0
+                return
+              }
+            }
+          } catch {}
+        }
+
         setItems(prev => append ? [...prev, ...deduped] : deduped)
         setHasMore(deduped.length >= limit)
         setOffset(nextOffset)
@@ -102,13 +122,51 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
       clearTimeout(timeoutId)
       
       if (err.name === 'AbortError') {
-        // Check if it was a timeout or manual abort
-        if (fetchingRef.current) {
-          setError('Request timed out. Please check your connection and try again.')
-        }
+        // Graceful fallback on timeout: try popular once
+        try {
+          const popularRes = await fetch(`/api/recommendations/guest/popular?page=1&limit=${limit}`, { cache: 'force-cache', priority: 'low' as any })
+          if (popularRes.ok) {
+            const popularData = await popularRes.json()
+            if (Array.isArray(popularData.products)) {
+              const popularItems = popularData.products.map((p: any) => ({
+                productId: p.product.id,
+                score: p.score || 0,
+                reason: 'popular',
+                product: p.product,
+              }))
+              setItems(popularItems)
+              setHasMore(false)
+              setOffset(0)
+              retryCountRef.current = 0
+              return
+            }
+          }
+        } catch {}
+        setHasMore(false)
         return
       }
       
+      // On error, attempt popular fallback as well
+      try {
+        const popularRes = await fetch(`/api/recommendations/guest/popular?page=1&limit=${limit}`, { cache: 'force-cache', priority: 'low' as any })
+        if (popularRes.ok) {
+          const popularData = await popularRes.json()
+          if (Array.isArray(popularData.products)) {
+            const popularItems = popularData.products.map((p: any) => ({
+              productId: p.product.id,
+              score: p.score || 0,
+              reason: 'popular',
+              product: p.product,
+            }))
+            setItems(popularItems)
+            setHasMore(false)
+            setOffset(0)
+            retryCountRef.current = 0
+            return
+          }
+        }
+      } catch {}
+
       const errorMessage = err instanceof Error ? err.message : 'Failed to load recommendations'
       setError(errorMessage)
       console.error('Error fetching recommendations:', err)
@@ -180,28 +238,9 @@ export default function RecommendedProducts({ productId, className = '' }: Recom
     )
   }
 
-  // Show error state if no items loaded
+  // Hide error UI when no items loaded (graceful fallback)
   if (error && items.length === 0) {
-    return (
-      <div className={`${className}`}>
-        <h2 className="text-3xl font-bold text-gray-900 mb-8">You May Also Like</h2>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
-          <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-red-800 mb-2">
-            Unable to load recommendations
-          </h3>
-          <p className="text-red-600 mb-6">{error}</p>
-          <Button 
-            onClick={retry} 
-            variant="outline"
-            className="border-red-300 text-red-700 hover:bg-red-50"
-          >
-            <ArrowPathIcon className="h-4 w-4 mr-2" />
-            Try Again
-          </Button>
-        </div>
-      </div>
-    )
+    return null
   }
 
   // Don't render if no items and no error (empty state)

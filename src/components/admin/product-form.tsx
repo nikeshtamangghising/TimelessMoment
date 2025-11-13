@@ -304,7 +304,7 @@ export default function ProductForm({ product, onSubmit, loading }: ProductFormP
 
   // Currency options
   const currencyOptions = [
-    { value: 'NPR', label: 'NPR (₹)' },
+    { value: 'NPR', label: 'NPR' },
     { value: 'USD', label: 'USD ($)' },
     { value: 'EUR', label: 'EUR (€)' },
     { value: 'GBP', label: 'GBP (£)' },

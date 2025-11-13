@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { users, orders } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 
 const convertGuestOrderSchema = z.object({
@@ -24,9 +26,11 @@ export async function POST(request: NextRequest) {
     const { guestEmail, name, password } = parse.data
 
     // Check if user already exists with this email
-    const existingUser = await prisma.user.findUnique({
-      where: { email: guestEmail }
-    })
+    const existingUserResult = await db.select()
+      .from(users)
+      .where(eq(users.email, guestEmail))
+      .limit(1)
+    const existingUser = existingUserResult[0] || null
 
     if (existingUser) {
       return NextResponse.json(
@@ -36,12 +40,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if there are guest orders for this email
-    const guestOrders = await prisma.order.findMany({
-      where: {
-        guestEmail,
-        isGuestOrder: true
-      }
-    })
+    const guestOrders = await db.select()
+      .from(orders)
+      .where(and(
+        eq(orders.guestEmail, guestEmail),
+        eq(orders.isGuestOrder, true)
+      ))
 
     if (guestOrders.length === 0) {
       return NextResponse.json(
@@ -53,28 +57,28 @@ export async function POST(request: NextRequest) {
     // Create new user account
     const hashedPassword = await bcrypt.hash(password, 12)
     
-    const newUser = await prisma.user.create({
-      data: {
+    const [newUser] = await db.insert(users)
+      .values({
         email: guestEmail,
         name,
         password: hashedPassword,
         role: 'CUSTOMER'
-      }
-    })
+      })
+      .returning()
 
     // Convert guest orders to user orders
-    await prisma.order.updateMany({
-      where: {
-        guestEmail,
-        isGuestOrder: true
-      },
-      data: {
+    await db.update(orders)
+      .set({
         userId: newUser.id,
         isGuestOrder: false,
         guestEmail: null,
-        guestName: null
-      }
-    })
+        guestName: null,
+        updatedAt: new Date()
+      })
+      .where(and(
+        eq(orders.guestEmail, guestEmail),
+        eq(orders.isGuestOrder, true)
+      ))
 
     return NextResponse.json({
       success: true,

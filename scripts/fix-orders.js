@@ -1,29 +1,33 @@
-import { prisma } from '../src/lib/db'
+import { db } from '../src/lib/db'
+import { orders, users } from '../src/lib/db/schema'
+import { eq, isNull, or } from 'drizzle-orm'
 
 async function fixExistingOrders() {
   console.log('🔧 Fixing existing orders with missing fields...')
 
   try {
     // Get all orders that are missing payment IDs or shipping addresses
-    const ordersToFix = await prisma.order.findMany({
-      where: {
-        OR: [
-          { stripePaymentIntentId: null },
-          {
-            shippingAddress: {
-              equals: null
-            }
-          }
-        ]
-      },
-      include: {
-        user: true,
-      },
-    })
+    const ordersToFix = await db.select().from(orders).where(
+      or(
+        isNull(orders.stripePaymentIntentId),
+        isNull(orders.shippingAddress)
+      )
+    );
 
-    console.log(`📊 Found ${ordersToFix.length} orders that need fixing`)
+    // Get users data for reference
+    const usersData = await db.select().from(users);
+    
+    // Add user data to orders
+    const ordersWithUsers = ordersToFix.map(order => {
+      return {
+        ...order,
+        user: usersData.find(user => user.id === order.userId) || null
+      };
+    });
 
-    for (const order of ordersToFix) {
+    console.log(`📊 Found ${ordersWithUsers.length} orders that need fixing`)
+
+    for (const order of ordersWithUsers) {
       console.log(`\n--- Fixing Order ${order.id} ---`)
 
       // Generate a fake payment ID based on order ID and creation date
@@ -40,14 +44,11 @@ async function fixExistingOrders() {
       }
 
       try {
-        await prisma.order.update({
-          where: { id: order.id },
-          data: {
-            stripePaymentIntentId: fakePaymentId,
-            shippingAddress: defaultShippingAddress,
-            updatedAt: new Date(),
-          },
-        })
+        await db.update(orders).set({
+          stripePaymentIntentId: fakePaymentId,
+          shippingAddress: defaultShippingAddress,
+          updatedAt: new Date(),
+        }).where(eq(orders.id, order.id));
 
         console.log(`✅ Fixed order ${order.id}`)
         console.log(`   - Payment ID: ${fakePaymentId}`)
@@ -62,8 +63,6 @@ async function fixExistingOrders() {
 
   } catch (error) {
     console.error('❌ Error fixing orders:', error)
-  } finally {
-    await prisma.$disconnect()
   }
 }
 

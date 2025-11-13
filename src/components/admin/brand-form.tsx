@@ -87,7 +87,13 @@ export default function BrandForm({ brand, onSubmit, loading }: BrandFormProps) 
     }
 
     try {
-      await onSubmit(formData)
+      // Clean up empty strings to null for optional fields
+      const submitData = {
+        ...formData,
+        logo: formData.logo?.trim() || null,
+        website: formData.website?.trim() || null,
+      }
+      await onSubmit(submitData)
     } catch (error) {
       // Handle form submission errors
     }
@@ -156,13 +162,13 @@ export default function BrandForm({ brand, onSubmit, loading }: BrandFormProps) 
           </CardHeader>
           <CardContent className="space-y-4">
             <Input
-              label="Logo URL"
+              label="Logo URL (Optional)"
               type="url"
               value={formData.logo}
               onChange={(e) => handleInputChange('logo', e.target.value)}
               error={errors.logo}
               placeholder="https://example.com/logo.png"
-              helperText="URL to the brand's logo image"
+              helperText="Optional: URL to the brand's logo image"
             />
 
             {formData.logo && (
@@ -192,13 +198,13 @@ export default function BrandForm({ brand, onSubmit, loading }: BrandFormProps) 
             )}
 
             <Input
-              label="Website URL"
+              label="Website URL (Optional)"
               type="url"
               value={formData.website}
               onChange={(e) => handleInputChange('website', e.target.value)}
               error={errors.website}
               placeholder="https://brand-website.com"
-              helperText="Official brand website"
+              helperText="Optional: Official brand website"
             />
           </CardContent>
         </Card>

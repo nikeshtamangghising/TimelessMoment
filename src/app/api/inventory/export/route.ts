@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminHandler } from '@/lib/auth-middleware'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { products } from '@/lib/db/schema'
+import { eq, and, gt, lte, asc } from 'drizzle-orm'
 
 export const GET = createAdminHandler(async (request: NextRequest) => {
   try {
@@ -12,28 +14,29 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
     let products: any[] = []
 
     if (type === 'lowstock') {
-      products = await prisma.product.findMany({
-        where: {
-          isActive: true,
-          inventory: { gt: 0, lte: threshold },
-        },
-        include: { category: true },
-        orderBy: { inventory: 'asc' },
+      products = await db.query.products.findMany({
+        where: and(
+          eq(products.isActive, true),
+          gt(products.inventory, 0),
+          lte(products.inventory, threshold)
+        ),
+        with: { category: true },
+        orderBy: asc(products.inventory)
       })
     } else if (type === 'outofstock') {
-      products = await prisma.product.findMany({
-        where: {
-          isActive: true,
-          inventory: 0,
-        },
-        include: { category: true },
-        orderBy: { name: 'asc' },
+      products = await db.query.products.findMany({
+        where: and(
+          eq(products.isActive, true),
+          eq(products.inventory, 0)
+        ),
+        with: { category: true },
+        orderBy: asc(products.name)
       })
     } else {
-      products = await prisma.product.findMany({
-        where: { isActive: true },
-        include: { category: true },
-        orderBy: { name: 'asc' },
+      products = await db.query.products.findMany({
+        where: eq(products.isActive, true),
+        with: { category: true },
+        orderBy: asc(products.name)
       })
     }
 

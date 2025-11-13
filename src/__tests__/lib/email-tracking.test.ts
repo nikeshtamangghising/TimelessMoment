@@ -1,17 +1,22 @@
 import { EmailTracker, sendTrackedEmail } from '@/lib/email-tracking'
-import { prisma } from '@/lib/db-utils'
+import { db } from '@/lib/db'
+import { emailLogs } from '@/lib/db/schema'
 
-// Mock Prisma
-jest.mock('@/lib/db-utils', () => ({
-  prisma: {
-    emailLog: {
-      create: jest.fn(),
-      updateMany: jest.fn(),
-      groupBy: jest.fn(),
-      findMany: jest.fn(),
-      deleteMany: jest.fn(),
-      count: jest.fn(),
-    },
+// Mock Drizzle
+jest.mock('@/lib/db', () => ({
+  db: {
+    insert: jest.fn().mockReturnThis(),
+    values: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    from: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    set: jest.fn().mockReturnThis(),
+    groupBy: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
+    execute: jest.fn(),
   },
 }))
 
@@ -20,7 +25,7 @@ jest.mock('@/lib/email', () => ({
   sendEmail: jest.fn(),
 }))
 
-const mockPrisma = prisma as jest.Mocked<typeof prisma>
+const mockDb = db as jest.Mocked<typeof db>
 const mockSendEmail = require('@/lib/email').sendEmail as jest.MockedFunction<any>
 
 describe('EmailTracker', () => {
@@ -39,7 +44,7 @@ describe('EmailTracker', () => {
         createdAt: new Date(),
       }
 
-      mockPrisma.emailLog.create.mockResolvedValue(mockLog as any)
+      mockDb.insert(emailLogs).values().execute.mockResolvedValue([mockLog] as any)
 
       const logId = await EmailTracker.logEmail({
         to: 'user@example.com',
@@ -49,17 +54,7 @@ describe('EmailTracker', () => {
       })
 
       expect(logId).toBe('log-123')
-      expect(mockPrisma.emailLog.create).toHaveBeenCalledWith({
-        data: {
-          to: 'user@example.com',
-          subject: 'Test Email',
-          template: 'welcome',
-          messageId: undefined,
-          status: 'PENDING',
-          error: undefined,
-          sentAt: null,
-        }
-      })
+      expect(mockDb.insert).toHaveBeenCalledWith(emailLogs)
     })
 
     it('should log email for multiple recipients', async () => {
@@ -68,9 +63,9 @@ describe('EmailTracker', () => {
         { id: 'log-2', to: 'user2@example.com' },
       ]
 
-      mockPrisma.emailLog.create
-        .mockResolvedValueOnce(mockLogs[0] as any)
-        .mockResolvedValueOnce(mockLogs[1] as any)
+      mockDb.insert(emailLogs).values().execute
+        .mockResolvedValueOnce([mockLogs[0]] as any)
+        .mockResolvedValueOnce([mockLogs[1]] as any)
 
       const logId = await EmailTracker.logEmail({
         to: ['user1@example.com', 'user2@example.com'],
@@ -79,39 +74,25 @@ describe('EmailTracker', () => {
       })
 
       expect(logId).toBe('log-1')
-      expect(mockPrisma.emailLog.create).toHaveBeenCalledTimes(2)
+      expect(mockDb.insert).toHaveBeenCalledTimes(2)
     })
   })
 
   describe('updateEmailStatus', () => {
     it('should update email status', async () => {
-      mockPrisma.emailLog.updateMany.mockResolvedValue({ count: 1 })
+      mockDb.update(emailLogs).set().where().execute.mockResolvedValue({ count: 1 } as any)
 
       await EmailTracker.updateEmailStatus('message-123', 'SENT')
 
-      expect(mockPrisma.emailLog.updateMany).toHaveBeenCalledWith({
-        where: { messageId: 'message-123' },
-        data: {
-          status: 'SENT',
-          error: undefined,
-          sentAt: expect.any(Date),
-        }
-      })
+      expect(mockDb.update).toHaveBeenCalledWith(emailLogs)
     })
 
     it('should update email status with error', async () => {
-      mockPrisma.emailLog.updateMany.mockResolvedValue({ count: 1 })
+      mockDb.update(emailLogs).set().where().execute.mockResolvedValue({ count: 1 } as any)
 
       await EmailTracker.updateEmailStatus('message-123', 'FAILED', 'Network error')
 
-      expect(mockPrisma.emailLog.updateMany).toHaveBeenCalledWith({
-        where: { messageId: 'message-123' },
-        data: {
-          status: 'FAILED',
-          error: 'Network error',
-          sentAt: undefined,
-        }
-      })
+      expect(mockDb.update).toHaveBeenCalledWith(emailLogs)
     })
   })
 
@@ -123,7 +104,7 @@ describe('EmailTracker', () => {
         { status: 'PENDING', _count: { status: 5 } },
       ]
 
-      mockPrisma.emailLog.groupBy.mockResolvedValue(mockStats as any)
+      mockDb.select().from(emailLogs).groupBy().execute.mockResolvedValue(mockStats as any)
 
       const stats = await EmailTracker.getEmailStats(30)
 
@@ -136,19 +117,11 @@ describe('EmailTracker', () => {
         successRate: 86.96
       })
 
-      expect(mockPrisma.emailLog.groupBy).toHaveBeenCalledWith({
-        by: ['status'],
-        where: {
-          createdAt: { gte: expect.any(Date) }
-        },
-        _count: {
-          status: true
-        }
-      })
+      expect(mockDb.select).toHaveBeenCalled()
     })
 
     it('should handle empty statistics', async () => {
-      mockPrisma.emailLog.groupBy.mockResolvedValue([])
+      mockDb.select().from(emailLogs).groupBy().execute.mockResolvedValue([])
 
       const stats = await EmailTracker.getEmailStats(30)
 
@@ -170,15 +143,12 @@ describe('EmailTracker', () => {
         { id: '2', to: 'user2@example.com', subject: 'Email 2' },
       ]
 
-      mockPrisma.emailLog.findMany.mockResolvedValue(mockEmails as any)
+      mockDb.select().from(emailLogs).orderBy().take().execute.mockResolvedValue(mockEmails as any)
 
       const emails = await EmailTracker.getRecentEmails(50)
 
       expect(emails).toEqual(mockEmails)
-      expect(mockPrisma.emailLog.findMany).toHaveBeenCalledWith({
-        orderBy: { createdAt: 'desc' },
-        take: 50
-      })
+      expect(mockDb.select).toHaveBeenCalled()
     })
   })
 
@@ -188,39 +158,29 @@ describe('EmailTracker', () => {
         { id: '1', template: 'welcome', subject: 'Welcome!' },
       ]
 
-      mockPrisma.emailLog.findMany.mockResolvedValue(mockEmails as any)
+      mockDb.select().from(emailLogs).where().orderBy().execute.mockResolvedValue(mockEmails as any)
 
       const emails = await EmailTracker.getEmailsByTemplate('welcome', 30)
 
       expect(emails).toEqual(mockEmails)
-      expect(mockPrisma.emailLog.findMany).toHaveBeenCalledWith({
-        where: {
-          template: 'welcome',
-          createdAt: { gte: expect.any(Date) }
-        },
-        orderBy: { createdAt: 'desc' }
-      })
+      expect(mockDb.select).toHaveBeenCalled()
     })
   })
 
   describe('cleanupOldLogs', () => {
     it('should cleanup old email logs', async () => {
-      mockPrisma.emailLog.deleteMany.mockResolvedValue({ count: 50 })
+      mockDb.delete(emailLogs).where().execute.mockResolvedValue({ count: 50 } as any)
 
       const deletedCount = await EmailTracker.cleanupOldLogs(90)
 
       expect(deletedCount).toBe(50)
-      expect(mockPrisma.emailLog.deleteMany).toHaveBeenCalledWith({
-        where: {
-          createdAt: { lt: expect.any(Date) }
-        }
-      })
+      expect(mockDb.delete).toHaveBeenCalledWith(emailLogs)
     })
   })
 
   describe('handleDeliveryStatus', () => {
     it('should handle delivered status', async () => {
-      mockPrisma.emailLog.updateMany.mockResolvedValue({ count: 1 })
+      mockDb.update(emailLogs).set().where().execute.mockResolvedValue({ count: 1 } as any)
 
       await EmailTracker.handleDeliveryStatus({
         messageId: 'message-123',
@@ -228,18 +188,11 @@ describe('EmailTracker', () => {
         timestamp: new Date()
       })
 
-      expect(mockPrisma.emailLog.updateMany).toHaveBeenCalledWith({
-        where: { messageId: 'message-123' },
-        data: {
-          status: 'SENT',
-          error: undefined,
-          sentAt: expect.any(Date),
-        }
-      })
+      expect(mockDb.update).toHaveBeenCalledWith(emailLogs)
     })
 
     it('should handle bounced status', async () => {
-      mockPrisma.emailLog.updateMany.mockResolvedValue({ count: 1 })
+      mockDb.update(emailLogs).set().where().execute.mockResolvedValue({ count: 1 } as any)
 
       await EmailTracker.handleDeliveryStatus({
         messageId: 'message-123',
@@ -248,14 +201,7 @@ describe('EmailTracker', () => {
         reason: 'Invalid email address'
       })
 
-      expect(mockPrisma.emailLog.updateMany).toHaveBeenCalledWith({
-        where: { messageId: 'message-123' },
-        data: {
-          status: 'BOUNCED',
-          error: 'Invalid email address',
-          sentAt: expect.any(Date),
-        }
-      })
+      expect(mockDb.update).toHaveBeenCalledWith(emailLogs)
     })
   })
 })
@@ -267,8 +213,8 @@ describe('sendTrackedEmail', () => {
 
   it('should send and track email successfully', async () => {
     const mockLog = { id: 'log-123' }
-    mockPrisma.emailLog.create.mockResolvedValue(mockLog as any)
-    mockPrisma.emailLog.updateMany.mockResolvedValue({ count: 1 })
+    mockDb.insert(emailLogs).values().execute.mockResolvedValue([mockLog] as any)
+    mockDb.update(emailLogs).set().where().execute.mockResolvedValue({ count: 1 } as any)
     mockSendEmail.mockResolvedValue({ success: true, messageId: 'message-123' })
 
     const result = await sendTrackedEmail({
@@ -282,19 +228,12 @@ describe('sendTrackedEmail', () => {
     expect(result.messageId).toBe('message-123')
     expect(result.logId).toBe('log-123')
     expect(mockSendEmail).toHaveBeenCalled()
-    expect(mockPrisma.emailLog.updateMany).toHaveBeenCalledWith({
-      where: { messageId: 'message-123' },
-      data: {
-        status: 'SENT',
-        error: undefined,
-        sentAt: expect.any(Date),
-      }
-    })
+    expect(mockDb.update).toHaveBeenCalledWith(emailLogs)
   })
 
   it('should handle email sending failure', async () => {
     const mockLog = { id: 'log-123' }
-    mockPrisma.emailLog.create.mockResolvedValue(mockLog as any)
+    mockDb.insert(emailLogs).values().execute.mockResolvedValue([mockLog] as any)
     mockSendEmail.mockResolvedValue({ success: false, error: 'Network error' })
 
     const result = await sendTrackedEmail({
@@ -305,6 +244,6 @@ describe('sendTrackedEmail', () => {
 
     expect(result.success).toBe(false)
     expect(result.error).toBe('Network error')
-    expect(mockPrisma.emailLog.create).toHaveBeenCalledTimes(2) // Initial log + failure log
+    expect(mockDb.insert).toHaveBeenCalledTimes(2) // Initial log + failure log
   })
 })

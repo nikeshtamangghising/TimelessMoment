@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { products, inventoryAdjustments } from '@/lib/db/schema'
+import { eq, sql } from 'drizzle-orm'
 import { createAdminHandler } from '@/lib/auth-middleware'
 import { inventoryAdjustmentSchema } from '@/lib/validations'
 
@@ -21,10 +23,15 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
     const { productId, quantity, type, reason } = validationResult.data
 
     // Get the current product
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-      select: { id: true, name: true, inventory: true }
+    const productResult = await db.select({
+      id: products.id,
+      name: products.name,
+      inventory: products.inventory
     })
+      .from(products)
+      .where(eq(products.id, productId))
+      .limit(1)
+    const product = productResult[0] || null
 
     if (!product) {
       return NextResponse.json(
@@ -42,22 +49,31 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
       )
     }
 
-    // Update product inventory
-    const updatedProduct = await prisma.product.update({
-      where: { id: productId },
-      data: { inventory: newInventory },
-      select: { id: true, name: true, inventory: true }
-    })
+    // Update product inventory and create adjustment in transaction
+    const [updatedProduct, adjustment] = await db.transaction(async (tx) => {
+      const [updated] = await tx.update(products)
+        .set({ 
+          inventory: newInventory,
+          updatedAt: new Date()
+        })
+        .where(eq(products.id, productId))
+        .returning({
+          id: products.id,
+          name: products.name,
+          inventory: products.inventory
+        })
 
-    // Create inventory adjustment record
-    const adjustment = await prisma.inventoryAdjustment.create({
-      data: {
-        productId,
-        quantity,
-        type,
-        reason,
-        createdBy: 'admin' // In a real app, this would be the user ID
-      }
+      const [adj] = await tx.insert(inventoryAdjustments)
+        .values({
+          productId,
+          quantity,
+          changeType: type,
+          reason: reason || null,
+          userId: null // In a real app, this would be the user ID
+        })
+        .returning()
+
+      return [updated, adj]
     })
 
     return NextResponse.json({
@@ -66,7 +82,7 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
         id: adjustment.id,
         productId: adjustment.productId,
         quantity: adjustment.quantity,
-        type: adjustment.type,
+        type: adjustment.changeType,
         reason: adjustment.reason,
         createdAt: adjustment.createdAt
       },

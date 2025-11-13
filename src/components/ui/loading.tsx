@@ -13,14 +13,14 @@ export default function Loading({ size = 'md', className }: LoadingProps) {
   }
 
   return (
-    <div className={clsx('animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600', sizes[size], className)} />
+    <div className={clsx('animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600', sizes[size], className)} suppressHydrationWarning />
   )
 }
 
 export function LoadingPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
+    <div className="min-h-screen flex items-center justify-center" suppressHydrationWarning>
+      <div className="text-center" suppressHydrationWarning>
         <Loading size="lg" />
         <p className="mt-4 text-gray-600">Loading...</p>
       </div>

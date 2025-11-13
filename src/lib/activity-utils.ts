@@ -1,4 +1,12 @@
-import { ActivityType } from '@prisma/client';
+// Define activity types as constants since we're not using Prisma enums
+export const ActivityType = {
+  VIEW: 'VIEW',
+  CART_ADD: 'CART_ADD',
+  FAVORITE: 'FAVORITE',
+  ORDER: 'ORDER',
+} as const;
+
+export type ActivityType = typeof ActivityType[keyof typeof ActivityType];
 
 // Get or generate session ID for guest users
 export function getSessionId(): string {

@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { generateInvoicePDF } from '@/lib/invoice-generator'
-
-// Import Prisma client - adjust path as needed
-const { PrismaClient } = require('@prisma/client')
-const prisma = new PrismaClient()
+import { db } from '@/lib/db'
+import { orders, users, orderItems, products, categories } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 
 export async function GET(
   request: NextRequest,
@@ -25,14 +24,14 @@ export async function GET(
     const orderId = resolvedParams.id
 
     // Fetch order with all necessary relations
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      include: {
+    const orderResult = await db.query.orders.findFirst({
+      where: eq(orders.id, orderId),
+      with: {
         user: true,
         items: {
-          include: {
+          with: {
             product: {
-              include: {
+              with: {
                 category: true
               }
             }
@@ -41,7 +40,7 @@ export async function GET(
       }
     })
 
-    if (!order) {
+    if (!orderResult) {
       return NextResponse.json(
         { error: 'Order not found' },
         { status: 404 }
@@ -50,7 +49,7 @@ export async function GET(
 
     // Check if user has access to this order
     const isAdmin = session.user.role === 'ADMIN'
-    const isOwner = order.userId === session.user.id
+    const isOwner = orderResult.userId === session.user.id
 
     if (!isAdmin && !isOwner) {
       return NextResponse.json(
@@ -61,7 +60,7 @@ export async function GET(
 
     // Generate PDF invoice
     console.log('Generating PDF invoice for order:', orderId)
-    const invoiceBuffer = await generateInvoicePDF(order)
+    const invoiceBuffer = await generateInvoicePDF(orderResult)
     console.log('Invoice buffer generated, size:', invoiceBuffer.length)
     
     if (!invoiceBuffer || invoiceBuffer.length === 0) {
@@ -72,7 +71,7 @@ export async function GET(
     // Set response headers for PDF download
     const headers = new Headers()
     headers.set('Content-Type', 'application/pdf')
-    headers.set('Content-Disposition', `attachment; filename="invoice-${order.id.slice(-8).toUpperCase()}.pdf"`)
+    headers.set('Content-Disposition', `attachment; filename="invoice-${orderResult.id.slice(-8).toUpperCase()}.pdf"`)
     headers.set('Content-Length', invoiceBuffer.length.toString())
     headers.set('Cache-Control', 'no-cache')
 

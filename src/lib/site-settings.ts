@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { db } from './db';
+import { siteSettings } from './db/schema';
+import { eq, sql } from 'drizzle-orm';
 
 export interface ShippingSettings {
   freeShippingThreshold: number
@@ -61,18 +61,14 @@ export async function getSiteSettings(): Promise<SiteSettingsData> {
   }
 
   try {
-    const settings = await prisma.siteSettings.findMany({
-      where: {
-        isPublic: true,
-      },
-    })
+    const settings = await db.select().from(siteSettings).where(eq(siteSettings.isPublic, true));
 
     // Build settings object from database
-    const siteSettings: SiteSettingsData = { ...DEFAULT_SETTINGS }
+    const siteSettingsData: SiteSettingsData = { ...DEFAULT_SETTINGS }
 
     for (const setting of settings) {
       const keys = setting.key.split('.')
-      let current: any = siteSettings
+      let current: any = siteSettingsData
 
       // Navigate to the nested property
       for (let i = 0; i < keys.length - 1; i++) {
@@ -104,10 +100,10 @@ export async function getSiteSettings(): Promise<SiteSettingsData> {
     }
 
     // Cache the results
-    settingsCache = siteSettings
+    settingsCache = siteSettingsData
     cacheExpiry = new Date(Date.now() + CACHE_DURATION)
 
-    return siteSettings
+    return siteSettingsData
   } catch (error) {
     console.error('Error fetching site settings:', error)
     return DEFAULT_SETTINGS
@@ -123,19 +119,19 @@ export async function updateSiteSetting(key: string, value: any, type: 'STRING' 
   try {
     const stringValue = type === 'JSON' ? JSON.stringify(value) : String(value)
     
-    await prisma.siteSettings.upsert({
-      where: { key },
-      update: {
+    await db.insert(siteSettings).values({
+      key,
+      value: stringValue,
+      type,
+      isPublic: true,
+      category: key.includes('shipping') ? 'shipping' : 'general',
+      description: `Default ${key.replace('.', ' ')} setting`,
+    }).onConflictDoUpdate({
+      target: siteSettings.key,
+      set: {
         value: stringValue,
         type,
         updatedAt: new Date(),
-      },
-      create: {
-        key,
-        value: stringValue,
-        type,
-        isPublic: true,
-        category: key.includes('shipping') ? 'shipping' : 'general',
       },
     })
 
@@ -151,9 +147,9 @@ export async function updateSiteSetting(key: string, value: any, type: 'STRING' 
 // Initialize default settings if they don't exist
 export async function initializeDefaultSettings() {
   try {
-    const existingSettings = await prisma.siteSettings.count()
+    const existingSettings = await db.select({ count: sql`COUNT(*)` }).from(siteSettings);
     
-    if (existingSettings === 0) {
+    if (existingSettings[0].count === 0) {
       const settingsToCreate = [
         // Shipping settings
         { key: 'shipping.freeShippingThreshold', value: '999', type: 'NUMBER' as const, category: 'shipping' },
@@ -176,12 +172,10 @@ export async function initializeDefaultSettings() {
       ]
 
       for (const setting of settingsToCreate) {
-        await prisma.siteSettings.create({
-          data: {
-            ...setting,
-            isPublic: true,
-            description: `Default ${setting.key.replace('.', ' ')} setting`,
-          },
+        await db.insert(siteSettings).values({
+          ...setting,
+          isPublic: true,
+          description: `Default ${setting.key.replace('.', ' ')} setting`,
         })
       }
     }

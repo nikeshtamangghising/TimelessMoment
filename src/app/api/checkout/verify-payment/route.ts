@@ -3,10 +3,13 @@ export const runtime = 'nodejs'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getPaymentGatewayManager, parseESewaCallback, parseKhaltiCallback } from '@/lib/payment-gateways'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { orderRepository } from '@/lib/order-repository'
 import { productRepository } from '@/lib/product-repository'
 import { EmailService } from '@/lib/email-service'
 import { orderProcessingService } from '@/lib/order-processing-service'
+import { orders, orderItems, products, inventoryAdjustments } from '@/lib/db/schema'
+import { eq, sql } from 'drizzle-orm'
 
 // In-memory storage for session data (in production, use Redis or database)
 const paymentSessions = new Map<string, any>()
@@ -141,48 +144,71 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // Create the order using a batched transaction (PgBouncer-safe)
-      const createOrderQuery = prisma.order.create({
-        data: {
-          id: orderId,
-          userId: orderSessionData.userId,
-          total: orderSessionData.amount,
-          status: 'PENDING',
-          stripePaymentIntentId: transactionId,
-          shippingAddress: orderSessionData.shippingAddress ? orderSessionData.shippingAddress : undefined,
-          items: {
-            create: orderSessionData.cartItems.map((item: any) => ({
+      // Create the order using Drizzle transaction
+      const order = await db.transaction(async (tx) => {
+        // Create the order
+        const [newOrder] = await tx.insert(orders)
+          .values({
+            id: orderId,
+            userId: orderSessionData.userId || null,
+            total: orderSessionData.amount.toString(),
+            status: 'PENDING',
+            stripePaymentIntentId: transactionId,
+            shippingAddress: orderSessionData.shippingAddress ? orderSessionData.shippingAddress : null,
+            isGuestOrder: !orderSessionData.userId,
+            guestEmail: orderSessionData.guestEmail || null,
+            guestName: (orderSessionData as any).guestName || null,
+          })
+          .returning()
+
+        // Create order items
+        const itemsData = orderSessionData.cartItems.map((item: any) => ({
+          orderId: newOrder.id,
+          productId: item.productId,
+          quantity: item.quantity,
+          price: item.price.toString(),
+        }))
+        
+        const orderItemsResult = await tx.insert(orderItems)
+          .values(itemsData)
+          .returning()
+
+        // Update inventory and create adjustments
+        for (const item of orderSessionData.cartItems) {
+          // Update product inventory
+          await tx.update(products)
+            .set({
+              inventory: sql`${products.inventory} - ${item.quantity}`,
+              updatedAt: new Date()
+            })
+            .where(eq(products.id, item.productId))
+
+          // Create inventory adjustment
+          await tx.insert(inventoryAdjustments)
+            .values({
               productId: item.productId,
-              quantity: item.quantity,
-              price: item.price,
-            })),
-          },
-        },
-        include: {
-          items: { include: { product: true } },
-          user: true,
-        },
+              quantity: -item.quantity,
+              changeType: 'ORDER_PLACED',
+              reason: `Inventory reduced for order ${orderId}`,
+              referenceId: orderId,
+            })
+        }
+
+        // Fetch complete order with relations
+        const completeOrder = await db.query.orders.findFirst({
+          where: eq(orders.id, newOrder.id),
+          with: {
+            items: {
+              with: {
+                product: true
+              }
+            },
+            user: true
+          }
+        })
+
+        return completeOrder
       })
-
-      const inventoryQueries = orderSessionData.cartItems.flatMap((item: any) => [
-        prisma.product.update({
-          where: { id: item.productId },
-          data: { inventory: { decrement: item.quantity } },
-        }),
-        prisma.inventoryAdjustment.create({
-          data: {
-            productId: item.productId,
-            quantity: -item.quantity,
-            type: 'ORDER_PLACED',
-            reason: `Inventory reduced for order`,
-          },
-        }),
-      ])
-
-      const [order] = await prisma.$transaction([
-        createOrderQuery,
-        ...inventoryQueries,
-      ]) as [any, ...any[]]
 
       // Start order processing workflow
       try {
@@ -193,7 +219,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Send confirmation email if user email is available
-      const userEmail = orderSessionData.guestEmail || order.user?.email
+      const userEmail = orderSessionData.guestEmail || (order.user as any)?.email
       if (userEmail) {
         try {
           await EmailService.sendOrderConfirmation({

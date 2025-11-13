@@ -50,8 +50,8 @@ export default function ProductBadges({
 
   // Sale Badge (if there's a discount)
   // Note: This would require discountPrice field in the future
-  // For now, we'll add placeholder logic
-  if (Math.random() > 0.8) { // 20% chance for demo
+  // For now, we'll check if product has a discount price
+  if (product.discountPrice && product.discountPrice < product.price) {
     badges.push(
       <div key="sale" className="absolute top-2 left-2 z-10">
         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-red-500 text-white shadow-sm">
@@ -206,7 +206,8 @@ export function SocialProofIndicators({ product, className = '' }: SocialProofPr
 
   // People Viewing
   if ((product.viewCount || 0) > 50) {
-    const viewing = Math.floor(Math.random() * 12) + 3 // Random 3-15 people viewing
+    // Use a deterministic number based on viewCount to avoid hydration mismatch
+    const viewing = Math.min(Math.floor((product.viewCount || 0) / 10) + 3, 15)
     indicators.push(
       <div key="viewing" className="text-xs text-gray-600">
         👀 {viewing} people are viewing this right now

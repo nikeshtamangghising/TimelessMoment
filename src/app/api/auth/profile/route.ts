@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAuthHandler } from '@/lib/auth-middleware'
 import { getServerSession } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { users } from '@/lib/db/schema'
+import { eq, and, ne } from 'drizzle-orm'
 
 const updateProfileSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -29,12 +31,12 @@ export const PUT = createAuthHandler(async (request: NextRequest) => {
     const { name, email } = parse.data
 
     // Check if email is already taken by another user
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-      select: { id: true },
-    })
+    const existingUserResult = await db.select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.email, email), ne(users.id, session.user.id)))
+      .limit(1)
 
-    if (existingUser && existingUser.id !== session.user.id) {
+    if (existingUserResult.length > 0) {
       return NextResponse.json(
         { error: 'Email address is already in use' },
         { status: 400 }
@@ -42,19 +44,19 @@ export const PUT = createAuthHandler(async (request: NextRequest) => {
     }
 
     // Update user profile
-    const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
-      data: {
+    const [updatedUser] = await db.update(users)
+      .set({
         name,
         email,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-      },
-    })
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, session.user.id))
+      .returning({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        createdAt: users.createdAt,
+      })
 
     return NextResponse.json({
       message: 'Profile updated successfully',

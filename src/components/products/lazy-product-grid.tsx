@@ -94,11 +94,11 @@ export default function LazyProductGrid({
     }
   }
 
-  // Show initial loading skeleton
+  // Show minimal initial loading skeleton for premium feel
   if (loading && products.length === 0) {
     return (
       <div className={className}>
-        <ProductGridSkeleton count={pageSize} />
+        <ProductGridSkeleton count={Math.min(pageSize, 4)} />
       </div>
     )
   }

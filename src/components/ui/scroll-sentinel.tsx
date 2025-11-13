@@ -168,6 +168,7 @@ export default function ScrollSentinel({
       data-device-type={deviceType}
       role="presentation"
       tabIndex={-1}
+      suppressHydrationWarning
     />
   )
 }

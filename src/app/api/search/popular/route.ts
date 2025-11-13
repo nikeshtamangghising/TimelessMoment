@@ -1,30 +1,32 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { products, categories } from '@/lib/db/schema'
+import { eq, gt, desc } from 'drizzle-orm'
 
 export async function GET() {
   try {
     // Get popular search terms from actual product data
     // This could be enhanced with actual search analytics in the future
-    const popularProducts = await prisma.product.findMany({
-      select: {
+    const popularProducts = await db.query.products.findMany({
+      columns: {
         name: true,
+      },
+      with: {
         category: {
-          select: {
+          columns: {
             name: true
           }
         }
       },
-      where: {
-        isActive: true,
-        inventory: {
-          gt: 0
-        }
-      },
+      where: (products, { eq, gt, and }) => and(
+        eq(products.isActive, true),
+        gt(products.inventory, 0)
+      ),
       orderBy: [
-        { popularityScore: 'desc' },
-        { viewCount: 'desc' }
+        desc(products.popularityScore),
+        desc(products.viewCount)
       ],
-      take: 20
+      limit: 20
     })
 
     // Extract search terms from product names and categories

@@ -75,11 +75,11 @@ export default function TabbedRecommendations() {
   const apiEndpoint = currentTab ? `/api/recommendations/${userId}/${currentTab.endpoint}` : null
 
   return (
-    <section className="py-3 bg-white">
-      <div className="max-w-full mx-auto px-2 sm:px-3 lg:px-4">
+    <section className="py-3 bg-white" suppressHydrationWarning>
+      <div className="max-w-full mx-auto px-2 sm:px-3 lg:px-4" suppressHydrationWarning>
         {/* Tab Navigation */}
-        <div className="flex justify-center mb-3">
-          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-full max-w-md">
+        <div className="flex justify-center mb-3" suppressHydrationWarning>
+          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-full max-w-md" suppressHydrationWarning>
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -89,6 +89,7 @@ export default function TabbedRecommendations() {
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
+                suppressHydrationWarning
               >
                 <span className="text-xs sm:text-sm">{tab.icon}</span>
                 <span className="hidden xs:inline text-xs sm:text-sm">{tab.label}</span>
@@ -107,13 +108,10 @@ export default function TabbedRecommendations() {
           <RecommendationGrid
             key={activeTab} // Force re-render when tab changes
             apiEndpoint={apiEndpoint}
-
             compact={true}
           />
         )}
       </div>
-
-
     </section>
   )
 }

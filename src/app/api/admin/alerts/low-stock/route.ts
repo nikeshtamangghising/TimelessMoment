@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { EmailService } from '@/lib/email-service'
-import { prisma } from '@/lib/db-utils'
+import { db } from '@/lib/db-utils'
+import { products, users } from '@/lib/db/schema'
+import { eq, and, lte, asc, sql } from 'drizzle-orm'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,25 +21,25 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { threshold = 5 } = body // Default threshold of 5 items
 
-    // Get products with low stock using direct Prisma query
-    const products = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        inventory: { lte: threshold }
-      },
-      include: {
+    // Get products with low stock
+    const productsResult = await db.query.products.findMany({
+      where: and(
+        eq(products.isActive, true),
+        lte(products.inventory, threshold)
+      ),
+      with: {
         category: {
-          select: {
+          columns: {
             name: true
           }
         }
       },
-      take: 100,
-      orderBy: { inventory: 'asc' }
+      limit: 100,
+      orderBy: asc(products.inventory)
     })
     
     const lowStockProducts = {
-      data: products
+      data: productsResult
     }
 
     if (lowStockProducts.data.length === 0) {
@@ -49,10 +51,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Get all admin users
-    const adminUsers = await prisma.user.findMany({
-      where: { role: 'ADMIN' },
-      select: { email: true }
-    })
+    const adminUsers = await db.select({ email: users.email })
+      .from(users)
+      .where(eq(users.role, 'ADMIN'))
 
     const adminEmails = adminUsers.map(admin => admin.email)
 
@@ -110,31 +111,32 @@ export async function GET() {
 
     const threshold = 5
 
-    // Get products with low stock using direct Prisma query
-    const products = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        inventory: { lte: threshold }
-      },
-      include: {
+    // Get products with low stock
+    const productsResult = await db.query.products.findMany({
+      where: and(
+        eq(products.isActive, true),
+        lte(products.inventory, threshold)
+      ),
+      with: {
         category: {
-          select: {
+          columns: {
             name: true
           }
         }
       },
-      take: 100,
-      orderBy: { inventory: 'asc' }
+      limit: 100,
+      orderBy: asc(products.inventory)
     })
     
     const lowStockProducts = {
-      data: products
+      data: productsResult
     }
 
     // Get admin count
-    const adminCount = await prisma.user.count({
-      where: { role: 'ADMIN' }
-    })
+    const adminCountResult = await db.select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(eq(users.role, 'ADMIN'))
+    const adminCount = Number(adminCountResult[0]?.count || 0)
 
     return NextResponse.json({
       threshold,

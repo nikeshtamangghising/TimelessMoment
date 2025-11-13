@@ -12,7 +12,7 @@ export default function TrustSignals() {
     {
       icon: TruckIcon,
       title: "Free Shipping",
-      description: "On orders over ₹ 7,500 within Nepal"
+      description: "On orders over NPR 7,500 within Nepal"
     },
     {
       icon: ArrowPathIcon,

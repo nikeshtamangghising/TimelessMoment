@@ -145,9 +145,9 @@ describe('Cart Utils', () => {
 
   describe('formatPrice', () => {
     it('should format price as NPR currency', () => {
-      expect(formatPrice(99.99)).toBe('₹ 99.99')
-      expect(formatPrice(1234.56)).toBe('₹ 1,234.56')
-      expect(formatPrice(0)).toBe('₹ 0.00')
+      expect(formatPrice(99.99)).toBe('NPR 99.99')
+      expect(formatPrice(1234.56)).toBe('NPR 1,234.56')
+      expect(formatPrice(0)).toBe('NPR 0.00')
     })
   })
 

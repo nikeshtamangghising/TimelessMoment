@@ -41,7 +41,7 @@ export default function RecommendationGrid({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch initial data
+  // Fetch initial data with optimized settings
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -50,9 +50,15 @@ export default function RecommendationGrid({
         
         const url = new URL(apiEndpoint, window.location.origin)
         url.searchParams.set('page', '1')
-        url.searchParams.set('limit', pageSize.toString())
+        // Reduce initial load to 4 products for ultra-fast rendering
+        url.searchParams.set('limit', '4')
+        url.searchParams.set('_ts', Date.now().toString())
 
-        const response = await fetch(url.toString())
+        // Use fetch with priority hint for faster loading
+        const response = await fetch(url.toString(), {
+          priority: 'high', // Hint to browser for faster loading
+          cache: 'no-store',
+        })
         
         if (!response.ok) {
           throw new Error(`Failed to fetch recommendations: ${response.status}`)
@@ -70,9 +76,9 @@ export default function RecommendationGrid({
           data: products,
           pagination: {
             page: 1,
-            limit: pageSize,
+            limit: 4, // Ultra-fast initial load
             total: data.total || products.length,
-            totalPages: data.pagination?.totalPages || Math.ceil((data.total || products.length) / pageSize)
+            totalPages: data.pagination?.totalPages || Math.ceil((data.total || products.length) / 4)
           }
         }
         
@@ -101,7 +107,20 @@ export default function RecommendationGrid({
   }, [])
 
   if (loading) {
-    return <ProductGridSkeleton count={pageSize} />
+    // Show minimal inline skeleton for ultra-fast feel
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-6 gap-2 sm:gap-3" suppressHydrationWarning>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="animate-pulse" suppressHydrationWarning>
+            <div className="bg-gray-200 aspect-square rounded-lg mb-2" suppressHydrationWarning></div>
+            <div className="space-y-1" suppressHydrationWarning>
+              <div className="h-3 bg-gray-200 rounded w-3/4" suppressHydrationWarning></div>
+              <div className="h-3 bg-gray-200 rounded w-1/2" suppressHydrationWarning></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    )
   }
 
   if (error) {
@@ -134,14 +153,13 @@ export default function RecommendationGrid({
   const { products, loadingMore, hasMore, retry } = infiniteScrollResult
 
   return (
-    <div className={className}>
+    <div className={className} suppressHydrationWarning>
       {/* Products Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-6 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-6 gap-2 sm:gap-3" suppressHydrationWarning>
         {products.map((product) => (
           <ProductCard
             key={product.id}
             product={product}
-
             compact={compact}
           />
         ))}
@@ -149,7 +167,7 @@ export default function RecommendationGrid({
 
       {/* Loading More Indicator */}
       {loadingMore && (
-        <div className="mt-6">
+        <div className="mt-6" suppressHydrationWarning>
           <ProductGridSkeleton count={6} />
         </div>
       )}
@@ -166,8 +184,8 @@ export default function RecommendationGrid({
 
       {/* End of Results */}
       {!hasMore && products.length > 0 && (
-        <div className="text-center py-6 mt-4">
-          <div className="inline-flex items-center gap-2 text-gray-500 bg-gray-50 px-4 py-2 rounded-full border">
+        <div className="text-center py-6 mt-4" suppressHydrationWarning>
+          <div className="inline-flex items-center gap-2 text-gray-500 bg-gray-50 px-4 py-2 rounded-full border" suppressHydrationWarning>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
@@ -180,7 +198,7 @@ export default function RecommendationGrid({
 
       {/* Error State for Additional Pages */}
       {infiniteScrollResult.error && (
-        <div className="text-center py-4 mt-4">
+        <div className="text-center py-4 mt-4" suppressHydrationWarning>
           <p className="text-red-600 text-sm mb-2">Failed to load more recommendations</p>
           <Button
             onClick={retry}

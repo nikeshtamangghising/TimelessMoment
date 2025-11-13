@@ -8,7 +8,9 @@ import { getCartSummaryWithSettings } from '@/lib/cart-utils'
 import { productRepository } from '@/lib/product-repository'
 import { orderRepository } from '@/lib/order-repository'
 import { EmailService } from '@/lib/email-service'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { orders, orderItems, products, inventoryAdjustments } from '@/lib/db/schema'
+import { eq, sql } from 'drizzle-orm'
 
 // In-memory storage for session data (in production, use Redis or database)
 const paymentSessions = new Map<string, any>()
@@ -147,34 +149,68 @@ export async function POST(request: NextRequest) {
           )
         }
 
-        // Create order and update inventory atomically (PgBouncer-safe)
-        const createOrderQuery = prisma.order.create({
-          data: {
-            id: orderId,
-            userId: actualUserId || null,
-            total: summary.total,
-            status: 'PENDING' as const,
-            stripePaymentIntentId: paymentResult.transactionId, // Store transaction ID here for now
-            shippingAddress: shippingAddress ? shippingAddress : undefined,
-            items: { create: orderItems },
-          },
-          include: {
-            items: { include: { product: true } },
-            user: true,
-          },
-        })
+        // Create order and update inventory atomically using Drizzle transaction
+        const order = await db.transaction(async (tx) => {
+          // Create the order
+          const [newOrder] = await tx.insert(orders)
+            .values({
+              id: orderId,
+              userId: actualUserId || null,
+              total: summary.total.toString(),
+              status: 'PENDING',
+              stripePaymentIntentId: paymentResult.transactionId,
+              shippingAddress: shippingAddress ? shippingAddress : null,
+              isGuestOrder: !actualUserId,
+              guestEmail: isGuest ? guestEmail : null,
+            })
+            .returning()
 
-        const inventoryQueries = cartItems.map((item) =>
-          prisma.product.update({
-            where: { id: item.productId },
-            data: { inventory: { decrement: item.quantity } },
+          // Create order items
+          const itemsData = orderItems.map(item => ({
+            orderId: newOrder.id,
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price.toString(),
+          }))
+          
+          await tx.insert(orderItems)
+            .values(itemsData)
+
+          // Update inventory for each item
+          for (const item of cartItems) {
+            await tx.update(products)
+              .set({
+                inventory: sql`${products.inventory} - ${item.quantity}`,
+                updatedAt: new Date()
+              })
+              .where(eq(products.id, item.productId))
+
+            // Create inventory adjustment
+            await tx.insert(inventoryAdjustments)
+              .values({
+                productId: item.productId,
+                quantity: -item.quantity,
+                changeType: 'ORDER_PLACED',
+                reason: `Inventory reduced for order ${orderId}`,
+                referenceId: orderId,
+              })
+          }
+
+          // Fetch complete order with relations
+          const completeOrder = await db.query.orders.findFirst({
+            where: eq(orders.id, newOrder.id),
+            with: {
+              items: {
+                with: {
+                  product: true
+                }
+              },
+              user: true
+            }
           })
-        )
 
-        const [order] = await prisma.$transaction([
-          createOrderQuery,
-          ...inventoryQueries,
-        ]) as [any, ...any[]]
+          return completeOrder
+        })
 
         // Send confirmation email if user email is available
         const userEmail = isGuest ? guestEmail : token?.email

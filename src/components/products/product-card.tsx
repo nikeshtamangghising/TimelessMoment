@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { useFavorites } from "@/hooks/use-favorites";
 import { createViewTracker } from "@/lib/activity-tracker";
+import { getSessionId } from "@/lib/activity-utils";
 import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/currency";
 import { ProductWithCategory } from "@/types";
 interface ProductCardProps {
@@ -32,8 +33,9 @@ function ProductCard({
     if (!trackViews || !cardRef.current) return;
 
     // Generate a session ID for guest users if no user is logged in
+    // Use getSessionId() utility which handles session storage properly
     const sessionId = !session?.user?.id
-      ? `guest_${Date.now()}_${Math.random()}`
+      ? getSessionId()
       : undefined;
 
     const observer = createViewTracker(session?.user?.id, sessionId);
@@ -92,14 +94,16 @@ function ProductCard({
       tabIndex={0}
       onKeyDown={handleKeyDown}
       onClick={handleCardClick}
+      suppressHydrationWarning
     >
-      <div className="relative">
-        <div className="aspect-square w-full overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 cursor-pointer relative rounded-t-2xl">
+      <div className="relative" suppressHydrationWarning>
+        <div className="aspect-square w-full overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 cursor-pointer relative rounded-t-2xl" suppressHydrationWarning>
           {!isImageLoaded && (
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-300 animate-pulse">
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-300 animate-pulse" suppressHydrationWarning>
               <div
                 className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"
                 style={{ animationDelay: "0.5s", animationDuration: "2s" }}
+                suppressHydrationWarning
               />
             </div>
           )}
@@ -115,6 +119,7 @@ function ProductCard({
             onLoad={() => setIsImageLoaded(true)}
             sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
             draggable={false}
+            suppressHydrationWarning
           />
 
           {/* Favorite Button */}
@@ -123,6 +128,7 @@ function ProductCard({
               onClick={handleFavoriteClick}
               disabled={isFavoriteLoading}
               className="absolute top-4 right-4 z-10 p-2.5 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 border border-white/20"
+              suppressHydrationWarning
             >
               <svg
                 className={`w-5 h-5 transition-all duration-300 ${
@@ -133,6 +139,7 @@ function ProductCard({
                 fill={isFavorited ? "currentColor" : "none"}
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                suppressHydrationWarning
               >
                 <path
                   strokeLinecap="round"
@@ -146,7 +153,7 @@ function ProductCard({
 
           {/* New Badge */}
           {product.isNewArrival && (
-            <div className="absolute top-4 left-4">
+            <div className="absolute top-4 left-4" suppressHydrationWarning>
               <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg backdrop-blur-sm border border-white/20">
                 ✨ NEW
               </span>
@@ -159,6 +166,7 @@ function ProductCard({
               className={`absolute ${
                 product.isNewArrival ? "top-14" : "top-4"
               } left-4`}
+              suppressHydrationWarning
             >
               <span
                 className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg backdrop-blur-sm border border-white/20 ${
@@ -166,6 +174,7 @@ function ProductCard({
                     ? "bg-red-500/90 text-white"
                     : "bg-amber-500/90 text-white"
                 }`}
+                suppressHydrationWarning
               >
                 {product.inventory === 0
                   ? "❌ Sold Out"
@@ -173,14 +182,12 @@ function ProductCard({
               </span>
             </div>
           )}
-
-
         </div>
       </div>
-      <CardContent className={compact ? "p-2" : "p-5"}>
+      <CardContent className={compact ? "p-2" : "p-5"} suppressHydrationWarning>
         {/* Category Badge */}
         {!compact && (
-          <div className="mb-3">
+          <div className="mb-3" suppressHydrationWarning>
             <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300 border border-blue-100">
               {product.category.name}
             </span>
@@ -194,6 +201,7 @@ function ProductCard({
               ? "text-sm font-semibold text-gray-900 line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors mb-1 leading-tight"
               : "text-base font-bold text-gray-900 line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors mb-3 leading-tight"
           }
+          suppressHydrationWarning
         >
           {product.name}
         </h3>
@@ -205,6 +213,7 @@ function ProductCard({
               ? "flex items-center flex-wrap gap-1 mb-2"
               : "flex items-center flex-wrap gap-3 mb-4"
           }
+          suppressHydrationWarning
         >
           {product.discountPrice ? (
             <>
@@ -214,6 +223,7 @@ function ProductCard({
                     ? "text-sm sm:text-base font-bold text-emerald-600"
                     : "text-base sm:text-lg font-bold text-emerald-600"
                 }
+                suppressHydrationWarning
               >
                 {formatCurrency(
                   product.discountPrice,
@@ -226,6 +236,7 @@ function ProductCard({
                     ? "text-xs sm:text-sm text-gray-500 line-through"
                     : "text-sm sm:text-base text-gray-500 line-through"
                 }
+                suppressHydrationWarning
               >
                 {formatCurrency(
                   product.price,
@@ -247,6 +258,7 @@ function ProductCard({
                   ? "text-sm sm:text-base font-bold text-slate-800"
                   : "text-base sm:text-lg font-bold text-slate-800"
               }
+              suppressHydrationWarning
             >
               {formatCurrency(
                 product.price,

@@ -121,17 +121,10 @@ export function useInfiniteScroll({
       }
       
       const url = buildFetchUrl(nextPage)
-      // Add cache busting parameter only for actual requests
-      const urlWithTimestamp = `${url}&_t=${Date.now()}`
       
-      const response = await fetch(urlWithTimestamp, {
+      const response = await fetch(url, {
         signal: controller.signal,
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
+        cache: 'default', // Use default caching for better performance
       })
 
       clearTimeout(timeoutId)

@@ -148,32 +148,32 @@ export default function ProductInfoSection({ product }: ProductInfoSectionProps)
       </div>
 
       {/* Price Section */}
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             {product.discountPrice ? (
               <>
-                <span className="text-4xl font-bold text-green-600">
+                <span className="text-3xl sm:text-4xl font-bold text-green-600">
                   {formatCurrency(product.discountPrice, (product as any).currency || DEFAULT_CURRENCY)}
                 </span>
                 <div className="flex flex-col">
-                  <span className="text-xl text-gray-500 line-through">
+                  <span className="text-lg sm:text-xl text-gray-500 line-through">
                     {formatCurrency(product.price, (product as any).currency || DEFAULT_CURRENCY)}
                   </span>
-                  <span className="text-sm bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium inline-block">
+                  <span className="text-xs sm:text-sm bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium inline-block mt-1 sm:mt-2">
                     {discountPercentage}% OFF
                   </span>
                 </div>
               </>
             ) : (
-              <span className="text-4xl font-bold text-indigo-600">
+              <span className="text-3xl sm:text-4xl font-bold text-indigo-600">
                 {formatCurrency(product.price, (product as any).currency || DEFAULT_CURRENCY)}
               </span>
             )}
           </div>
-          
-          <div className="text-right">
-            <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-white border border-gray-200">
+
+          <div className="sm:text-right">
+            <span className="inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-medium bg-white border border-gray-200">
               {categoryName}
             </span>
           </div>

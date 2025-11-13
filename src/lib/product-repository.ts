@@ -1,4 +1,6 @@
-import { prisma, Prisma } from './db'
+import { db } from './db'
+import { products, categories, brands, productAttributes } from './db/schema'
+import { eq, and, or, gte, lte, ne, desc, asc, sql, inArray, ilike } from 'drizzle-orm'
 import { 
   CreateProductInput, 
   UpdateProductInput, 
@@ -22,14 +24,14 @@ import {
 
 export class ProductRepository {
   async create(data: CreateProductInput): Promise<Product> {
-    const product = await prisma.product.create({
-      data: data as any,
-    })
+    const insertResult = await db.insert(products)
+      .values(data as any)
+      .returning();
 
     // Invalidate related caches
     await invalidateProducts()
 
-    return product
+    return insertResult[0] as Product;
   }
 
   async findById(id: string): Promise<Product | null> {
@@ -53,14 +55,14 @@ export class ProductRepository {
     // )
     
     // Direct database call without caching
-    return prisma.product.findUnique({
-      where: { id },
-      include: {
+    return await db.query.products.findFirst({
+      where: eq(products.id, id),
+      with: {
         category: true,
         brand: true,
         attributes: true,
       },
-    })
+    }) as Product | null
   }
 
   async findBySlug(slug: string): Promise<Product | null> {
@@ -83,15 +85,34 @@ export class ProductRepository {
     //   }
     // )
     
-    // Direct database call without caching
-    return prisma.product.findUnique({
-      where: { slug },
-      include: {
-        category: true,
-        brand: true,
-        attributes: true,
+    // Optimized query - only fetch essential relations for initial load
+    return await db.query.products.findFirst({
+      where: eq(products.slug, slug),
+      with: {
+        category: {
+          columns: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        },
+        brand: {
+          columns: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        },
+        attributes: {
+          columns: {
+            id: true,
+            name: true,
+            value: true
+          },
+          limit: 10 // Limit attributes to reduce data transfer
+        },
       },
-    })
+    }) as Product | null
   }
 
   async findBySku(sku: string): Promise<Product | null> {
@@ -115,13 +136,13 @@ export class ProductRepository {
     // )
     
     // Direct database call without caching
-    return prisma.product.findUnique({
-      where: { sku },
-      include: {
+    return await db.query.products.findFirst({
+      where: eq(products.sku, sku!),
+      with: {
         category: true,
         brand: true,
       },
-    })
+    }) as Product | null
   }
 
   async findMany(
@@ -177,44 +198,43 @@ export class ProductRepository {
     const skip = (page - 1) * limit
 
     const where = this.buildWhereClause(filters)
-
     const orderBy = this.buildOrderBy(filters.sort)
     
-    const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where,
-        skip,
-        take: limit,
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          description: true,
-          shortDescription: true,
-          price: true,
-          discountPrice: true,
-          currency: true,
-          images: true,
-          inventory: true,
-          lowStockThreshold: true,
-          popularityScore: true,
-          isActive: true,
-          isFeatured: true,
-          isNewArrival: true,
-          category: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
+    // Optimized: Fetch products and count in parallel, but only essential columns
+    const [productsResult, totalResult] = await Promise.all([
+      db.select({
+        id: products.id,
+        name: products.name,
+        slug: products.slug,
+        price: products.price,
+        discountPrice: products.discountPrice,
+        currency: products.currency,
+        images: products.images,
+        inventory: products.inventory,
+        popularityScore: products.popularityScore,
+        isActive: products.isActive,
+        isFeatured: products.isFeatured,
+        isNewArrival: products.isNewArrival,
+        category: {
+          id: categories.id,
+          name: categories.name,
         },
-        orderBy: orderBy as any,
-      }),
-      prisma.product.count({ where }),
+      })
+      .from(products)
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .where(where)
+      .orderBy(orderBy)
+      .limit(limit)
+      .offset(skip),
+      db.select({ count: sql<number>`count(*)` })
+        .from(products)
+        .where(where),
     ])
+    
+    const total = Number(totalResult[0]?.count || 0)
 
     return {
-      data: products as any,
+      data: productsResult as any,
       pagination: {
         page,
         limit,
@@ -225,46 +245,48 @@ export class ProductRepository {
   }
 
   async update(id: string, data: UpdateProductInput): Promise<Product> {
-    const product = await prisma.product.update({
-      where: { id },
-      data: data as any,
-    })
+    const updateResult = await db.update(products)
+      .set(data as any)
+      .where(eq(products.id, id))
+      .returning();
 
     // Invalidate related caches
     await invalidateProduct(id)
 
-    return product
+    return updateResult[0] as Product;
   }
 
   async delete(id: string): Promise<Product> {
-    const product = await prisma.product.delete({
-      where: { id },
-    })
+    const deleteResult = await db.delete(products)
+      .where(eq(products.id, id))
+      .returning();
 
     // Invalidate related caches
     await invalidateProduct(id)
 
-    return product
+    return deleteResult[0] as Product;
   }
 
   async updateInventory(id: string, quantity: number): Promise<Product> {
-    return prisma.product.update({
-      where: { id },
-      data: {
-        inventory: {
-          decrement: quantity,
-        },
-      },
-    })
+    const updateResult = await db.update(products)
+      .set({ inventory: sql`${products.inventory} - ${quantity}` })
+      .where(eq(products.id, id))
+      .returning();
+    
+    return updateResult[0] as Product;
   }
 
   async checkAvailability(id: string, quantity: number): Promise<boolean> {
-    const product = await prisma.product.findUnique({
-      where: { id },
-      select: { inventory: true, isActive: true },
+    const productResult = await db.select({ 
+      inventory: products.inventory, 
+      isActive: products.isActive 
     })
+    .from(products)
+    .where(eq(products.id, id))
+    .limit(1);
 
-    return product ? product.isActive && product.inventory >= quantity : false
+    const product = productResult[0];
+    return product ? product.isActive && product.inventory >= quantity : false;
   }
 
   async getCategories(): Promise<string[]> {
@@ -295,113 +317,105 @@ export class ProductRepository {
     // )
     
     // Direct database call without caching
-    const result = await prisma.category.findMany({
-      where: { 
-        isActive: true,
-        products: {
-          some: {
-            isActive: true
-          }
-        }
-      },
-      select: { name: true },
-      orderBy: { name: 'asc' }
-    })
+    const result = await db.selectDistinct({ name: categories.name })
+      .from(categories)
+      .innerJoin(products, eq(categories.id, products.categoryId))
+      .where(and(
+        eq(categories.isActive, true),
+        eq(products.isActive, true)
+      ))
+      .orderBy(asc(categories.name));
 
-    return result.map(item => item.name)
+    return result.map(item => item.name);
   }
 
   async getLowStockProducts(threshold: number = 10): Promise<Product[]> {
-    return prisma.product.findMany({
-      where: {
-        inventory: {
-          lte: threshold,
-        },
-        isActive: true,
-      },
-      orderBy: { inventory: 'asc' },
-    })
+    return await db.query.products.findMany({
+      where: and(
+        lte(products.inventory, threshold),
+        eq(products.isActive, true)
+      ),
+      orderBy: asc(products.inventory),
+    }) as Product[];
   }
 
   async getFeaturedProducts(limit: number = 8): Promise<Product[]> {
-    return prisma.product.findMany({
-      where: {
-        isFeatured: true,
-        isActive: true,
-      },
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-    })
+    return await db.query.products.findMany({
+      where: and(
+        eq(products.isFeatured, true),
+        eq(products.isActive, true)
+      ),
+      limit,
+      orderBy: desc(products.createdAt),
+    }) as Product[];
   }
 
   async getNewArrivals(limit: number = 8): Promise<Product[]> {
-    return prisma.product.findMany({
-      where: {
-        isNewArrival: true,
-        isActive: true,
-      },
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-    })
+    return await db.query.products.findMany({
+      where: and(
+        eq(products.isNewArrival, true),
+        eq(products.isActive, true)
+      ),
+      limit,
+      orderBy: desc(products.createdAt),
+    }) as Product[];
   }
 
   async getRelatedProducts(productId: string, categoryId: string, limit: number = 4): Promise<Product[]> {
-    return prisma.product.findMany({
-      where: {
-        id: { not: productId },
-        categoryId,
-        isActive: true,
-      },
-      take: limit,
-      orderBy: { viewCount: 'desc' },
-    })
+    return await db.query.products.findMany({
+      where: and(
+        ne(products.id, productId),
+        eq(products.categoryId, categoryId),
+        eq(products.isActive, true)
+      ),
+      limit,
+      orderBy: desc(products.viewCount),
+    }) as Product[];
   }
 
   async searchProducts(query: string, limit: number = 10): Promise<Product[]> {
-    return prisma.product.findMany({
-      where: {
-        isActive: true,
-        OR: [
-          { name: { contains: query, mode: 'insensitive' } },
-          { description: { contains: query, mode: 'insensitive' } },
-          { tags: { has: query } },
-        ],
-      },
-      take: limit,
-      orderBy: { viewCount: 'desc' },
-    })
+    return await db.query.products.findMany({
+      where: and(
+        eq(products.isActive, true),
+        or(
+          ilike(products.name, `%${query}%`),
+          ilike(products.description, `%${query}%`),
+          sql`${products.tags} @> ARRAY[${query}]::text[]`
+        )
+      ),
+      limit,
+      orderBy: desc(products.viewCount),
+    }) as Product[];
   }
 
   async incrementViewCount(productId: string): Promise<void> {
-    await prisma.product.update({
-      where: { id: productId },
-      data: {
-        viewCount: { increment: 1 },
+    await db.update(products)
+      .set({ 
+        viewCount: sql`${products.viewCount} + 1`,
         lastScoreUpdate: new Date(),
-      },
-    })
+      })
+      .where(eq(products.id, productId));
   }
 
   async updatePopularityScores(): Promise<void> {
     // Update popularity scores for all products
     // This could be called periodically via cron job
-    const products = await prisma.product.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        viewCount: true,
-        orderCount: true,
-        favoriteCount: true,
-        cartCount: true,
-        purchaseCount: true,
-        ratingAvg: true,
-        ratingCount: true,
-        lastScoreUpdate: true,
-      },
+    const productsResult = await db.select({
+      id: products.id,
+      viewCount: products.viewCount,
+      orderCount: products.orderCount,
+      favoriteCount: products.favoriteCount,
+      cartCount: products.cartCount,
+      purchaseCount: products.purchaseCount,
+      ratingAvg: products.ratingAvg,
+      ratingCount: products.ratingCount,
+      lastScoreUpdate: products.lastScoreUpdate,
     })
+    .from(products)
+    .where(eq(products.isActive, true));
 
     // Calculate and update popularity scores
-    for (const product of products) {
+    for (const product of productsResult) {
       // Simple popularity algorithm (can be made more sophisticated)
       const popularityScore = 
         (product.viewCount * 0.1) +
@@ -409,88 +423,84 @@ export class ProductRepository {
         (product.favoriteCount * 1.5) +
         (product.cartCount * 0.5) +
         (product.purchaseCount * 3) +
-        ((product.ratingAvg || 0) * product.ratingCount * 0.5)
+        ((parseFloat(product.ratingAvg || '0')) * product.ratingCount * 0.5);
       
-      await prisma.product.update({
-        where: { id: product.id },
-        data: {
-          popularityScore,
+      await db.update(products)
+        .set({
+          popularityScore: popularityScore.toString(),
           lastScoreUpdate: new Date(),
-        },
-      })
+        })
+        .where(eq(products.id, product.id));
     }
   }
 
   async getPopularProducts(limit: number = 8): Promise<Product[]> {
-    return prisma.product.findMany({
-      where: {
-        isActive: true,
-      },
-      take: limit,
-      orderBy: { popularityScore: 'desc' },
-    })
+    return await db.query.products.findMany({
+      where: eq(products.isActive, true),
+      limit,
+      orderBy: desc(products.popularityScore),
+    }) as Product[];
   }
 
   private buildWhereClause(filters: ProductFiltersInput) {
-    const where: any = {
-      isActive: true,
-    }
+    const conditions: any[] = [eq(products.isActive, true)];
 
     if (filters.category) {
-      where.categoryId = filters.category
+      conditions.push(eq(products.categoryId, filters.category));
     }
 
     if (filters.minPrice !== undefined) {
-      where.price = { gte: filters.minPrice }
+      conditions.push(gte(products.price, filters.minPrice.toString()));
     }
 
     if (filters.maxPrice !== undefined) {
-      where.price = where.price ? { ...where.price, lte: filters.maxPrice } : { lte: filters.maxPrice }
+      conditions.push(lte(products.price, filters.maxPrice.toString()));
     }
 
     if (filters.search) {
-      where.OR = [
-        { name: { contains: filters.search, mode: 'insensitive' } },
-        { description: { contains: filters.search, mode: 'insensitive' } },
-        { tags: { has: filters.search } },
-      ]
+      conditions.push(
+        or(
+          ilike(products.name, `%${filters.search}%`),
+          ilike(products.description, `%${filters.search}%`),
+          sql`${products.tags} @> ARRAY[${filters.search}]::text[]`
+        )!
+      );
     }
 
     if (filters.lowStock) {
-      where.AND = where.AND || [];
-      where.AND.push({ inventory: { gt: 0 } });
-      where.AND.push({ inventory: { lte: Prisma.raw('"lowStockThreshold"') } });
+      conditions.push(sql`${products.inventory} > 0`);
+      conditions.push(sql`${products.inventory} <= ${products.lowStockThreshold}`);
     }
 
     if (filters.outOfStock) {
-      where.inventory = 0;
+      conditions.push(eq(products.inventory, 0));
     }
 
-    return where
+    return and(...conditions);
   }
 
   private buildOrderBy(sort?: string) {
     switch (sort) {
       case 'price-asc':
-        return { price: 'asc' as const }
+        return asc(products.price);
       case 'price-desc':
-        return { price: 'desc' as const }
+        return desc(products.price);
       case 'name-asc':
-        return { name: 'asc' as const }
+        return asc(products.name);
       case 'name-desc':
-        return { name: 'desc' as const }
+        return desc(products.name);
       case 'newest':
-        return { createdAt: 'desc' as const }
+        return desc(products.createdAt);
       case 'popular':
-        return { popularityScore: 'desc' as const }
+        return desc(products.popularityScore);
       case 'trending':
         // Approximate trending by popularity score for listing purposes
         // (True trending is computed in recommendations API based on recent activity)
-        return { popularityScore: 'desc' as const }
+        return desc(products.popularityScore);
       case 'rating':
-        return { ratingAvg: 'desc' as const }
+        return desc(products.ratingAvg);
       default:
-        return { createdAt: 'desc' as const }
+        return desc(products.createdAt);
     }
   }
 }

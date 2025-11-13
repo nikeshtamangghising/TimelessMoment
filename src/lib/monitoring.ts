@@ -300,7 +300,7 @@ export class HealthChecker {
     
     try {
       // This would check database connectivity
-      // const result = await prisma.$queryRaw`SELECT 1`
+      // Using Drizzle: const result = await db.execute(sql`SELECT 1`)
       
       return {
         service: 'database',

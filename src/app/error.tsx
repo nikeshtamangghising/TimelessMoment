@@ -19,9 +19,9 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   }, [error])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 text-center">
-        <div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50" suppressHydrationWarning>
+      <div className="max-w-md w-full space-y-8 text-center" suppressHydrationWarning>
+        <div suppressHydrationWarning>
           <h1 className="text-6xl font-bold text-red-500">Error</h1>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
             Something went wrong!
@@ -37,16 +37,18 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
             </p>
           )}
         </div>
-        <div className="mt-8 space-y-4">
+        <div className="mt-8 space-y-4" suppressHydrationWarning>
           <button
             onClick={reset}
             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            suppressHydrationWarning
           >
             Try again
           </button>
           <button
             onClick={() => window.location.href = '/'}
             className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            suppressHydrationWarning
           >
             Go back home
           </button>

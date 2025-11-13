@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { categoryRepository } from '@/lib/category-repository'
 import { createAdminHandler } from '@/lib/auth-middleware'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { categories } from '@/lib/db/schema'
+import { eq, or } from 'drizzle-orm'
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,8 +42,12 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
+    console.error('Error fetching categories:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }
@@ -50,7 +56,7 @@ export async function GET(request: NextRequest) {
 export const POST = createAdminHandler(async (request: NextRequest) => {
   try {
     const body = await request.json()
-    const { name, slug, description, parentId, metaTitle, metaDescription, image } = body
+    const { name, slug, description, parentId, metaTitle, metaDescription } = body
 
     // Basic validation
     if (!name || !slug) {
@@ -64,16 +70,17 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
     const finalSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
     // Check if name or slug already exists
-    const existingCategory = await prisma.category.findFirst({
-      where: {
-        OR: [
-          { name: name },
-          { slug: finalSlug }
-        ]
-      }
-    })
+    const existingCategoryResult = await db.select()
+      .from(categories)
+      .where(
+        or(
+          eq(categories.name, name),
+          eq(categories.slug, finalSlug)
+        )
+      )
+      .limit(1)
 
-    if (existingCategory) {
+    if (existingCategoryResult.length > 0) {
       return NextResponse.json(
         { error: 'A category with this name or slug already exists' },
         { status: 400 }
@@ -82,11 +89,12 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
 
     // If parentId is provided, check if parent exists
     if (parentId) {
-      const parentCategory = await prisma.category.findUnique({
-        where: { id: parentId }
-      })
+      const parentCategoryResult = await db.select()
+        .from(categories)
+        .where(eq(categories.id, parentId))
+        .limit(1)
 
-      if (!parentCategory) {
+      if (parentCategoryResult.length === 0) {
         return NextResponse.json(
           { error: 'Parent category not found' },
           { status: 400 }
@@ -94,43 +102,17 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
       }
     }
 
-    const category = await prisma.category.create({
-      data: {
+    const [category] = await db.insert(categories)
+      .values({
         name,
         slug: finalSlug,
         description: description || null,
         parentId: parentId || null,
         metaTitle: metaTitle || null,
         metaDescription: metaDescription || null,
-        image: image || null
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        parentId: true,
-        metaTitle: true,
-        metaDescription: true,
-        image: true,
-        isActive: true,
-        sortOrder: true,
-        createdAt: true,
-        updatedAt: true,
-        parent: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        _count: {
-          select: {
-            products: true,
-            children: true
-          }
-        }
-      }
-    })
+        image: null
+      })
+      .returning()
 
     return NextResponse.json(
       { 

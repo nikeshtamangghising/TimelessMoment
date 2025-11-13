@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { reviews, products, users } from '@/lib/db/schema'
+import { eq, and, desc, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 interface RouteParams {
@@ -34,10 +36,11 @@ export async function GET(
     }
 
     // Check if product exists
-    const product = await prisma.product.findUnique({
-      where: { id },
-      select: { id: true, name: true }
-    })
+    const productResult = await db.select({ id: products.id, name: products.name })
+      .from(products)
+      .where(eq(products.id, id))
+      .limit(1)
+    const product = productResult[0] || null
 
     if (!product) {
       return NextResponse.json(
@@ -47,43 +50,42 @@ export async function GET(
     }
 
     // Get approved reviews with user information
-    const reviews = await prisma.review.findMany({
-      where: {
-        productId: id,
-        isApproved: true
-      },
-      include: {
+    const reviewsResult = await db.query.reviews.findMany({
+      where: and(
+        eq(reviews.productId, id),
+        eq(reviews.isApproved, true)
+      ),
+      with: {
         user: {
-          select: {
+          columns: {
             id: true,
             name: true,
             image: true
           }
         }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: desc(reviews.createdAt)
     })
 
     // Calculate average rating and total count
-    const ratingStats = await prisma.review.aggregate({
-      where: {
-        productId: id,
-        isApproved: true
-      },
-      _avg: {
-        rating: true
-      },
-      _count: {
-        rating: true
-      }
-    })
+    const [avgResult, countResult] = await Promise.all([
+      db.select({ avg: sql<number>`avg(${reviews.rating})` })
+        .from(reviews)
+        .where(and(eq(reviews.productId, id), eq(reviews.isApproved, true))),
+      db.select({ count: sql<number>`count(*)` })
+        .from(reviews)
+        .where(and(eq(reviews.productId, id), eq(reviews.isApproved, true)))
+    ])
+
+    const ratingStats = {
+      _avg: { rating: Number(avgResult[0]?.avg || 0) },
+      _count: { rating: Number(countResult[0]?.count || 0) }
+    }
 
     return NextResponse.json({
       success: true,
       data: {
-        reviews,
+        reviews: reviewsResult,
         ratingStats: {
           average: ratingStats._avg.rating || 0,
           count: ratingStats._count.rating || 0
@@ -116,10 +118,11 @@ export async function POST(
     }
 
     // Check if product exists
-    const product = await prisma.product.findUnique({
-      where: { id },
-      select: { id: true, name: true }
-    })
+    const productResult = await db.select({ id: products.id, name: products.name })
+      .from(products)
+      .where(eq(products.id, id))
+      .limit(1)
+    const product = productResult[0] || null
 
     if (!product) {
       return NextResponse.json(
@@ -153,12 +156,14 @@ export async function POST(
 
     // Check if user has already reviewed this product
     if (session?.user?.id) {
-      const existingReview = await prisma.review.findFirst({
-        where: {
-          productId: id,
-          userId: session.user.id
-        }
-      })
+      const existingReviewResult = await db.select()
+        .from(reviews)
+        .where(and(
+          eq(reviews.productId, id),
+          eq(reviews.userId, session.user.id)
+        ))
+        .limit(1)
+      const existingReview = existingReviewResult[0] || null
 
       if (existingReview) {
         return NextResponse.json(
@@ -169,33 +174,36 @@ export async function POST(
     }
 
     // Create the review
-    const review = await prisma.review.create({
-      data: {
+    const [review] = await db.insert(reviews)
+      .values({
         productId: id,
         userId: session?.user?.id || null,
-        guestName: session?.user?.id ? null : guestName,
-        guestEmail: session?.user?.id ? null : guestEmail,
         rating,
         title: title || null,
-        content,
-        isVerified: false, // Could be set to true if user has purchased the product
+        comment: content,
+        isVerifiedPurchase: false, // Could be set to true if user has purchased the product
         isApproved: session?.user?.role === 'ADMIN' ? true : false, // Auto-approve admin reviews
-        helpfulVotes: 0
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            image: true
-          }
+        helpfulCount: 0
+      })
+      .returning()
+
+    // Get user info if authenticated
+    let reviewWithUser: any = review
+    if (session?.user?.id && review.userId) {
+      const userResult = await db.query.users.findFirst({
+        where: eq(users.id, review.userId),
+        columns: {
+          id: true,
+          name: true,
+          image: true
         }
-      }
-    })
+      })
+      reviewWithUser = { ...review, user: userResult || null }
+    }
 
     return NextResponse.json({
       success: true,
-      data: review,
+      data: reviewWithUser,
       message: session?.user?.role === 'ADMIN' 
         ? 'Review submitted successfully' 
         : 'Review submitted and is pending approval'

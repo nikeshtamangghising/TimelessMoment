@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db-utils'
+import { db } from '@/lib/db-utils'
+import { users } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { EmailService } from '@/lib/email-service'
 import { z } from 'zod'
 import crypto from 'crypto'
@@ -14,9 +16,8 @@ export async function POST(request: NextRequest) {
     const { email } = forgotPasswordSchema.parse(body)
 
     // Check if user exists
-    const user = await prisma.user.findUnique({
-      where: { email }
-    })
+    const userResult = await db.select().from(users).where(eq(users.email, email)).limit(1)
+    const user = userResult[0] || null
 
     // Always return success to prevent email enumeration attacks
     const successResponse = NextResponse.json({
@@ -32,13 +33,13 @@ export async function POST(request: NextRequest) {
     const resetTokenExpiry = new Date(Date.now() + 3600000) // 1 hour from now
 
     // Save reset token to database
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
+    await db.update(users)
+      .set({
         resetToken,
         resetTokenExpiry,
-      }
-    })
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id))
 
     // Send password reset email
     try {
@@ -54,13 +55,13 @@ export async function POST(request: NextRequest) {
       console.error('Failed to send password reset email:', emailError)
       
       // Clean up the reset token if email failed
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
+      await db.update(users)
+        .set({
           resetToken: null,
           resetTokenExpiry: null,
-        }
-      })
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, user.id))
 
       return NextResponse.json(
         { error: 'Failed to send password reset email. Please try again.' },

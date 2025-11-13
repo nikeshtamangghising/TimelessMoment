@@ -1,4 +1,6 @@
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
+import { userFavorites, products, categories, cartItems } from '@/lib/db/schema';
+import { eq, and, inArray, sql, desc } from 'drizzle-orm';
 import { ActivityTracker } from './activity-tracker';
 
 export interface FavoriteItem {
@@ -26,10 +28,16 @@ export class FavoritesRepository {
    */
   static async addToFavorites(userId: string, productId: string): Promise<FavoriteItem> {
     // Check if product exists
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-      select: { id: true, isActive: true, name: true },
-    });
+    const productResult = await db.select({
+      id: products.id,
+      isActive: products.isActive,
+      name: products.name,
+    })
+    .from(products)
+    .where(eq(products.id, productId))
+    .limit(1);
+    
+    const product = productResult[0];
 
     if (!product) {
       throw new Error('Product not found');
@@ -40,40 +48,42 @@ export class FavoritesRepository {
     }
 
     // Check if already in favorites
-    const existing = await prisma.favorite.findUnique({
-      where: {
-        userId_productId: {
-          userId,
-          productId,
-        },
-      },
-    });
+    const existingResult = await db.select()
+      .from(userFavorites)
+      .where(and(
+        eq(userFavorites.userId, userId),
+        eq(userFavorites.productId, productId)
+      ))
+      .limit(1);
+    
+    const existing = existingResult[0];
 
     if (existing) {
       throw new Error('Product is already in favorites');
     }
 
     try {
-      const favorite = await prisma.$transaction(async (tx) => {
-        const fav = await tx.favorite.create({
-          data: {
-            userId,
-            productId,
-          },
-          include: {
-            product: {
-              include: { category: true },
-            },
-          },
+      // Create favorite
+      const insertResult = await db.insert(userFavorites)
+        .values({
+          userId,
+          productId,
         })
+        .returning();
 
-        // Increment product favoriteCount
-        await tx.product.update({
-          where: { id: productId },
-          data: { favoriteCount: { increment: 1 } },
-        })
+      // Increment product favoriteCount
+      await db.update(products)
+        .set({ favoriteCount: sql`${products.favoriteCount} + 1` })
+        .where(eq(products.id, productId));
 
-        return fav
+      // Fetch with product and category
+      const favorite = await db.query.userFavorites.findFirst({
+        where: eq(userFavorites.id, insertResult[0].id),
+        with: {
+          product: {
+            with: { category: true },
+          },
+        },
       });
 
       // Track activity (for personalization/trending); counters updated above
@@ -93,41 +103,42 @@ export class FavoritesRepository {
    * Remove product from favorites
    */
   static async removeFromFavorites(userId: string, productId: string): Promise<void> {
-    const favorite = await prisma.favorite.findUnique({
-      where: {
-        userId_productId: {
-          userId,
-          productId,
-        },
-      },
-    });
+    const favoriteResult = await db.select()
+      .from(userFavorites)
+      .where(and(
+        eq(userFavorites.userId, userId),
+        eq(userFavorites.productId, productId)
+      ))
+      .limit(1);
 
+    const favorite = favoriteResult[0];
+    
     if (!favorite) {
       throw new Error('Product not found in favorites');
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.favorite.delete({ where: { id: favorite.id } })
-      // Decrement product favoriteCount
-      await tx.product.update({
-        where: { id: productId },
-        data: { favoriteCount: { decrement: 1 } },
-      })
-    })
+    await db.delete(userFavorites)
+      .where(eq(userFavorites.id, favorite.id));
+    
+    // Decrement product favoriteCount
+    await db.update(products)
+      .set({ favoriteCount: sql`GREATEST(${products.favoriteCount} - 1, 0)` })
+      .where(eq(products.id, productId));
   }
 
   /**
    * Toggle favorite status
    */
   static async toggleFavorite(userId: string, productId: string): Promise<{ added: boolean; favorite?: FavoriteItem }> {
-    const existing = await prisma.favorite.findUnique({
-      where: {
-        userId_productId: {
-          userId,
-          productId,
-        },
-      },
-    });
+    const existingResult = await db.select()
+      .from(userFavorites)
+      .where(and(
+        eq(userFavorites.userId, userId),
+        eq(userFavorites.productId, productId)
+      ))
+      .limit(1);
+    
+    const existing = existingResult[0];
 
     if (existing) {
       await this.removeFromFavorites(userId, productId);
@@ -142,14 +153,14 @@ export class FavoritesRepository {
    * Get user's favorites
    */
   static async getFavorites(userId: string): Promise<FavoriteItem[]> {
-    const favorites = await prisma.favorite.findMany({
-      where: { userId },
-      include: {
+    const favorites = await db.query.userFavorites.findMany({
+      where: eq(userFavorites.userId, userId),
+      with: {
         product: {
-          include: { category: true },
+          with: { category: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: desc(userFavorites.createdAt),
     });
 
     // Filter out inactive products
@@ -162,43 +173,45 @@ export class FavoritesRepository {
    * Check if product is in user's favorites
    */
   static async isInFavorites(userId: string, productId: string): Promise<boolean> {
-    const favorite = await prisma.favorite.findUnique({
-      where: {
-        userId_productId: {
-          userId,
-          productId,
-        },
-      },
-    });
+    const favoriteResult = await db.select()
+      .from(userFavorites)
+      .where(and(
+        eq(userFavorites.userId, userId),
+        eq(userFavorites.productId, productId)
+      ))
+      .limit(1);
 
-    return !!favorite;
+    return favoriteResult.length > 0;
   }
 
   /**
    * Get favorites count for user
    */
   static async getFavoritesCount(userId: string): Promise<number> {
-    return await prisma.favorite.count({
-      where: { 
-        userId,
-        product: { isActive: true },
-      },
-    });
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(userFavorites)
+      .innerJoin(products, eq(userFavorites.productId, products.id))
+      .where(and(
+        eq(userFavorites.userId, userId),
+        eq(products.isActive, true)
+      ));
+
+    return Number(result[0]?.count || 0);
   }
 
   /**
    * Get recently added favorites
    */
   static async getRecentFavorites(userId: string, limit: number = 5): Promise<FavoriteItem[]> {
-    const favorites = await prisma.favorite.findMany({
-      where: { userId },
-      include: {
+    const favorites = await db.query.userFavorites.findMany({
+      where: eq(userFavorites.userId, userId),
+      with: {
         product: {
-          include: { category: true },
+          with: { category: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
+      orderBy: desc(userFavorites.createdAt),
+      limit,
     });
 
     return favorites.filter(favorite => 
@@ -210,59 +223,53 @@ export class FavoritesRepository {
    * Get favorites by category
    */
   static async getFavoritesByCategory(userId: string, categoryId: string): Promise<FavoriteItem[]> {
-    const favorites = await prisma.favorite.findMany({
-      where: { 
-        userId,
-        product: { 
-          categoryId,
-          isActive: true,
-        },
-      },
-      include: {
+    const favorites = await db.query.userFavorites.findMany({
+      where: eq(userFavorites.userId, userId),
+      with: {
         product: {
-          include: { category: true },
+          with: { category: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: desc(userFavorites.createdAt),
     });
 
-    return favorites as FavoriteItem[];
+    // Filter by category and active status
+    return favorites.filter(fav => 
+      fav.product.categoryId === categoryId && fav.product.isActive
+    ) as FavoriteItem[];
   }
 
   /**
    * Get most favorited products (for analytics/recommendations)
    */
   static async getMostFavorited(limit: number = 20) {
-    const mostFavorited = await prisma.favorite.groupBy({
-      by: ['productId'],
-      where: {
-        product: { isActive: true },
-      },
-      _count: {
-        id: true,
-      },
-      orderBy: {
-        _count: {
-          id: 'desc',
-        },
-      },
-      take: limit,
-    });
+    const mostFavorited = await db.select({
+      productId: userFavorites.productId,
+      count: sql<number>`count(*)`,
+    })
+    .from(userFavorites)
+    .innerJoin(products, eq(userFavorites.productId, products.id))
+    .where(eq(products.isActive, true))
+    .groupBy(userFavorites.productId)
+    .orderBy(sql`count(*) DESC`)
+    .limit(limit);
 
     // Get product details
     const productIds = mostFavorited.map(f => f.productId);
-    const products = await prisma.product.findMany({
-      where: { id: { in: productIds } },
-      include: { category: true },
+    if (productIds.length === 0) return [];
+    
+    const productsResult = await db.query.products.findMany({
+      where: inArray(products.id, productIds),
+      with: { category: true },
     });
 
     const productMap = Object.fromEntries(
-      products.map(p => [p.id, p])
+      productsResult.map(p => [p.id, p])
     );
 
     return mostFavorited.map(favorite => ({
       product: productMap[favorite.productId],
-      favoriteCount: favorite._count.id,
+      favoriteCount: Number(favorite.count),
     })).filter(item => item.product);
   }
 
@@ -270,44 +277,49 @@ export class FavoritesRepository {
    * Clean up favorites for deleted products
    */
   static async cleanupInvalidFavorites(): Promise<void> {
-    await prisma.favorite.deleteMany({
-      where: {
-        product: { isActive: false },
-      },
-    });
+    // Get inactive product IDs
+    const inactiveProducts = await db.select({ id: products.id })
+      .from(products)
+      .where(eq(products.isActive, false));
+    
+    const inactiveProductIds = inactiveProducts.map(p => p.id);
+    
+    if (inactiveProductIds.length > 0) {
+      await db.delete(userFavorites)
+        .where(inArray(userFavorites.productId, inactiveProductIds));
+    }
   }
 
   /**
    * Get favorites summary for user
    */
   static async getFavoritesSummary(userId: string) {
-    const [totalCount, recentFavorites, categoryBreakdown] = await Promise.all([
+    const [totalCount, recentFavorites] = await Promise.all([
       this.getFavoritesCount(userId),
       this.getRecentFavorites(userId, 3),
-      prisma.favorite.findMany({
-        where: { 
-          userId,
-          product: { isActive: true },
-        },
-        include: {
-          product: {
-            select: { categoryId: true, category: { select: { name: true } } }
-          }
-        }
-      }).then((favorites) => {
-        const breakdown: Record<string, number> = {};
-        favorites.forEach(favorite => {
-          const categoryName = (favorite.product as any).category?.name || 'Unknown';
-          breakdown[categoryName] = (breakdown[categoryName] || 0) + 1;
-        });
-        return breakdown;
-      }),
     ]);
+
+    // Get category breakdown
+    const favorites = await db.query.userFavorites.findMany({
+      where: eq(userFavorites.userId, userId),
+      with: {
+        product: {
+          with: { category: true },
+        },
+      },
+    });
+
+    const activeFavorites = favorites.filter(f => f.product.isActive);
+    const breakdown: Record<string, number> = {};
+    activeFavorites.forEach(favorite => {
+      const categoryName = favorite.product.category?.name || 'Unknown';
+      breakdown[categoryName] = (breakdown[categoryName] || 0) + 1;
+    });
 
     return {
       totalCount,
       recentFavorites,
-      categoryBreakdown,
+      categoryBreakdown: breakdown,
     };
   }
 
@@ -320,22 +332,24 @@ export class FavoritesRepository {
     cartQuantity: number;
     favoritedAt: Date;
   }[]> {
-    const favorites = await prisma.favorite.findMany({
-      where: { userId },
-      include: { product: true },
+    const favorites = await db.query.userFavorites.findMany({
+      where: eq(userFavorites.userId, userId),
+      with: { product: true },
     });
 
     const favoriteProductIds = favorites.map(f => f.productId);
     
-    const cartItems = await prisma.cart.findMany({
-      where: {
-        userId,
-        productId: { in: favoriteProductIds },
-      },
-    });
+    if (favoriteProductIds.length === 0) return [];
+    
+    const cartItemsResult = await db.select()
+      .from(cartItems)
+      .where(and(
+        eq(cartItems.userId, userId),
+        inArray(cartItems.productId, favoriteProductIds)
+      ));
 
     const cartMap = Object.fromEntries(
-      cartItems.map(item => [item.productId, item])
+      cartItemsResult.map(item => [item.productId, item])
     );
 
     return favorites

@@ -2,16 +2,13 @@
 
 A production-ready e‑commerce platform built with Next.js (App Router) and TypeScript. It features secure payments, robust admin tooling, inventory tracking, email notifications, and a modern, responsive UI.
 
-- Live development: http://localhost:3000
-- Repository: https://github.com/nikeshtamangghising/TimelessMoment
-
 ## Features
 
 - Next.js App Router with server/client component separation
 - Responsive UI with TailwindCSS and custom animations
 - Multiple payment gateways (eSewa, Khalti) with webhook verification
 - Role-based authentication (NextAuth.js)
-- PostgreSQL + Prisma ORM schema with migrations
+- PostgreSQL + Drizzle ORM schema with migrations
 - Inventory tracking with low‑stock alerts and audit trails
 - Order workflow (PENDING → PROCESSING → SHIPPED → DELIVERED)
 - Transactional emails via Resend with templates and logging
@@ -22,7 +19,7 @@ A production-ready e‑commerce platform built with Next.js (App Router) and Typ
 
 - Next.js 15, TypeScript
 - TailwindCSS
-- Prisma ORM, PostgreSQL
+- Drizzle ORM, PostgreSQL
 - NextAuth.js
 - eSewa, Khalti
 - Zustand (cart state) + React Context providers
@@ -39,7 +36,7 @@ A production-ready e‑commerce platform built with Next.js (App Router) and Typ
 ### Prerequisites
 
 - Node.js 18+
-- Docker (for local PostgreSQL)
+- PostgreSQL database (Neon or local)
 
 ### Setup
 
@@ -54,13 +51,18 @@ cp .env.example .env.local
 ```
 Fill in database URL, payment gateway credentials (eSewa/Khalti), NextAuth secret, Resend, etc.
 
-3) Set up the database (automated)
+3) Set up the database
 ```bash
-npm run db:setup
+npm run db:push
 ```
-This provisions PostgreSQL (via Docker) and applies the Prisma schema.
+This applies the Drizzle schema to your PostgreSQL database.
 
-4) Start the dev server
+4) Seed the database with sample data
+```bash
+npm run db:seed
+```
+
+5) Start the dev server
 ```bash
 npm run dev
 ```
@@ -68,25 +70,13 @@ Open http://localhost:3000
 
 ## Scripts
 
-- Generate Prisma client: `npm run db:generate`
+- Generate migrations: `npm run db:generate`
 - Push schema to DB: `npm run db:push`
 - Run migrations: `npm run db:migrate`
 - Seed data: `npm run db:seed`
 - Lint: `npm run lint`
 - Build: `npm run build`
 - Start (prod): `npm run start`
-
-## Docker (Development)
-
-```bash
-npm run docker:dev          # Start dev environment
-npm run docker:dev:build    # Start with rebuild
-npm run docker:dev:logs     # View logs
-npm run docker:dev:down     # Stop containers
-
-npm run docker:db:migrate   # DB migrations in Docker
-npm run docker:db:reset     # Reset DB in Docker
-```
 
 ## Testing
 
@@ -120,28 +110,59 @@ Set these in `.env.local` (and your deployment platform):
 
 ## Database Access (Dev)
 
-- Default Docker PostgreSQL
-  - Host: `localhost:5432`
-  - DB: `ecommerce`
-  - User: `postgres`
-  - Password: `postgres`
-- Adminer (when using Docker): http://localhost:8080
-- Direct psql: `docker-compose exec postgres psql -U postgres -d ecommerce`
+- PostgreSQL database with Drizzle ORM
+- Using Neon PostgreSQL: `postgresql://neondb_owner:...@ep-steep-forest-a143un19-pooler.ap-southeast-1.aws.neon.tech/neondb`
 
 ## Important Paths
 
-- Prisma Schema: `prisma/schema.prisma`
+- Drizzle Schema: `src/lib/db/schema.ts`
 - API Routes: `src/app/api/`
 - Components: `src/components/`
 - Context Providers: `src/contexts/`
 - Tests: `src/__tests__/`
-- Docker: `docker-compose.yml`, `Dockerfile.dev`
 
 ## Deployment
 
 - Supports production build via `npm run build` and `npm run start`.
-- Docker production: `npm run docker:prod`, `npm run docker:prod:build`.
 - Ensure all environment variables are configured in your host (e.g., Vercel, Docker secrets).
+
+## Key Improvements & Enhancements
+
+### MVP Improvements
+The platform follows "beat Amazon" principles focusing on product-first approach, mobile responsiveness, performance optimization, and simplified user experience:
+
+1. **Prominent Search Bar** - Front and center in both desktop and mobile layouts
+2. **Mobile-First Sticky Bottom Navigation** - Easy access to key sections
+3. **Product-First Homepage** - Focus on product discovery rather than company story
+4. **Visual Category Icons** - Shopping window approach with beautiful category tiles
+5. **Mobile-First Product Grid** - 2-column mobile layout optimized for touch
+6. **Advanced Search with Autocomplete** - Lightning-fast search with real-time suggestions
+7. **Guest Checkout** - No forced registration at checkout for better conversion
+8. **Performance Optimizations** - Image optimization, caching, and lazy loading
+
+### UI/UX Enhancements
+- **Enhanced Product Cards** - Modern design with better visual appeal and interactions
+- **Improved Responsive Design** - Granular breakpoints for better mobile experience
+- **Better Loading States** - Enhanced skeleton components with shimmer effects
+- **Enhanced Button Design** - Stacked layout with gradient backgrounds
+- **Improved Touch Interactions** - Larger touch targets and better spacing
+
+### Technical Improvements
+- **Production-Ready Configuration** - ESLint v9 migration with zero build errors
+- **TypeScript Enhancements** - Comprehensive type definitions and safety
+- **Performance Optimizations** - Image optimization, caching, and bundle optimization
+- **Mobile Search Fix** - Resolved 404 errors when accessing search via mobile navigation
+- **Quick Wins Implementation** - Higher grid density, load more button, sticky filters
+
+## Production Readiness
+
+The codebase has been optimized for production deployment with:
+- Zero build errors
+- Comprehensive error handling
+- Production-optimized ESLint configuration
+- TypeScript type safety
+- Performance optimizations
+- Security best practices
 
 ## License
 

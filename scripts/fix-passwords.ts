@@ -1,55 +1,40 @@
-import { PrismaClient } from '@prisma/client'
-import bcrypt from 'bcryptjs'
+import { db } from '../src/lib/db';
+import { users } from '../src/lib/db/schema';
+import bcrypt from 'bcryptjs';
+import { eq } from 'drizzle-orm';
 
-const prisma = new PrismaClient()
+async function main() {
+  console.log('🔧 Fixing user passwords...');
 
-async function fixPasswords() {
   try {
-    console.log('🔧 Fixing passwords...')
+    // Get all users
+    const allUsers = await db.select().from(users);
     
-    // Update admin password to 'password' for demo
-    const adminHashedPassword = await bcrypt.hash('password', 12)
-    await prisma.user.update({
-      where: { email: 'admin@example.com' },
-      data: { password: adminHashedPassword }
-    })
-    console.log('✅ Admin password updated to "password"')
+    console.log(`Found ${allUsers.length} users to process`);
     
-    // Update customer passwords to 'password123' for demo
-    const customerHashedPassword = await bcrypt.hash('password123', 12)
-    await prisma.user.updateMany({
-      where: { 
-        role: 'CUSTOMER',
-        email: { in: ['john.doe@example.com', 'jane.smith@example.com', 'mike.johnson@example.com'] }
-      },
-      data: { password: customerHashedPassword }
-    })
-    console.log('✅ Customer passwords updated to "password123"')
+    let fixedCount = 0;
     
-    // Verify the changes
-    const adminUser = await prisma.user.findUnique({
-      where: { email: 'admin@example.com' }
-    })
-    
-    if (adminUser) {
-      const isValid = await bcrypt.compare('password', adminUser.password!)
-      console.log(`✅ Admin password 'password' valid: ${isValid}`)
+    for (const user of allUsers) {
+      // Check if password needs to be hashed (simple check for plain text)
+      if (user.password && !user.password.startsWith('$2b$')) {
+        console.log(`Hashing password for ${user.email}`);
+        
+        const hashedPassword = await bcrypt.hash(user.password, 12);
+        
+        await db.update(users)
+          .set({ password: hashedPassword })
+          .where(eq(users.id, user.id));
+          
+        fixedCount++;
+      }
     }
     
-    const customerUser = await prisma.user.findUnique({
-      where: { email: 'john.doe@example.com' }
-    })
-    
-    if (customerUser) {
-      const isValid = await bcrypt.compare('password123', customerUser.password!)
-      console.log(`✅ Customer password 'password123' valid: ${isValid}`)
-    }
-    
+    console.log(`✅ Fixed passwords for ${fixedCount} users`);
+    console.log('🎉 Password fixing completed successfully!');
   } catch (error) {
-    console.error('❌ Error:', error)
-  } finally {
-    await prisma.$disconnect()
+    console.error('❌ Error fixing passwords:', error);
+    process.exit(1);
   }
 }
 
-fixPasswords()
+main();

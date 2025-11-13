@@ -1,5 +1,4 @@
-import { Prisma } from '@prisma/client'
-import { prisma } from './db-utils'
+import { db } from './db-utils'
 
 // Database connection optimization
 export class DatabaseOptimizer {
@@ -144,20 +143,11 @@ export class QueryMonitor {
 }
 
 // Database middleware for performance monitoring
-export function createPerformanceMiddleware(): Prisma.Middleware {
-  return async (params, next) => {
-    const start = Date.now()
-    const result = await next(params)
-    const duration = Date.now() - start
-
-    QueryMonitor.logQuery(
-      `${params.model}.${params.action}`,
-      duration,
-      params.args
-    )
-
-    return result
-  }
+// Note: Drizzle doesn't have middleware like Prisma, but we can wrap queries
+export function createPerformanceMiddleware() {
+  // Drizzle doesn't have middleware, but we can use query wrappers
+  // This is kept for compatibility but doesn't do anything
+  return null
 }
 
 // Connection pool optimization

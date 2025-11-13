@@ -1,80 +1,180 @@
-import { prisma } from './db'
-import { Category } from '@prisma/client'
+import { db } from './db'
+import { categories, products } from './db/schema'
+import { eq, and, or, sql, desc, asc, isNull, ilike } from 'drizzle-orm'
 
-export interface CategoryWithChildren extends Category {
-  children?: CategoryWithChildren[]
-  parent?: Category
+export interface CategoryWithChildren {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  parentId: string | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  image: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+  children?: CategoryWithChildren[];
+  parent?: any;
   _count?: {
-    products: number
-    children: number
-  }
+    products: number;
+    children: number;
+  };
 }
 
 class CategoryRepository {
   // Get all root categories (no parent) with their children
   async getRootCategoriesWithChildren(): Promise<CategoryWithChildren[]> {
-    return prisma.category.findMany({
-      where: {
-        parentId: null,
-        isActive: true
-      },
-      include: {
-        children: {
-          where: { isActive: true },
-          include: {
-            children: {
-              where: { isActive: true },
-              orderBy: { sortOrder: 'asc' }
+    try {
+      const rootCategories = await db.query.categories.findMany({
+        where: and(
+          isNull(categories.parentId),
+          eq(categories.isActive, true)
+        ),
+        with: {
+          childCategories: {
+            where: eq(categories.isActive, true),
+            with: {
+              childCategories: {
+                where: eq(categories.isActive, true),
+                orderBy: asc(categories.sortOrder)
+              }
             },
-            _count: {
-              select: { products: true, children: true }
-            }
-          },
-          orderBy: { sortOrder: 'asc' }
+            orderBy: asc(categories.sortOrder)
+          }
         },
-        _count: {
-          select: { products: true, children: true }
-        }
-      },
-      orderBy: { sortOrder: 'asc' }
-    })
+        orderBy: asc(categories.sortOrder)
+      })
+      
+      // Get counts for each category and its children recursively
+      return Promise.all(rootCategories.map(async (cat) => {
+        const [productCount, childrenCount] = await Promise.all([
+          db.select({ count: sql<number>`count(*)` })
+            .from(products)
+            .where(eq(products.categoryId, cat.id)),
+          db.select({ count: sql<number>`count(*)` })
+            .from(categories)
+            .where(eq(categories.parentId, cat.id))
+        ])
+        
+        // Process children with their counts
+        const childrenWithCounts = await Promise.all((cat.childCategories || []).map(async (child) => {
+          const [childProductCount, childChildrenCount] = await Promise.all([
+            db.select({ count: sql<number>`count(*)` })
+              .from(products)
+              .where(eq(products.categoryId, child.id)),
+            db.select({ count: sql<number>`count(*)` })
+              .from(categories)
+              .where(eq(categories.parentId, child.id))
+          ])
+          
+          return {
+            ...child,
+            _count: {
+              products: Number(childProductCount[0]?.count || 0),
+              children: Number(childChildrenCount[0]?.count || 0)
+            }
+          }
+        }))
+        
+        return {
+          ...cat,
+          children: childrenWithCounts,
+          childCategories: childrenWithCounts,
+          _count: {
+            products: Number(productCount[0]?.count || 0),
+            children: Number(childrenCount[0]?.count || 0)
+          }
+        } as CategoryWithChildren
+      }))
+    } catch (error) {
+      console.error('Error in getRootCategoriesWithChildren:', error)
+      throw error
+    }
   }
 
   // Get category by slug with full hierarchy info
   async findBySlug(slug: string): Promise<CategoryWithChildren | null> {
-    return prisma.category.findUnique({
-      where: { slug, isActive: true },
-      include: {
-        parent: true,
-        children: {
-          where: { isActive: true },
-          orderBy: { sortOrder: 'asc' },
-          include: {
-            _count: { select: { products: true, children: true } }
+    try {
+      const category = await db.query.categories.findFirst({
+        where: and(
+          eq(categories.slug, slug),
+          eq(categories.isActive, true)
+        ),
+        with: {
+          parentCategory: true,
+          childCategories: {
+            where: eq(categories.isActive, true),
+            orderBy: asc(categories.sortOrder)
           }
-        },
-        _count: {
-          select: { products: true, children: true }
         }
-      }
-    })
+      })
+      
+      if (!category) return null
+      
+      // Get counts
+      const [productCount, childrenCount] = await Promise.all([
+        db.select({ count: sql<number>`count(*)` })
+          .from(products)
+          .where(eq(products.categoryId, category.id)),
+        db.select({ count: sql<number>`count(*)` })
+          .from(categories)
+          .where(eq(categories.parentId, category.id))
+      ])
+      
+      // Process children with counts
+      const childrenWithCounts = await Promise.all((category.childCategories || []).map(async (child) => {
+        const [childProductCount, childChildrenCount] = await Promise.all([
+          db.select({ count: sql<number>`count(*)` })
+            .from(products)
+            .where(eq(products.categoryId, child.id)),
+          db.select({ count: sql<number>`count(*)` })
+            .from(categories)
+            .where(eq(categories.parentId, child.id))
+        ])
+        
+        return {
+          ...child,
+          _count: {
+            products: Number(childProductCount[0]?.count || 0),
+            children: Number(childChildrenCount[0]?.count || 0)
+          }
+        }
+      }))
+      
+      return {
+        ...category,
+        children: childrenWithCounts,
+        childCategories: childrenWithCounts,
+        _count: {
+          products: Number(productCount[0]?.count || 0),
+          children: Number(childrenCount[0]?.count || 0)
+        }
+      } as CategoryWithChildren
+    } catch (error) {
+      console.error('Error in findBySlug:', error)
+      throw error
+    }
   }
 
   // Get category hierarchy path (breadcrumb)
-  async getCategoryPath(categoryId: string): Promise<Category[]> {
-    const path: Category[] = []
-    let currentCategory = await prisma.category.findUnique({
-      where: { id: categoryId },
-      include: { parent: true }
+  async getCategoryPath(categoryId: string): Promise<any[]> {
+    const path: any[] = []
+    let currentCategoryResult = await db.query.categories.findFirst({
+      where: eq(categories.id, categoryId),
+      with: { parentCategory: true }
     })
+    let currentCategory = currentCategoryResult || null
 
     while (currentCategory) {
       path.unshift(currentCategory)
       if (currentCategory.parentId) {
-        currentCategory = await prisma.category.findUnique({
-          where: { id: currentCategory.parentId },
-          include: { parent: true }
+        const parentResult = await db.query.categories.findFirst({
+          where: eq(categories.id, currentCategory.parentId),
+          with: { parentCategory: true }
         })
+        currentCategory = parentResult || null
       } else {
         currentCategory = null
       }
@@ -85,16 +185,40 @@ class CategoryRepository {
 
   // Get all categories as flat list (for admin/management)
   async getAllFlat() {
-    return prisma.category.findMany({
-      where: { isActive: true },
-      include: {
-        parent: true,
-        _count: { select: { products: true, children: true } }
+    const allCategories = await db.query.categories.findMany({
+      where: eq(categories.isActive, true),
+      with: {
+        parentCategory: true
       },
-      orderBy: [
-        { parent: { sortOrder: 'asc' } },
-        { sortOrder: 'asc' }
-      ]
+      orderBy: asc(categories.sortOrder)
+    })
+    
+    // Get counts and sort by parent sortOrder
+    const categoriesWithCounts = await Promise.all(allCategories.map(async (cat) => {
+      const [productCount, childrenCount] = await Promise.all([
+        db.select({ count: sql<number>`count(*)` })
+          .from(products)
+          .where(eq(products.categoryId, cat.id)),
+        db.select({ count: sql<number>`count(*)` })
+          .from(categories)
+          .where(eq(categories.parentId, cat.id))
+      ])
+      
+      return {
+        ...cat,
+        _count: {
+          products: Number(productCount[0]?.count || 0),
+          children: Number(childrenCount[0]?.count || 0)
+        }
+      }
+    }))
+    
+    // Sort by parent sortOrder, then by own sortOrder
+    return categoriesWithCounts.sort((a, b) => {
+      if (a.parent?.sortOrder !== b.parent?.sortOrder) {
+        return (a.parent?.sortOrder || 0) - (b.parent?.sortOrder || 0)
+      }
+      return a.sortOrder - b.sortOrder
     })
   }
 
@@ -110,25 +234,33 @@ class CategoryRepository {
     const slug = this.generateSlug(data.name)
     
     // Ensure slug is unique
-    const existingCategory = await prisma.category.findUnique({ where: { slug } })
+    const existingCategoryResult = await db.select()
+      .from(categories)
+      .where(eq(categories.slug, slug))
+      .limit(1)
+    const existingCategory = existingCategoryResult[0] || null
     if (existingCategory) {
       throw new Error(`Category with slug "${slug}" already exists`)
     }
 
     // Get next sort order for this parent level
-    const siblingCount = await prisma.category.count({
-      where: { parentId: data.parentId || null }
-    })
+    const siblingCountResult = await db.select({ count: sql<number>`count(*)` })
+      .from(categories)
+      .where(data.parentId ? eq(categories.parentId, data.parentId) : isNull(categories.parentId))
+    const siblingCount = Number(siblingCountResult[0]?.count || 0)
 
-    return prisma.category.create({
-      data: {
+    const [newCategory] = await db.insert(categories)
+      .values({
         ...data,
         slug,
         sortOrder: siblingCount,
         metaTitle: data.metaTitle || data.name,
-        metaDescription: data.metaDescription || data.description || `Shop ${data.name.toLowerCase()} products`
-      }
-    })
+        metaDescription: data.metaDescription || data.description || `Shop ${data.name.toLowerCase()} products`,
+        isActive: true
+      })
+      .returning()
+    
+    return newCategory
   }
 
   // Update category
@@ -142,52 +274,64 @@ class CategoryRepository {
     isActive: boolean
     sortOrder: number
   }>) {
-    const updateData: any = { ...data }
+    const updateData: any = { ...data, updatedAt: new Date() }
     
     // If name is being updated, update slug too
     if (data.name) {
       updateData.slug = this.generateSlug(data.name)
       
       // Check for slug conflicts
-      const existingCategory = await prisma.category.findUnique({ 
-        where: { slug: updateData.slug } 
-      })
+      const existingCategoryResult = await db.select()
+        .from(categories)
+        .where(eq(categories.slug, updateData.slug))
+        .limit(1)
+      const existingCategory = existingCategoryResult[0] || null
       if (existingCategory && existingCategory.id !== id) {
         throw new Error(`Category with slug "${updateData.slug}" already exists`)
       }
     }
 
-    return prisma.category.update({
-      where: { id },
-      data: updateData
-    })
+    const [updated] = await db.update(categories)
+      .set(updateData)
+      .where(eq(categories.id, id))
+      .returning()
+    
+    return updated
   }
 
   // Delete category (soft delete by setting isActive to false)
   async delete(id: string) {
     // Check if category has children or products
-    const category = await prisma.category.findUnique({
-      where: { id },
-      include: {
-        children: { where: { isActive: true } },
-        _count: { select: { products: true } }
+    const category = await db.query.categories.findFirst({
+      where: eq(categories.id, id),
+      with: {
+        childCategories: {
+          where: eq(categories.isActive, true)
+        }
       }
     })
 
     if (!category) throw new Error('Category not found')
 
-    if (category.children.length > 0) {
+    if (category.childCategories && category.childCategories.length > 0) {
       throw new Error('Cannot delete category with active subcategories')
     }
 
-    if (category._count.products > 0) {
+    const productCountResult = await db.select({ count: sql<number>`count(*)` })
+      .from(products)
+      .where(eq(products.categoryId, id))
+    const productCount = Number(productCountResult[0]?.count || 0)
+
+    if (productCount > 0) {
       throw new Error('Cannot delete category with products. Move products first.')
     }
 
-    return prisma.category.update({
-      where: { id },
-      data: { isActive: false }
-    })
+    const [updated] = await db.update(categories)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(categories.id, id))
+      .returning()
+    
+    return updated
   }
 
   // Generate SEO-friendly slug
@@ -202,41 +346,58 @@ class CategoryRepository {
 
   // Get categories for navigation menu
   async getNavigationCategories(): Promise<CategoryWithChildren[]> {
-    return prisma.category.findMany({
-      where: {
-        parentId: null,
-        isActive: true
-      },
-      include: {
-        children: {
-          where: { isActive: true },
-          orderBy: { sortOrder: 'asc' },
-          take: 8 // Limit subcategories for navigation
+    return db.query.categories.findMany({
+      where: and(
+        isNull(categories.parentId),
+        eq(categories.isActive, true)
+      ),
+      with: {
+        childCategories: {
+          where: eq(categories.isActive, true),
+          orderBy: asc(categories.sortOrder),
+          limit: 8 // Limit subcategories for navigation
         }
       },
-      orderBy: { sortOrder: 'asc' },
-      take: 10 // Limit main categories for navigation
-    })
+      orderBy: asc(categories.sortOrder),
+      limit: 10 // Limit main categories for navigation
+    }) as Promise<CategoryWithChildren[]>
   }
 
   // Search categories
   async search(query: string) {
-    return prisma.category.findMany({
-      where: {
-        isActive: true,
-        OR: [
-          { name: { contains: query, mode: 'insensitive' } },
-          { description: { contains: query, mode: 'insensitive' } }
-        ]
+    const results = await db.query.categories.findMany({
+      where: and(
+        eq(categories.isActive, true),
+        or(
+          ilike(categories.name, `%${query}%`),
+          ilike(categories.description, `%${query}%`)
+        )
+      ),
+      with: {
+        parentCategory: true
       },
-      include: {
-        parent: true,
-        _count: { select: { products: true, children: true } }
-      },
-      orderBy: [
-        { name: 'asc' }
-      ]
+      orderBy: asc(categories.name)
     })
+    
+    // Get counts for each category
+    return Promise.all(results.map(async (cat) => {
+      const [productCount, childrenCount] = await Promise.all([
+        db.select({ count: sql<number>`count(*)` })
+          .from(products)
+          .where(eq(products.categoryId, cat.id)),
+        db.select({ count: sql<number>`count(*)` })
+          .from(categories)
+          .where(eq(categories.parentId, cat.id))
+      ])
+      
+      return {
+        ...cat,
+        _count: {
+          products: Number(productCount[0]?.count || 0),
+          children: Number(childrenCount[0]?.count || 0)
+        }
+      }
+    }))
   }
 }
 

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { sessions, verificationTokens } from '@/lib/db/schema'
+import { lt } from 'drizzle-orm'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,33 +16,24 @@ export async function GET(request: NextRequest) {
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-    const deletedSessions = await prisma.session.deleteMany({
-      where: {
-        expires: {
-          lt: thirtyDaysAgo
-        }
-      }
-    })
-
+    await db.delete(sessions)
+      .where(lt(sessions.expires, thirtyDaysAgo))
+    // Note: Drizzle doesn't return count for deleteMany, so we'll estimate
+    const sessionsDeleted = 0 // Would need a separate count query if needed
 
     // Clean up expired verification tokens (older than 7 days)
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
-    const deletedTokens = await prisma.verificationToken.deleteMany({
-      where: {
-        expires: {
-          lt: sevenDaysAgo
-        }
-      }
-    })
-
+    await db.delete(verificationTokens)
+      .where(lt(verificationTokens.expires, sevenDaysAgo))
+    const tokensDeleted = 0 // Would need a separate count query if needed
 
     return NextResponse.json({ 
       success: true, 
       message: 'Session cleanup completed successfully',
-      sessionsDeleted: deletedSessions.count,
-      tokensDeleted: deletedTokens.count,
+      sessionsDeleted,
+      tokensDeleted,
       timestamp: new Date().toISOString()
     })
   } catch (error) {

@@ -1,6 +1,5 @@
 import { CartItem } from '@/types'
 import { formatCurrency, getFreeShippingThreshold, DEFAULT_CURRENCY } from './currency'
-import { SettingsRepository } from './settings-repository'
 
 export function calculateCartTotal(items: CartItem[]): number {
   return items.reduce((total, item) => {

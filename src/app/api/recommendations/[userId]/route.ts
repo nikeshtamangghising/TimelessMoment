@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 import RecommendationEngine from '@/lib/recommendation-engine';
+import { products, userActivities, users } from '@/lib/db/schema';
+import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
@@ -16,12 +18,12 @@ export async function GET(
 
     // Verify user exists (only for non-guest users)
     if (userId && userId !== 'guest') {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { id: true },
-      });
+      const userResult = await db.select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
 
-      if (!user) {
+      if (userResult.length === 0) {
         return NextResponse.json(
           { error: 'User not found' },
           { status: 404 }
@@ -30,18 +32,19 @@ export async function GET(
     }
 
     // Get popular products - compute score on the fly so latest counts are reflected
-    const popularRaw = await prisma.product.findMany({
-      where: { isActive: true },
-      take: popularLimit * 4, // fetch more then rank by computed score
-      select: {
-        id: true,
-        viewCount: true,
-        cartCount: true,
-        favoriteCount: true,
-        orderCount: true,
-        createdAt: true,
-      },
+    // Optimized: Pre-sort by popularityScore to reduce computation
+    const popularRaw = await db.select({
+      id: products.id,
+      viewCount: products.viewCount,
+      cartCount: products.cartCount,
+      favoriteCount: products.favoriteCount,
+      orderCount: products.orderCount,
+      createdAt: products.createdAt,
     })
+    .from(products)
+    .where(eq(products.isActive, true))
+    .orderBy(desc(products.popularityScore), desc(products.viewCount))
+    .limit(Math.min(popularLimit * 2, 24)); // Reduced from 4x to 2x for faster queries
 
     const popularScored = popularRaw.map(p => ({
       productId: p.id,
@@ -63,36 +66,35 @@ export async function GET(
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - 7);
 
-      const trendingData = await prisma.userActivity.groupBy({
-        by: ['productId'],
-        where: {
-          createdAt: { gte: cutoffDate },
-        },
-        _count: {
-          id: true,
-        },
-        orderBy: {
-          _count: {
-            id: 'desc',
-          },
-        },
-        take: trendingLimit,
-      });
+      // Get trending data by grouping user activities
+      const trendingData = await db.select({
+        productId: userActivities.productId,
+        count: sql<number>`count(*)`.as('count')
+      })
+      .from(userActivities)
+      .where(gte(userActivities.createdAt, cutoffDate))
+      .groupBy(userActivities.productId)
+      .orderBy(desc(sql`count(*)`))
+      .limit(trendingLimit);
 
       const trendingProductIds = trendingData.map(t => t.productId);
-      const trendingProducts = await prisma.product.findMany({
-        where: {
-          id: { in: trendingProductIds },
-          isActive: true,
-        },
-        select: { id: true, popularityScore: true },
-      });
+      if (trendingProductIds.length > 0) {
+        const trendingProducts = await db.select({ 
+          id: products.id, 
+          popularityScore: products.popularityScore 
+        })
+        .from(products)
+        .where(and(
+          inArray(products.id, trendingProductIds),
+          eq(products.isActive, true)
+        ));
 
-      trending = trendingProducts.map(p => ({
-        productId: p.id,
-        score: p.popularityScore || 0,
-        reason: 'trending' as const,
-      }));
+        trending = trendingProducts.map(p => ({
+          productId: p.id,
+          score: parseFloat(p.popularityScore || '0'),
+          reason: 'trending' as const,
+        }));
+      }
     } catch (error) {
       trending = [];
     }
@@ -149,20 +151,27 @@ export async function GET(
 async function fetchProductsByIds(productIds: string[]) {
   if (productIds.length === 0) return [];
 
-  return await prisma.product.findMany({
-    where: {
-      id: { in: productIds },
-      isActive: true,
-    },
-    include: {
-      category: {
-        select: { id: true, name: true, slug: true },
-      },
-      brand: {
-        select: { id: true, name: true, slug: true },
-      },
-    },
-  });
+  // Only fetch essential columns for faster queries and smaller payload
+  return await db.select({
+    id: products.id,
+    name: products.name,
+    slug: products.slug,
+    price: products.price,
+    discountPrice: products.discountPrice,
+    currency: products.currency,
+    images: products.images,
+    inventory: products.inventory,
+    isActive: products.isActive,
+    popularityScore: products.popularityScore,
+    viewCount: products.viewCount,
+    categoryId: products.categoryId,
+    brandId: products.brandId,
+  })
+    .from(products)
+    .where(and(
+      inArray(products.id, productIds),
+      eq(products.isActive, true)
+    ));
 }
 
 function combineRecommendationsWithProducts(recommendations: any[], products: any[]) {

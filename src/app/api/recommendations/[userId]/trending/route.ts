@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { products, userActivities } from '@/lib/db/schema'
+import { and, desc, eq, gte, notInArray, sql } from 'drizzle-orm'
 
 export async function GET(
   request: NextRequest,
@@ -13,67 +16,102 @@ export async function GET(
     const resolvedParams = await params
     const userId = resolvedParams.userId === 'guest' ? undefined : resolvedParams.userId
 
-    const { PrismaClient } = require('@prisma/client')
-    const prisma = new PrismaClient()
-
     // Get trending products based on recent activity (last 7 days)
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - 7)
 
-    // Get all active products with trending score calculation
-    const products = await prisma.product.findMany({
-      where: {
-        isActive: true
+    // First, get products with activity counts - only select essential columns
+    const productsWithActivity = await db.select({
+      product: {
+        id: products.id,
+        name: products.name,
+        slug: products.slug,
+        price: products.price,
+        discountPrice: products.discountPrice,
+        currency: products.currency,
+        images: products.images,
+        inventory: products.inventory,
+        isActive: products.isActive,
+        popularityScore: products.popularityScore,
+        viewCount: products.viewCount,
+        categoryId: products.categoryId,
+        brandId: products.brandId,
       },
-      include: {
-        category: true,
-        brand: true,
-        _count: {
-          select: {
-            activities: {
-              where: {
-                createdAt: { gte: cutoffDate }
-              }
-            }
-          }
-        }
-      },
-      orderBy: [
-        {
-          activities: {
-            _count: 'desc'
-          }
-        },
-        {
-          popularityScore: 'desc'
-        },
-        {
-          createdAt: 'desc'
-        }
-      ],
-      skip: offset,
-      take: limit
+      activityCount: sql<number>`count(${userActivities.id})`.as('activityCount')
     })
+    .from(products)
+    .leftJoin(userActivities, and(
+      eq(userActivities.productId, products.id),
+      gte(userActivities.createdAt, cutoffDate)
+    ))
+    .where(eq(products.isActive, true))
+    .groupBy(products.id)
+    .orderBy(
+      desc(sql`count(${userActivities.id})`),
+      desc(products.popularityScore),
+      desc(products.createdAt)
+    )
+    .limit(limit)
+    .offset(offset)
 
     // Get total count for pagination
-    const totalCount = await prisma.product.count({
-      where: {
-        isActive: true
-      }
+    const totalCountResult = await db.select({
+      count: sql<number>`count(*)`
     })
+    .from(products)
+    .where(eq(products.isActive, true))
+
+    const totalCount = totalCountResult[0]?.count || 0
 
     // Transform to recommendation format
-    const result = products.map(product => ({
+    const result = productsWithActivity.map(({ product, activityCount }) => ({
       productId: product.id,
-      score: product._count.activities * 1.5 + product.popularityScore, // Trending boost
+      score: activityCount * 1.5 + (parseFloat(product.popularityScore || '0')), // Trending boost
       reason: 'trending',
       product: {
         ...product,
-        _count: undefined // Remove the count from the product object
       }
     }))
 
-    return NextResponse.json({
+    if (result.length < limit) {
+      const excludeIds = result.map(item => item.productId)
+      const fallbackNeeded = limit - result.length
+      if (fallbackNeeded > 0) {
+        const fallbackProducts = await db.select({
+          id: products.id,
+          name: products.name,
+          slug: products.slug,
+          price: products.price,
+          discountPrice: products.discountPrice,
+          currency: products.currency,
+          images: products.images,
+          inventory: products.inventory,
+          isActive: products.isActive,
+          popularityScore: products.popularityScore,
+          viewCount: products.viewCount,
+          categoryId: products.categoryId,
+          brandId: products.brandId,
+        })
+        .from(products)
+        .where(and(
+          eq(products.isActive, true),
+          excludeIds.length > 0 ? notInArray(products.id, excludeIds) : sql`TRUE`
+        ))
+        .orderBy(desc(products.popularityScore), desc(products.createdAt))
+        .limit(fallbackNeeded)
+
+        fallbackProducts.forEach(product => {
+          result.push({
+            productId: product.id,
+            score: parseFloat(product.popularityScore || '0'),
+            reason: 'trending',
+            product,
+          })
+        })
+      }
+    }
+
+    const response = NextResponse.json({
       success: true,
       products: result,
       total: totalCount,
@@ -85,6 +123,9 @@ export async function GET(
         hasPrev: page > 1
       }
     })
+    // Add caching headers for better performance
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    return response
 
   } catch (error) {
     console.error('Trending recommendations error:', error)

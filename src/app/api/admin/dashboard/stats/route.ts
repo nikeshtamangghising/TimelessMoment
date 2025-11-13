@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminHandler } from '@/lib/auth-middleware'
 import { orderRepository } from '@/lib/order-repository'
 import { productRepository } from '@/lib/product-repository'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { orders, products, users } from '@/lib/db/schema'
+import { eq, gte, lt, ne, sql, and } from 'drizzle-orm'
 
 export const GET = createAdminHandler(async (request: NextRequest) => {
   try {
@@ -24,42 +26,53 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
       orderRepository.getOrderStats(),
       
       // Previous period orders (30-60 days ago)
-      prisma.order.aggregate({
-        where: {
-          createdAt: {
-            gte: sixtyDaysAgo,
-            lt: thirtyDaysAgo,
-          },
-        },
-        _sum: { total: true },
-        _count: { id: true },
-      }),
+      Promise.all([
+        db.select({ sum: sql<number>`sum(${orders.total})` })
+          .from(orders)
+          .where(and(
+            gte(orders.createdAt, sixtyDaysAgo),
+            lt(orders.createdAt, thirtyDaysAgo)
+          )),
+        db.select({ count: sql<number>`count(*)` })
+          .from(orders)
+          .where(and(
+            gte(orders.createdAt, sixtyDaysAgo),
+            lt(orders.createdAt, thirtyDaysAgo)
+          ))
+      ]).then(([sumResult, countResult]) => ({
+        _sum: { total: parseFloat(sumResult[0]?.sum?.toString() || '0') },
+        _count: { id: Number(countResult[0]?.count || 0) }
+      })),
 
       // Current product count
-      prisma.product.count({
-        where: { isActive: true },
-      }),
+      db.select({ count: sql<number>`count(*)` })
+        .from(products)
+        .where(eq(products.isActive, true))
+        .then(result => Number(result[0]?.count || 0)),
 
       // Previous product count (30 days ago)
-      prisma.product.count({
-        where: {
-          isActive: true,
-          createdAt: { lt: thirtyDaysAgo },
-        },
-      }),
+      db.select({ count: sql<number>`count(*)` })
+        .from(products)
+        .where(and(
+          eq(products.isActive, true),
+          lt(products.createdAt, thirtyDaysAgo)
+        ))
+        .then(result => Number(result[0]?.count || 0)),
 
       // Current customer count
-      prisma.user.count({
-        where: { role: 'CUSTOMER' },
-      }),
+      db.select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(eq(users.role, 'CUSTOMER'))
+        .then(result => Number(result[0]?.count || 0)),
 
       // Previous customer count (30 days ago)
-      prisma.user.count({
-        where: {
-          role: 'CUSTOMER',
-          createdAt: { lt: thirtyDaysAgo },
-        },
-      }),
+      db.select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(and(
+          eq(users.role, 'CUSTOMER'),
+          lt(users.createdAt, thirtyDaysAgo)
+        ))
+        .then(result => Number(result[0]?.count || 0)),
     ])
 
     // Calculate percentage changes

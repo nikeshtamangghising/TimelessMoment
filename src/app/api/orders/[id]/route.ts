@@ -4,7 +4,9 @@ import { updateOrderSchema, updateShippingAddressSchema } from '@/lib/validation
 import { createAuthHandler, createAdminHandler } from '@/lib/auth-middleware'
 import { getServerSession } from '@/lib/auth'
 import { EmailService } from '@/lib/email-service'
-import { prisma } from '@/lib/db-utils'
+import { db } from '@/lib/db-utils'
+import { users } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 
 interface RouteParams {
   params: Promise<{
@@ -129,9 +131,11 @@ export const PUT = createAuthHandler<RouteParams>(async (
       // Send order status update email if status changed
       if (previousStatus !== newStatus) {
         try {
-          const user = await prisma.user.findUnique({
-            where: { id: existingOrder.userId }
-          })
+          const userResult = await db.select()
+            .from(users)
+            .where(eq(users.id, existingOrder.userId!))
+            .limit(1)
+          const user = userResult[0] || null
 
           if (user) {
             await EmailService.sendOrderStatusUpdate({

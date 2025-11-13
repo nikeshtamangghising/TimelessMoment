@@ -1,4 +1,6 @@
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
+import { cartItems, products, categories } from '@/lib/db/schema';
+import { eq, and, sql } from 'drizzle-orm';
 import { ActivityTracker } from './activity-tracker';
 
 export interface CartItem {
@@ -41,15 +43,17 @@ export class CartRepository {
     }
 
     // Check if product exists and is available
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-      select: { 
-        id: true, 
-        inventory: true, 
-        isActive: true,
-        name: true,
-      },
-    });
+    const productResult = await db.select({
+      id: products.id,
+      inventory: products.inventory,
+      isActive: products.isActive,
+      name: products.name,
+    })
+    .from(products)
+    .where(eq(products.id, productId))
+    .limit(1);
+    
+    const product = productResult[0];
 
     if (!product) {
       throw new Error('Product not found');
@@ -64,56 +68,73 @@ export class CartRepository {
     }
 
     try {
-      const result = await prisma.$transaction(async (tx) => {
-        // Check if item already exists in cart
-        const existingItem = await tx.cart.findFirst({
-          where: {
-            productId,
-            ...(userId ? { userId } : { sessionId }),
-          },
-        })
+      // Check if item already exists in cart
+      const whereConditions = [eq(cartItems.productId, productId)];
+      if (userId) {
+        whereConditions.push(eq(cartItems.userId, userId));
+      } else {
+        whereConditions.push(eq(cartItems.sessionId, sessionId!));
+      }
 
-        let cartItem;
+      const existingItems = await db.select()
+        .from(cartItems)
+        .where(and(...whereConditions))
+        .limit(1);
+      
+      const existingItem = existingItems[0];
+      let result;
 
-        if (existingItem) {
-          // Update quantity
-          const newQuantity = existingItem.quantity + quantity;
-          
-          if (product.inventory < newQuantity) {
-            throw new Error(`Cannot add ${quantity} items. Only ${product.inventory - existingItem.quantity} more can be added`);
-          }
-
-          cartItem = await tx.cart.update({
-            where: { id: existingItem.id },
-            data: { 
-              quantity: newQuantity,
-              updatedAt: new Date(),
-            },
-            include: {
-              product: {
-                include: { category: true },
-              },
-            },
-          });
-        } else {
-          // Create new cart item
-          cartItem = await tx.cart.create({
-            data: {
-              productId,
-              quantity,
-              userId,
-              sessionId,
-            },
-            include: {
-              product: {
-                include: { category: true },
-              },
-            },
-          });
+      if (existingItem) {
+        // Update quantity
+        const newQuantity = existingItem.quantity + quantity;
+        
+        if (product.inventory < newQuantity) {
+          throw new Error(`Cannot add ${quantity} items. Only ${product.inventory - existingItem.quantity} more can be added`);
         }
 
-        return cartItem;
-      });
+        await db.update(cartItems)
+          .set({ 
+            quantity: newQuantity,
+            updatedAt: new Date(),
+          })
+          .where(eq(cartItems.id, existingItem.id));
+        
+        // Fetch with product and category
+        result = await db.query.cartItems.findFirst({
+          where: eq(cartItems.id, existingItem.id),
+          with: {
+            product: {
+              with: {
+                category: true,
+              },
+            },
+          },
+        });
+      } else {
+        // Create new cart item
+        const insertData: any = {
+          productId,
+          quantity,
+        };
+        if (userId) insertData.userId = userId;
+        if (sessionId) insertData.sessionId = sessionId;
+
+        const insertResult = await db.insert(cartItems)
+          .values(insertData)
+          .returning();
+        
+        // Fetch with product and category
+        result = await db.query.cartItems.findFirst({
+          where: eq(cartItems.id, insertResult[0].id),
+          with: {
+            product: {
+              with: {
+                category: true,
+              },
+            },
+          },
+        });
+      }
 
       // Track activity
       await ActivityTracker.trackActivity({
@@ -133,18 +154,24 @@ export class CartRepository {
    * Get cart items for user or session
    */
   static async getCart(identifier: { userId: string } | { sessionId: string }): Promise<CartItem[]> {
-    const cartItems = await prisma.cart.findMany({
-      where: identifier,
-      include: {
+    const whereCondition = 'userId' in identifier 
+      ? eq(cartItems.userId, identifier.userId)
+      : eq(cartItems.sessionId, identifier.sessionId);
+
+    const items = await db.query.cartItems.findMany({
+      where: whereCondition,
+      with: {
         product: {
-          include: { category: true },
+          with: {
+            category: true,
+          },
         },
       },
-      orderBy: { addedAt: 'desc' },
+      orderBy: (cartItems, { desc }) => [desc(cartItems.createdAt)],
     });
 
     // Filter out inactive products or products with no inventory
-    return cartItems.filter(item => 
+    return items.filter(item => 
       item.product.isActive && item.product.inventory > 0
     ) as CartItem[];
   }
@@ -162,13 +189,20 @@ export class CartRepository {
     }
 
     // Verify ownership
-    const existingItem = await prisma.cart.findFirst({
-      where: {
-        id: cartItemId,
-        ...identifier,
-      },
-      include: { product: true },
+    const whereConditions = [eq(cartItems.id, cartItemId)];
+    if ('userId' in identifier) {
+      whereConditions.push(eq(cartItems.userId, identifier.userId));
+    } else {
+      whereConditions.push(eq(cartItems.sessionId, identifier.sessionId));
+    }
+
+    const existingItems = await db.query.cartItems.findMany({
+      where: and(...whereConditions),
+      with: { product: true },
+      limit: 1,
     });
+    
+    const existingItem = existingItems[0];
 
     if (!existingItem) {
       throw new Error('Cart item not found');
@@ -178,37 +212,31 @@ export class CartRepository {
       throw new Error(`Only ${existingItem.product.inventory} items available in stock`);
     }
 
-    const updatedItem = await prisma.$transaction(async (tx) => {
-      // Update the cart item quantity
-      const item = await tx.cart.update({
-        where: { id: cartItemId },
-        data: { 
-          quantity,
-          updatedAt: new Date(),
-        },
-        include: {
-          product: true,
-        },
+    // Update the cart item quantity
+    await db.update(cartItems)
+      .set({ 
+        quantity,
+        updatedAt: new Date(),
       })
+      .where(eq(cartItems.id, cartItemId));
 
-      // Track activity for add events (when increasing quantity)
-      if (quantity > existingItem.quantity) {
-        await ActivityTracker.trackActivity({
-          userId: 'userId' in identifier ? identifier.userId : undefined,
-          sessionId: 'sessionId' in identifier ? identifier.sessionId : undefined,
-          productId: item.productId,
-          activityType: 'CART_ADD',
-        })
-      }
+    // Track activity for add events (when increasing quantity)
+    if (quantity > existingItem.quantity) {
+      await ActivityTracker.trackActivity({
+        userId: 'userId' in identifier ? identifier.userId : undefined,
+        sessionId: 'sessionId' in identifier ? identifier.sessionId : undefined,
+        productId: existingItem.productId,
+        activityType: 'CART_ADD',
+      });
+    }
 
-      // Return with category included (consistent with previous return type)
-      return await tx.cart.findUnique({
-        where: { id: item.id },
-        include: {
-          product: { include: { category: true } },
-        },
-      })
-    })
+    // Return with category included (consistent with previous return type)
+    const updatedItem = await db.query.cartItems.findFirst({
+      where: eq(cartItems.id, cartItemId),
+      with: {
+        product: { with: { category: true } },
+      },
+    });
 
     return updatedItem as CartItem;
   }
@@ -221,41 +249,53 @@ export class CartRepository {
     identifier: { userId: string } | { sessionId: string }
   ): Promise<void> {
     // Verify ownership
-    const existingItem = await prisma.cart.findFirst({
-      where: {
-        id: cartItemId,
-        ...identifier,
-      },
-    });
+    const whereConditions = [eq(cartItems.id, cartItemId)];
+    if ('userId' in identifier) {
+      whereConditions.push(eq(cartItems.userId, identifier.userId));
+    } else {
+      whereConditions.push(eq(cartItems.sessionId, identifier.sessionId));
+    }
 
-    if (!existingItem) {
+    const existingItems = await db.select()
+      .from(cartItems)
+      .where(and(...whereConditions))
+      .limit(1);
+
+    if (existingItems.length === 0) {
       throw new Error('Cart item not found');
     }
 
-    await prisma.cart.delete({
-      where: { id: cartItemId },
-    });
+    await db.delete(cartItems)
+      .where(eq(cartItems.id, cartItemId));
   }
 
   /**
    * Clear entire cart
    */
   static async clearCart(identifier: { userId: string } | { sessionId: string }): Promise<void> {
-    await prisma.cart.deleteMany({
-      where: identifier,
-    });
+    const whereCondition = 'userId' in identifier 
+      ? eq(cartItems.userId, identifier.userId)
+      : eq(cartItems.sessionId, identifier.sessionId);
+
+    await db.delete(cartItems)
+      .where(whereCondition);
   }
 
   /**
    * Get cart count
    */
   static async getCartCount(identifier: { userId: string } | { sessionId: string }): Promise<number> {
-    const result = await prisma.cart.aggregate({
-      where: identifier,
-      _sum: { quantity: true },
-    });
+    const whereCondition = 'userId' in identifier 
+      ? eq(cartItems.userId, identifier.userId)
+      : eq(cartItems.sessionId, identifier.sessionId);
 
-    return result._sum.quantity || 0;
+    const result = await db.select({
+      total: sql<number>`COALESCE(SUM(${cartItems.quantity}), 0)`,
+    })
+    .from(cartItems)
+    .where(whereCondition);
+
+    return Number(result[0]?.total || 0);
   }
 
   /**
@@ -274,54 +314,52 @@ export class CartRepository {
    * Merge session cart with user cart (for login)
    */
   static async mergeSessionCart(sessionId: string, userId: string): Promise<void> {
-    const sessionCartItems = await prisma.cart.findMany({
-      where: { sessionId },
-      include: { product: true },
+    const sessionCartItems = await db.query.cartItems.findMany({
+      where: eq(cartItems.sessionId, sessionId),
+      with: { product: true },
     });
 
     if (sessionCartItems.length === 0) return;
 
-    await prisma.$transaction(async (tx) => {
-      for (const sessionItem of sessionCartItems) {
-        // Check if user already has this product in cart
-        const existingUserItem = await tx.cart.findFirst({
-          where: {
+    for (const sessionItem of sessionCartItems) {
+      // Check if user already has this product in cart
+      const existingUserItems = await db.select()
+        .from(cartItems)
+        .where(and(
+          eq(cartItems.userId, userId),
+          eq(cartItems.productId, sessionItem.productId)
+        ))
+        .limit(1);
+
+      const existingUserItem = existingUserItems[0];
+
+      if (existingUserItem) {
+        // Update quantity (up to inventory limit)
+        const newQuantity = Math.min(
+          existingUserItem.quantity + sessionItem.quantity,
+          sessionItem.product.inventory
+        );
+
+        await db.update(cartItems)
+          .set({ 
+            quantity: newQuantity,
+            updatedAt: new Date(),
+          })
+          .where(eq(cartItems.id, existingUserItem.id));
+      } else {
+        // Create new user cart item
+        await db.insert(cartItems)
+          .values({
             userId,
             productId: sessionItem.productId,
-          },
-        });
-
-        if (existingUserItem) {
-          // Update quantity (up to inventory limit)
-          const newQuantity = Math.min(
-            existingUserItem.quantity + sessionItem.quantity,
-            sessionItem.product.inventory
-          );
-
-          await tx.cart.update({
-            where: { id: existingUserItem.id },
-            data: { 
-              quantity: newQuantity,
-              updatedAt: new Date(),
-            },
+            quantity: Math.min(sessionItem.quantity, sessionItem.product.inventory),
           });
-        } else {
-          // Create new user cart item
-          await tx.cart.create({
-            data: {
-              userId,
-              productId: sessionItem.productId,
-              quantity: Math.min(sessionItem.quantity, sessionItem.product.inventory),
-            },
-          });
-        }
-
-        // Remove session cart item
-        await tx.cart.delete({
-          where: { id: sessionItem.id },
-        });
       }
-    });
+
+      // Remove session cart item
+      await db.delete(cartItems)
+        .where(eq(cartItems.id, sessionItem.id));
+    }
   }
 
   /**
@@ -331,14 +369,19 @@ export class CartRepository {
     productId: string,
     identifier: { userId: string } | { sessionId: string }
   ): Promise<boolean> {
-    const item = await prisma.cart.findFirst({
-      where: {
-        productId,
-        ...identifier,
-      },
-    });
+    const whereConditions = [eq(cartItems.productId, productId)];
+    if ('userId' in identifier) {
+      whereConditions.push(eq(cartItems.userId, identifier.userId));
+    } else {
+      whereConditions.push(eq(cartItems.sessionId, identifier.sessionId));
+    }
 
-    return !!item;
+    const items = await db.select()
+      .from(cartItems)
+      .where(and(...whereConditions))
+      .limit(1);
+
+    return items.length > 0;
   }
 
   /**
@@ -348,12 +391,11 @@ export class CartRepository {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-    await prisma.cart.deleteMany({
-      where: {
-        userId: null, // Only session carts
-        addedAt: { lt: cutoffDate },
-      },
-    });
+    await db.delete(cartItems)
+      .where(and(
+        sql`${cartItems.userId} IS NULL`,
+        sql`${cartItems.createdAt} < ${cutoffDate}`
+      ));
   }
 
   /**
@@ -363,15 +405,19 @@ export class CartRepository {
     identifier: { userId: string } | { sessionId: string },
     limit: number = 5
   ): Promise<CartItem[]> {
-    const items = await prisma.cart.findMany({
-      where: identifier,
-      include: {
+    const whereCondition = 'userId' in identifier 
+      ? eq(cartItems.userId, identifier.userId)
+      : eq(cartItems.sessionId, identifier.sessionId);
+
+    const items = await db.query.cartItems.findMany({
+      where: whereCondition,
+      with: {
         product: {
-          include: { category: true },
+          with: { category: true },
         },
       },
-      orderBy: { addedAt: 'desc' },
-      take: limit,
+      orderBy: (cartItems, { desc }) => [desc(cartItems.createdAt)],
+      limit,
     });
 
     return items.filter(item => 

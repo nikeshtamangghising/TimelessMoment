@@ -1,28 +1,36 @@
-import { prisma } from '../src/lib/db'
+import { db } from '../src/lib/db'
+import { orders, orderItems, orderTracking, users, products } from '../src/lib/db/schema'
+import { asc, desc, eq } from 'drizzle-orm'
 
 async function checkOrderData() {
   console.log('🔍 Checking current order data...')
 
   try {
     // Get all orders with their tracking and items
-    const orders = await prisma.order.findMany({
-      include: {
-        items: {
-          include: {
-            product: true,
-          },
-        },
-        trackingLogs: true,
-        user: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    })
+    const ordersData = await db.select().from(orders).orderBy(desc(orders.createdAt));
+    
+    // Get related data
+    const orderItemsData = await db.select().from(orderItems);
+    const orderTrackingData = await db.select().from(orderTracking);
+    const usersData = await db.select().from(users);
+    const productsData = await db.select().from(products);
+    
+    // Combine the data
+    const ordersWithRelations = ordersData.map(order => {
+      return {
+        ...order,
+        items: orderItemsData.filter(item => item.orderId === order.id).map(item => ({
+          ...item,
+          product: productsData.find(p => p.id === item.productId) || null
+        })),
+        trackingLogs: orderTrackingData.filter(log => log.orderId === order.id),
+        user: usersData.find(user => user.id === order.userId) || null
+      };
+    });
 
-    console.log(`📊 Found ${orders.length} orders in database`)
+    console.log(`📊 Found ${ordersWithRelations.length} orders in database`)
 
-    for (const order of orders) {
+    for (const order of ordersWithRelations) {
       console.log(`\n--- Order ${order.id} ---`)
       console.log(`Status: ${order.status}`)
       console.log(`Tracking Number: ${order.trackingNumber || 'NULL'}`)
@@ -35,7 +43,7 @@ async function checkOrderData() {
     }
 
     // Check for any orders without tracking numbers that should have them
-    const shippedOrdersWithoutTracking = orders.filter(
+    const shippedOrdersWithoutTracking = ordersWithRelations.filter(
       order => order.status === 'SHIPPED' && !order.trackingNumber
     )
 
@@ -49,7 +57,7 @@ async function checkOrderData() {
     }
 
     // Check for any orders without payment IDs that should have them
-    const ordersWithoutPaymentId = orders.filter(order => !order.stripePaymentIntentId)
+    const ordersWithoutPaymentId = ordersWithRelations.filter(order => !order.stripePaymentIntentId)
     if (ordersWithoutPaymentId.length > 0) {
       console.log(`\n⚠️  Found ${ordersWithoutPaymentId.length} orders without payment IDs`)
       for (const order of ordersWithoutPaymentId) {
@@ -61,8 +69,6 @@ async function checkOrderData() {
 
   } catch (error) {
     console.error('❌ Error checking order data:', error)
-  } finally {
-    await prisma.$disconnect()
   }
 }
 

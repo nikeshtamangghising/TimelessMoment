@@ -32,15 +32,11 @@ export const createProductSchema = z.object({
   images: z.array(
     z.string()
       .min(1, 'Image path cannot be empty')
-      .refine(
-        (val) => val.startsWith('http') || val.startsWith('/'), 
-        'Image must be a valid URL or uploaded file path'
-      )
   ).min(1, 'At least one product image is required'),
   inventory: z.number().int().min(0, 'Inventory cannot be negative'),
   lowStockThreshold: z.number().int().min(0, 'Low stock threshold cannot be negative').default(5),
-  categoryId: z.string().cuid('Invalid category ID'),
-  brandId: z.string().cuid('Invalid brand ID').optional().nullable(),
+  categoryId: z.string().min(1, 'Category ID is required'),
+  brandId: z.string().min(1, 'Invalid brand ID').optional().nullable(),
   slug: z.string().min(1, 'Slug is required').regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens'),
   sku: z.string().optional().nullable(),
   weight: z.number().positive('Weight must be positive').optional().nullable(),

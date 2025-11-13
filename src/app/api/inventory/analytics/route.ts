@@ -1,32 +1,28 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { db } from '@/lib/db';
+import { products } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 export async function GET() {
   try {
-    const products = await prisma.product.findMany({
-      where: {
-        isActive: true,
-      },
-    });
+    const productsList = await db.select().from(products).where(eq(products.isActive, true));
 
-    const totalProducts = products.length;
+    const totalProducts = productsList.length;
 
-    const totalInventoryValue = products.reduce((acc, product) => {
-      const value = product.price * product.inventory;
+    const totalInventoryValue = productsList.reduce((acc, product) => {
+      const value = parseFloat(product.price as string) * product.inventory;
       return acc + value;
     }, 0);
 
-    const totalInventoryUnits = products.reduce((acc, product) => {
+    const totalInventoryUnits = productsList.reduce((acc, product) => {
       return acc + product.inventory;
     }, 0);
 
-    const outOfStockProducts = products.filter(
+    const outOfStockProducts = productsList.filter(
       (product) => product.inventory === 0
     );
 
-    const lowStockProducts = products.filter(
+    const lowStockProducts = productsList.filter(
       (product) => product.inventory > 0 && product.inventory <= product.lowStockThreshold
     );
 

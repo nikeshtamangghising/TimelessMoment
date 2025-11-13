@@ -4,7 +4,9 @@ import { inventoryRepository } from '@/lib/inventory-repository'
 import { productRepository } from '@/lib/product-repository'
 import { orderRepository } from '@/lib/order-repository'
 import { bulkInventoryUpdateSchema, inventoryAdjustmentSchema } from '@/lib/validations'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { products } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 
 // GET /api/inventory - Get inventory summary and low stock alerts
 export const GET = createAdminHandler(async (request: NextRequest) => {
@@ -15,29 +17,26 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
     const summary = await inventoryRepository.getInventorySummary(lowStockThreshold)
     
     // Calculate total inventory worth
-    const products = await prisma.product.findMany({
-      where: { isActive: true },
-      take: 1000,
-      include: {
-        category: {
-          select: {
-            name: true
-          }
-        }
+    const productsResult = await db.query.products.findMany({
+      where: eq(products.isActive, true),
+      limit: 1000,
+      with: {
+        category: true
       }
     })
     
     const productsWithPagination = {
-      data: products,
+      data: productsResult,
       pagination: {
         page: 1,
         limit: 1000,
-        total: products.length,
+        total: productsResult.length,
         totalPages: 1
       }
     }
-    const totalInventoryWorth = products.reduce((total, product) => {
-      return total + (product.price * product.inventory)
+    const totalInventoryWorth = productsResult.reduce((total, product) => {
+      const price = parseFloat(product.price.toString())
+      return total + (price * product.inventory)
     }, 0)
     
     // Get real purchase history data
@@ -68,8 +67,9 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
       .slice(0, 10)
     
     // Calculate additional inventory metrics
-    const totalProductsValue = products.reduce((total, product) => {
-      return total + (product.price * product.inventory)
+    const totalProductsValue = productsResult.reduce((total, product) => {
+      const price = parseFloat(product.price.toString())
+      return total + (price * product.inventory)
     }, 0)
     
     const outOfStockCount = summary.outOfStockProducts.length
@@ -83,8 +83,9 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
     const inventoryTurnover = totalProductsValue > 0 ? totalPurchasesValue / totalProductsValue : 0
     
     // Get category-wise inventory distribution
-    const categoryDistribution = products.reduce((acc, product) => {
+    const categoryDistribution = productsResult.reduce((acc, product) => {
       const category = product.category?.name || 'Uncategorized'
+      const price = parseFloat(product.price.toString())
       if (!acc[category]) {
         acc[category] = {
           count: 0,
@@ -93,13 +94,13 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
         }
       }
       acc[category].count += 1
-      acc[category].value += product.price * product.inventory
+      acc[category].value += price * product.inventory
       acc[category].items.push({
         id: product.id,
         name: product.name,
         inventory: product.inventory,
         price: product.price,
-        value: product.price * product.inventory
+        value: price * product.inventory
       })
       return acc
     }, {} as Record<string, { count: number; value: number; items: any[] }>)
@@ -139,12 +140,16 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
     
     return NextResponse.json(enhancedSummary)
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-})
+      console.error('Error fetching inventory summary:', error)
+      return NextResponse.json(
+        { 
+          error: 'Internal server error',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        },
+        { status: 500 }
+      )
+    }
+  })
 
 // PUT /api/inventory/bulk - Bulk update inventory levels
 export const PUT = createAdminHandler(async (request: NextRequest) => {
@@ -178,12 +183,16 @@ export const PUT = createAdminHandler(async (request: NextRequest) => {
       ...result
     })
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-})
+      console.error('Error fetching inventory summary:', error)
+      return NextResponse.json(
+        { 
+          error: 'Internal server error',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        },
+        { status: 500 }
+      )
+    }
+  })
 
 // POST /api/inventory/adjust - Make individual inventory adjustments
 export const POST = createAdminHandler(async (request: NextRequest) => {
@@ -225,9 +234,13 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
       )
     }
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-})
+      console.error('Error fetching inventory summary:', error)
+      return NextResponse.json(
+        { 
+          error: 'Internal server error',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        },
+        { status: 500 }
+      )
+    }
+  })

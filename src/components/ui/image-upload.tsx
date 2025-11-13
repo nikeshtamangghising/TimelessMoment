@@ -148,7 +148,7 @@ export default function ImageUpload({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" suppressHydrationWarning>
       {/* File Upload Area */}
       <div
         className={`relative border-2 border-dashed rounded-lg p-6 transition-colors ${
@@ -160,6 +160,7 @@ export default function ImageUpload({
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
+        suppressHydrationWarning
       >
         <input
           ref={fileInputRef}
@@ -168,17 +169,19 @@ export default function ImageUpload({
           accept="image/*"
           onChange={handleFileInput}
           className="hidden"
+          suppressHydrationWarning
         />
 
-        <div className="text-center">
+        <div className="text-center" suppressHydrationWarning>
           <PhotoIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <div className="mt-4">
+          <div className="mt-4" suppressHydrationWarning>
             <p className="text-sm text-gray-600">
               <button
                 type="button"
                 onClick={openFileDialog}
                 disabled={uploading || images.length >= maxImages}
                 className="font-medium text-indigo-600 hover:text-indigo-500 disabled:text-gray-400"
+                suppressHydrationWarning
               >
                 Click to upload
               </button>
@@ -190,7 +193,7 @@ export default function ImageUpload({
           </div>
 
           {uploading && (
-            <div className="mt-4 flex items-center justify-center">
+            <div className="mt-4 flex items-center justify-center" suppressHydrationWarning>
               <Loading size="sm" />
               <span className="ml-2 text-sm text-gray-600">Uploading...</span>
             </div>
@@ -199,7 +202,7 @@ export default function ImageUpload({
       </div>
 
       {/* URL Input */}
-      <div className="flex space-x-2">
+      <div className="flex space-x-2" suppressHydrationWarning>
         <input
           type="url"
           placeholder="Or enter image URL"
@@ -207,6 +210,7 @@ export default function ImageUpload({
           onChange={(e) => setUrlInput(e.target.value)}
           disabled={images.length >= maxImages}
           className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:text-gray-400"
+          suppressHydrationWarning
         />
         <Button
           type="button"
@@ -220,14 +224,14 @@ export default function ImageUpload({
 
       {/* Error Message */}
       {error && (
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="text-sm text-red-600" suppressHydrationWarning>{error}</p>
       )}
 
       {/* Image Preview Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" suppressHydrationWarning>
         {images.map((image, index) => (
-          <div key={index} className="relative group">
-            <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+          <div key={index} className="relative group" suppressHydrationWarning>
+            <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden" suppressHydrationWarning>
               <Image
                 src={image}
                 alt={`Product image ${index + 1}`}
@@ -238,16 +242,18 @@ export default function ImageUpload({
                   const target = e.target as HTMLImageElement
                   target.src = '/placeholder-product.svg'
                 }}
+                suppressHydrationWarning
               />
             </div>
             <button
               type="button"
               onClick={() => handleRemoveImage(index)}
               className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+              suppressHydrationWarning
             >
               <XMarkIcon className="h-4 w-4" />
             </button>
-            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-2 opacity-0 group-hover:opacity-100 transition-opacity" suppressHydrationWarning>
               Image {index + 1}
               {index === 0 && <span className="ml-1">(Primary)</span>}
             </div>
@@ -256,7 +262,7 @@ export default function ImageUpload({
       </div>
 
       {images.length === 0 && (
-        <div className="text-center py-8 bg-gray-50 rounded-lg">
+        <div className="text-center py-8 bg-gray-50 rounded-lg" suppressHydrationWarning>
           <PhotoIcon className="mx-auto h-8 w-8 text-gray-400" />
           <p className="mt-2 text-sm text-gray-500">No images added yet</p>
           <p className="text-xs text-gray-400">Upload files or add URLs to get started</p>
@@ -264,7 +270,7 @@ export default function ImageUpload({
       )}
 
       {images.length > 0 && (
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-gray-500" suppressHydrationWarning>
           {images.length} of {maxImages} images added
           {images.length > 0 && <span className="ml-2">• First image will be used as primary</span>}
         </p>

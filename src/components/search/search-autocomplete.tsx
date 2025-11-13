@@ -145,10 +145,10 @@ export default function SearchAutocomplete({
   }, [])
 
   return (
-    <div className={`relative ${className}`}>
-      <form onSubmit={handleSubmit} className="relative">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+    <div className={`relative ${className}`} suppressHydrationWarning>
+      <form onSubmit={handleSubmit} className="relative" suppressHydrationWarning>
+        <div className="relative" suppressHydrationWarning>
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" suppressHydrationWarning>
             <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
           </div>
           <input
@@ -163,6 +163,7 @@ export default function SearchAutocomplete({
             className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-full leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
             placeholder={placeholder}
             autoComplete="off"
+            suppressHydrationWarning
           />
           {isLoading && (
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center">

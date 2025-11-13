@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import ActivityTracker from '@/lib/activity-tracker';
-import { ActivityType } from '@prisma/client';
+import { ActivityType } from '@/lib/db/schema';
 
 // Validation schema
 const trackActivitySchema = z.object({

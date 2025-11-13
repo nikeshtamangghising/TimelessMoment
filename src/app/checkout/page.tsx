@@ -157,13 +157,24 @@ export default function CheckoutPage() {
     try {
       // For COD, create an order immediately before clearing the cart
       if (paymentMethod === 'cod' && selectedAddress) {
-        const orderData = {
-          items: items.map(item => ({
+        const orderItems = items.map(item => {
+          const rawPrice = item.product.discountPrice ?? item.product.price
+          const priceValue = Number(rawPrice)
+          if (isNaN(priceValue)) {
+            throw new Error(`Invalid price for product ${item.productId}`)
+          }
+          return {
             productId: item.productId,
             quantity: item.quantity,
-            price: (item.product.discountPrice || item.product.price),
-          })),
-          total: items.reduce((sum, item) => sum + (item.product.discountPrice || item.product.price) * item.quantity, 0),
+            price: priceValue,
+          }
+        })
+
+        const orderTotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
+        const orderData = {
+          items: orderItems,
+          total: orderTotal,
           shippingAddress: selectedAddress,
         }
 

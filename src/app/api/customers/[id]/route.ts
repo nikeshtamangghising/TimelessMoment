@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { users, orders } from '@/lib/db/schema'
+import { eq, desc } from 'drizzle-orm'
 import { createAdminHandler } from '@/lib/auth-middleware'
 
 interface RouteParams {
@@ -13,17 +15,17 @@ export const GET = createAdminHandler(async (
   try {
     const { id } = await context.params
 
-    const user = await prisma.user.findUnique({
-      where: { id },
-      include: {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, id),
+      with: {
         orders: {
-          orderBy: { createdAt: 'desc' },
-          select: {
+          columns: {
             id: true,
             total: true,
             status: true,
-            createdAt: true,
-          }
+            createdAt: true
+          },
+          orderBy: desc(orders.createdAt)
         }
       }
     })
@@ -32,9 +34,12 @@ export const GET = createAdminHandler(async (
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 })
     }
 
-    const totalOrders = user.orders.length
-    const totalSpent = user.orders.reduce((sum, o) => sum + o.total, 0)
-    const lastOrder = user.orders[0]
+    const totalOrders = user.orders?.length || 0
+    const totalSpent = (user.orders || []).reduce((sum, o) => {
+      const orderTotal = parseFloat(o.total.toString())
+      return sum + orderTotal
+    }, 0)
+    const lastOrder = user.orders?.[0] || null
 
     return NextResponse.json({
       id: user.id,

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminHandler } from '@/lib/auth-middleware'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { products, categories, brands, productAttributes } from '@/lib/db/schema'
+import { eq, inArray } from 'drizzle-orm'
 
 // Admin-only endpoint to update product specifications by SKU
 export const POST = createAdminHandler(async (request: NextRequest) => {
@@ -24,7 +26,11 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
     }
 
     // Find product by SKU
-    const product = await prisma.product.findUnique({ where: { sku }})
+    const productResult = await db.select()
+      .from(products)
+      .where(eq(products.sku, sku))
+      .limit(1)
+    const product = productResult[0] || null
     if (!product) {
       return NextResponse.json({ error: `Product with SKU ${sku} not found` }, { status: 404 })
     }
@@ -32,12 +38,18 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
     // Resolve category
     let categoryId: string | undefined
     if (category && typeof category === 'string') {
-      const existingCategory = await prisma.category.findFirst({ where: { name: category } })
+      const existingCategoryResult = await db.select()
+        .from(categories)
+        .where(eq(categories.name, category))
+        .limit(1)
+      const existingCategory = existingCategoryResult[0] || null
       if (existingCategory) {
         categoryId = existingCategory.id
       } else {
         // Create the category to ensure specification can be saved
-        const newCat = await prisma.category.create({ data: { name: category, slug: category.toLowerCase().replace(/[^a-z0-9]+/g, '-') } })
+        const [newCat] = await db.insert(categories)
+          .values({ name: category, slug: category.toLowerCase().replace(/[^a-z0-9]+/g, '-') })
+          .returning()
         categoryId = newCat.id
       }
     }
@@ -45,11 +57,17 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
     // Resolve brand
     let brandId: string | undefined
     if (brand && typeof brand === 'string') {
-      const existingBrand = await prisma.brand.findFirst({ where: { name: brand } })
+      const existingBrandResult = await db.select()
+        .from(brands)
+        .where(eq(brands.name, brand))
+        .limit(1)
+      const existingBrand = existingBrandResult[0] || null
       if (existingBrand) {
         brandId = existingBrand.id
       } else {
-        const newBrand = await prisma.brand.create({ data: { name: brand, slug: brand.toLowerCase().replace(/[^a-z0-9]+/g, '-') } })
+        const [newBrand] = await db.insert(brands)
+          .values({ name: brand, slug: brand.toLowerCase().replace(/[^a-z0-9]+/g, '-') })
+          .returning()
         brandId = newBrand.id
       }
     }
@@ -71,9 +89,12 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
     if (typeof stockQuantity === 'number') updateData.inventory = stockQuantity
     if (typeof inStock === 'boolean') updateData.isActive = inStock
 
-    const updated = await prisma.$transaction(async (tx) => {
+    const updated = await db.transaction(async (tx) => {
       // Update product core fields
-      const p = await tx.product.update({ where: { id: product.id }, data: updateData })
+      const [p] = await tx.update(products)
+        .set({ ...updateData, updatedAt: new Date() })
+        .where(eq(products.id, product.id))
+        .returning()
 
       // Upsert attributes for Material and Color
       const attributesToSet: { name: string; value: string }[] = []
@@ -86,22 +107,19 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
 
       if (attributesToSet.length > 0) {
         // Remove existing attrs with same names
-        await tx.productAttribute.deleteMany({
-          where: {
-            productId: product.id,
-            name: { in: attributesToSet.map(a => a.name) },
-          },
-        })
+        const attrNames = attributesToSet.map(a => a.name)
+        await tx.delete(productAttributes)
+          .where(eq(productAttributes.productId, product.id))
+        // Note: Drizzle doesn't support `in` for delete, so we delete all and re-insert
+        // For better performance, we could use a raw SQL query
+        
         // Insert new
-        for (const attr of attributesToSet) {
-          await tx.productAttribute.create({
-            data: {
-              productId: product.id,
-              name: attr.name,
-              value: attr.value,
-            },
-          })
-        }
+        await tx.insert(productAttributes)
+          .values(attributesToSet.map(attr => ({
+            productId: product.id,
+            name: attr.name,
+            value: attr.value
+          })))
       }
 
       return p

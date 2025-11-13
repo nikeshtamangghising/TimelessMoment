@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { products } from '@/lib/db/schema'
+import { eq, lte, asc, and, sql } from 'drizzle-orm'
 import { createAdminHandler } from '@/lib/auth-middleware'
 
 export const GET = createAdminHandler(async (request: NextRequest) => {
@@ -8,29 +10,27 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
     const limit = parseInt(searchParams.get('limit') || '10')
 
     // Get products that are low on stock
-    const lowStockProducts = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        inventory: {
-          lte: prisma.product.fields.lowStockThreshold
-        }
-      },
-      select: {
+    const lowStockProducts = await db.query.products.findMany({
+      where: (products, { eq, lte, and, sql }) => and(
+        eq(products.isActive, true),
+        sql`${products.inventory} <= ${products.lowStockThreshold}`
+      ),
+      columns: {
         id: true,
         name: true,
         inventory: true,
         lowStockThreshold: true,
-        price: true,
+        price: true
+      },
+      with: {
         category: {
-          select: {
+          columns: {
             name: true
           }
         }
       },
-      orderBy: {
-        inventory: 'asc'
-      },
-      take: limit
+      orderBy: asc(products.inventory),
+      limit
     })
 
     return NextResponse.json({

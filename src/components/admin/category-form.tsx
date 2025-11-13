@@ -22,7 +22,6 @@ export default function CategoryForm({ category, onSubmit, loading }: CategoryFo
     name: category?.name || '',
     slug: category?.slug || '',
     description: category?.description || '',
-    image: category?.image || '',
     metaTitle: category?.metaTitle || '',
     metaDescription: category?.metaDescription || '',
     parentId: category?.parentId || '',
@@ -93,15 +92,6 @@ export default function CategoryForm({ category, onSubmit, loading }: CategoryFo
       newErrors.slug = 'Slug is required'
     } else if (!/^[a-z0-9-]+$/.test(formData.slug)) {
       newErrors.slug = 'Slug must contain only lowercase letters, numbers, and hyphens'
-    }
-
-    // URL validation for image if provided
-    if (formData.image && formData.image.trim()) {
-      try {
-        new URL(formData.image)
-      } catch {
-        newErrors.image = 'Please enter a valid image URL'
-      }
     }
 
     // Check for circular reference if parent is selected
@@ -215,48 +205,12 @@ export default function CategoryForm({ category, onSubmit, loading }: CategoryFo
           </CardContent>
         </Card>
 
-        {/* Images & SEO */}
+        {/* SEO */}
         <Card>
           <CardHeader>
-            <h3 className="text-lg font-medium text-gray-900">Images & SEO</h3>
+            <h3 className="text-lg font-medium text-gray-900">SEO Settings</h3>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Input
-              label="Category Image URL"
-              type="url"
-              value={formData.image}
-              onChange={(e) => handleInputChange('image', e.target.value)}
-              error={errors.image}
-              placeholder="https://example.com/category-image.jpg"
-              helperText="URL to the category's featured image"
-            />
-
-            {formData.image && (
-              <div className="mt-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Image Preview
-                </label>
-                <div className="border rounded-lg p-4 bg-gray-50">
-                  <img
-                    src={formData.image}
-                    alt="Category image preview"
-                    className="h-32 w-auto object-contain"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement
-                      target.style.display = 'none'
-                      const errorText = target.nextSibling as HTMLElement
-                      if (errorText) {
-                        errorText.style.display = 'block'
-                      }
-                    }}
-                  />
-                  <div style={{ display: 'none' }} className="text-red-500 text-sm">
-                    Failed to load image
-                  </div>
-                </div>
-              </div>
-            )}
-
             <Input
               label="Meta Title"
               value={formData.metaTitle}

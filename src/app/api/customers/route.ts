@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { users, orders } from '@/lib/db/schema'
+import { eq, like, or, and, gte, sql, desc, asc, count } from 'drizzle-orm'
 import { createAdminHandler } from '@/lib/auth-middleware'
 
 export const GET = createAdminHandler(async (request: NextRequest) => {
@@ -12,72 +14,106 @@ export const GET = createAdminHandler(async (request: NextRequest) => {
     const sortBy = searchParams.get('sortBy') || 'createdAt'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
 
-    const skip = (page - 1) * limit
+    const offset = (page - 1) * limit
 
-    // Build where clause
-    const where: any = {
-      role: 'CUSTOMER'
-    }
+    // Build where conditions
+    const conditions = [eq(users.role, 'CUSTOMER')]
 
     // Add search filter
     if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } }
-      ]
+      conditions.push(
+        or(
+          like(users.name, `%${search}%`),
+          like(users.email, `%${search}%`)
+        )
+      )
     }
 
-    // Add status filter
-    if (status === 'active') {
-      where.orders = {
-        some: {
-          createdAt: {
-            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
-          }
-        }
-      }
-    } else if (status === 'inactive') {
-      where.orders = {
-        none: {
-          createdAt: {
-            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
-          }
-        }
-      }
-    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
     // Get customers with their order statistics
-    const customers = await prisma.user.findMany({
-      where,
-      include: {
+    const customersResult = await db.query.users.findMany({
+      where: whereClause,
+      with: {
         orders: {
-          select: {
+          columns: {
             id: true,
             total: true,
             createdAt: true,
             status: true
           }
-        },
-        _count: {
-          select: {
-            orders: true
-          }
         }
       },
-      orderBy: {
-        [sortBy]: sortOrder
-      },
-      skip,
-      take: limit
+      orderBy: sortBy === 'createdAt' 
+        ? (sortOrder === 'desc' ? desc(users.createdAt) : asc(users.createdAt))
+        : (sortOrder === 'desc' ? desc(users.name) : asc(users.name)),
+      limit,
+      offset
     })
 
+    // Get order counts for each customer
+    const customersWithCounts = await Promise.all(
+      customersResult.map(async (customer) => {
+        const orderCountResult = await db.select({ count: sql<number>`count(*)` })
+          .from(orders)
+          .where(eq(orders.userId, customer.id))
+        
+        // Filter orders by date if status filter is active
+        let filteredOrders = customer.orders || []
+        if (status === 'active') {
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          filteredOrders = customer.orders.filter(order => 
+            new Date(order.createdAt) >= thirtyDaysAgo
+          )
+        } else if (status === 'inactive') {
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          filteredOrders = customer.orders.filter(order => 
+            new Date(order.createdAt) < thirtyDaysAgo
+          )
+        }
+
+        return {
+          ...customer,
+          orders: filteredOrders,
+          _count: {
+            orders: Number(orderCountResult[0]?.count || 0)
+          }
+        }
+      })
+    )
+
+    // Apply status filter to customers list
+    let customers = customersWithCounts
+    if (status === 'active') {
+      customers = customersWithCounts.filter(c => c._count.orders > 0 && 
+        c.orders.some(order => {
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          return new Date(order.createdAt) >= thirtyDaysAgo
+        })
+      )
+    } else if (status === 'inactive') {
+      customers = customersWithCounts.filter(c => 
+        c._count.orders === 0 || 
+        !c.orders.some(order => {
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          return new Date(order.createdAt) >= thirtyDaysAgo
+        })
+      )
+    }
+
     // Get total count for pagination
-    const total = await prisma.user.count({ where })
+    const totalCountResult = await db.select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(whereClause)
+    const total = Number(totalCountResult[0]?.count || 0)
 
     // Transform the data to match the expected format
     const transformedCustomers = customers.map(customer => {
       const totalOrders = customer._count.orders
-      const totalSpent = customer.orders.reduce((sum, order) => sum + order.total, 0)
+      const totalSpent = customer.orders.reduce((sum, order) => {
+        const orderTotal = parseFloat(order.total.toString())
+        return sum + orderTotal
+      }, 0)
       const lastOrder = customer.orders.length > 0 
         ? customer.orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
         : null

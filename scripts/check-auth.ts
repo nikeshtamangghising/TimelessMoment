@@ -1,65 +1,41 @@
-import { PrismaClient } from '@prisma/client'
-import bcrypt from 'bcryptjs'
+import { db } from '../src/lib/db';
+import { users } from '../src/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
-const prisma = new PrismaClient()
+async function main() {
+  console.log('🔍 Checking authentication setup...');
 
-async function checkAuth() {
   try {
-    console.log('🔍 Checking authentication setup...')
+    // Check if we can connect to the database
+    const userCount = await db.select().from(users).limit(1);
+    console.log('✅ Database connection successful');
+
+    // Check if admin user exists
+    const adminUser = await db.select().from(users).where(eq(users.role, 'ADMIN')).limit(1);
     
-    // Check all users
-    const users = await prisma.user.findMany({
-      select: { id: true, email: true, name: true, role: true, password: true }
-    })
-    
-    console.log(`\n📊 Found ${users.length} users:`)
-    users.forEach(user => {
-      console.log(`- ${user.email} (${user.role}) - Password: ${user.password ? 'Hashed' : 'None'}`)
-    })
-    
-    // Test admin user
-    const adminUser = await prisma.user.findUnique({
-      where: { email: 'admin@example.com' }
-    })
-    
-    if (adminUser) {
-      console.log('\n✅ Admin user found:')
-      console.log(`- Email: ${adminUser.email}`)
-      console.log(`- Name: ${adminUser.name}`)
-      console.log(`- Role: ${adminUser.role}`)
-      console.log(`- Password: ${adminUser.password ? 'Hashed' : 'None'}`)
-      
-      // Test password validation
-      if (adminUser.password) {
-        const isValid = await bcrypt.compare('password', adminUser.password)
-        console.log(`- Password 'password' valid: ${isValid}`)
-      } else {
-        console.log('- No password set (will use plain text comparison)')
-      }
+    if (adminUser.length > 0) {
+      console.log('✅ Admin user found:', adminUser[0].email);
     } else {
-      console.log('\n❌ Admin user not found')
+      console.log('⚠️  No admin user found. Run seed script to create one.');
     }
+
+    // Check if regular users exist
+    const regularUsers = await db.select().from(users).where(eq(users.role, 'CUSTOMER')).limit(5);
     
-    // Test customer user
-    const customerUser = await prisma.user.findUnique({
-      where: { email: 'customer@example.com' }
-    })
-    
-    if (customerUser) {
-      console.log('\n✅ Customer user found:')
-      console.log(`- Email: ${customerUser.email}`)
-      console.log(`- Name: ${customerUser.name}`)
-      console.log(`- Role: ${customerUser.role}`)
-      console.log(`- Password: ${customerUser.password ? 'Hashed' : 'None'}`)
+    if (regularUsers.length > 0) {
+      console.log(`✅ Found ${regularUsers.length} regular users`);
+      regularUsers.forEach(user => {
+        console.log(`  - ${user.email} (${user.name})`);
+      });
     } else {
-      console.log('\n❌ Customer user not found')
+      console.log('⚠️  No regular users found. Run seed script to create some.');
     }
-    
+
+    console.log('🎉 Authentication check completed successfully!');
   } catch (error) {
-    console.error('❌ Error:', error)
-  } finally {
-    await prisma.$disconnect()
+    console.error('❌ Database connection failed:', error);
+    process.exit(1);
   }
 }
 
-checkAuth()
+main();

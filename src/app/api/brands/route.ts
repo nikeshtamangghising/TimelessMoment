@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { brands } from '@/lib/db/schema'
+import { eq, or, like, asc, and } from 'drizzle-orm'
 import { createAdminHandler } from '@/lib/auth-middleware'
 
 export async function GET(request: NextRequest) {
@@ -8,40 +10,27 @@ export async function GET(request: NextRequest) {
     const includeInactive = searchParams.get('includeInactive') === 'true'
     const search = searchParams.get('search')
     
-    const where = {
-      ...(includeInactive ? {} : { isActive: true }),
-      ...(search && {
-        OR: [
-          { name: { contains: search, mode: 'insensitive' as const } },
-          { description: { contains: search, mode: 'insensitive' as const } }
-        ]
-      })
+    const conditions = []
+    if (!includeInactive) {
+      conditions.push(eq(brands.isActive, true))
+    }
+    if (search) {
+      conditions.push(
+        or(
+          like(brands.name, `%${search}%`),
+          like(brands.description, `%${search}%`)
+        )
+      )
     }
 
-    const brands = await prisma.brand.findMany({
-      where,
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        logo: true,
-        website: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: {
-            products: true
-          }
-        }
-      }
-    })
+    const brandsResult = await db.select()
+      .from(brands)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(asc(brands.name))
 
     return NextResponse.json({
-      brands,
-      total: brands.length
+      brands: brandsResult,
+      total: brandsResult.length
     })
 
   } catch (error) {
@@ -69,47 +58,32 @@ export const POST = createAdminHandler(async (request: NextRequest) => {
     const finalSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
     // Check if name or slug already exists
-    const existingBrand = await prisma.brand.findFirst({
-      where: {
-        OR: [
-          { name: name },
-          { slug: finalSlug }
-        ]
-      }
-    })
+    const existingBrandResult = await db.select()
+      .from(brands)
+      .where(
+        or(
+          eq(brands.name, name),
+          eq(brands.slug, finalSlug)
+        )
+      )
+      .limit(1)
 
-    if (existingBrand) {
+    if (existingBrandResult.length > 0) {
       return NextResponse.json(
         { error: 'A brand with this name or slug already exists' },
         { status: 400 }
       )
     }
 
-    const brand = await prisma.brand.create({
-      data: {
+    const [brand] = await db.insert(brands)
+      .values({
         name,
         slug: finalSlug,
         description: description || null,
         logo: logo || null,
         website: website || null
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        logo: true,
-        website: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: {
-            products: true
-          }
-        }
-      }
-    })
+      })
+      .returning()
 
     return NextResponse.json(
       { 

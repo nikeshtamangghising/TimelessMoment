@@ -38,11 +38,11 @@ export default function Header() {
 
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+    <header className="bg-white shadow-sm border-b border-gray-200" suppressHydrationWarning>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" suppressHydrationWarning>
+        <div className="flex justify-between items-center h-16" suppressHydrationWarning>
           {/* Logo */}
-          <div className="flex items-center">
+          <div className="flex items-center" suppressHydrationWarning>
             <Link href="/" className="flex items-center gap-2 group" aria-label="Rijal Decors Valley Home">
               <Image
                 src="/logo.png"
@@ -57,46 +57,54 @@ export default function Header() {
 
           {/* Search Bar - Desktop (hidden on search page) */}
           {!isOnSearchPage && (
-            <div className="hidden md:flex flex-1 max-w-lg mx-8">
+            <div className="hidden md:flex flex-1 max-w-lg mx-8" suppressHydrationWarning>
               <SearchAutocomplete className="w-full" />
             </div>
           )}
 
           {/* Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
-            <Link
-              href="/categories"
-              className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium"
-            >
-              Categories
-            </Link>
+          <nav className="hidden md:flex items-center space-x-8" suppressHydrationWarning>
+            <span suppressHydrationWarning>
+              <Link
+                href="/categories"
+                className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium"
+              >
+                Categories
+              </Link>
+            </span>
             {isAuthenticated ? (
-              <Link
-                href="/orders"
-                className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium"
-              >
-                My Orders
-              </Link>
+              <span suppressHydrationWarning>
+                <Link
+                  href="/orders"
+                  className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium"
+                >
+                  My Orders
+                </Link>
+              </span>
             ) : (
-              <Link
-                href="/guest-orders"
-                className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium"
-              >
-                Track Orders
-              </Link>
+              <span suppressHydrationWarning>
+                <Link
+                  href="/guest-orders"
+                  className="text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium"
+                >
+                  Track Orders
+                </Link>
+              </span>
             )}
             {isAdmin && (
-              <Link
-                href="/admin"
-                className="text-indigo-600 hover:text-indigo-800 px-3 py-2 text-sm font-medium"
-              >
-                Admin
-              </Link>
+              <span suppressHydrationWarning>
+                <Link
+                  href="/admin"
+                  className="text-indigo-600 hover:text-indigo-800 px-3 py-2 text-sm font-medium"
+                >
+                  Admin
+                </Link>
+              </span>
             )}
           </nav>
 
           {/* Right side */}
-          <div className="flex items-center space-x-2 sm:space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4" suppressHydrationWarning>
             {/* Mobile Search Icon */}
             <button
               className="md:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 transition-colors"
@@ -124,7 +132,7 @@ export default function Header() {
             </button>
 
             {/* Desktop User menu */}
-            <div className="hidden md:flex md:items-center md:space-x-3 relative">
+            <div className="hidden md:flex md:items-center md:space-x-3 relative" suppressHydrationWarning>
               {isAuthenticated ? (
                 <>
                   {/* Profile Icon Button */}
@@ -184,7 +192,7 @@ export default function Header() {
 
       {/* Mobile navigation */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-gray-200 bg-white">
+        <div className="md:hidden border-t border-gray-200 bg-white" suppressHydrationWarning>
           {/* Mobile Search (hidden on search page) */}
           {!isOnSearchPage && (
             <div className="px-4 py-3 border-b border-gray-200">

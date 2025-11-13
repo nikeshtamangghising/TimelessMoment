@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
+import { products } from '@/lib/db/schema';
+import { eq, inArray, and } from 'drizzle-orm';
 import RecommendationEngine from '@/lib/recommendation-engine';
 
 export async function GET(
@@ -12,24 +14,30 @@ export async function GET(
     const limit = parseInt(searchParams.get('limit') || '12');
 
     // Verify product exists
-    const product = await prisma.product.findUnique({
-      where: { id },
-      select: { 
-        id: true, 
+    const productResult = await db.query.products.findFirst({
+      where: eq(products.id, id),
+      columns: {
+        id: true,
         isActive: true,
-        name: true,
-        category: { select: { name: true } },
+        name: true
       },
+      with: {
+        category: {
+          columns: {
+            name: true
+          }
+        }
+      }
     });
 
-    if (!product) {
+    if (!productResult) {
       return NextResponse.json(
         { error: 'Product not found' },
         { status: 404 }
       );
     }
 
-    if (!product.isActive) {
+    if (!productResult.isActive) {
       return NextResponse.json(
         { error: 'Product is not available' },
         { status: 400 }
@@ -41,19 +49,27 @@ export async function GET(
 
     // Fetch full product details
     const productIds = similarRecommendations.map(r => r.productId);
-    const similarProducts = await prisma.product.findMany({
-      where: {
-        id: { in: productIds },
-        isActive: true,
-      },
-      include: {
+    const similarProducts = await db.query.products.findMany({
+      where: and(
+        inArray(products.id, productIds),
+        eq(products.isActive, true)
+      ),
+      with: {
         category: {
-          select: { id: true, name: true, slug: true },
+          columns: {
+            id: true,
+            name: true,
+            slug: true
+          }
         },
         brand: {
-          select: { id: true, name: true, slug: true },
-        },
-      },
+          columns: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        }
+      }
     });
 
     // Combine recommendations with product data
@@ -68,8 +84,8 @@ export async function GET(
 
     return NextResponse.json({
       productId: id,
-      productName: product.name,
-      category: product.category.name,
+      productName: productResult.name,
+      category: productResult.category?.name || '',
       similar: result,
       count: result.length,
       generatedAt: new Date().toISOString(),

@@ -1,73 +1,58 @@
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { db } from '../src/lib/db';
+import { products, users, orders, orderItems } from '../src/lib/db/schema';
+import { eq, desc, count, sum, avg } from 'drizzle-orm';
 
 async function main() {
-  console.log('🔍 Testing Analytics Data...')
+  console.log('📊 Testing analytics queries...');
 
-  // Test basic analytics queries
-  const [
-    totalRevenue,
-    totalOrders,
-    totalCustomers,
-    totalProducts,
-    topSellingProducts
-  ] = await Promise.all([
-    prisma.order.aggregate({
-      where: { status: { not: 'CANCELLED' } },
-      _sum: { total: true }
-    }),
+  try {
+    // Test product analytics
+    const productCount = await db.select({ count: count() }).from(products);
+    console.log(`✅ Total products: ${productCount[0].count}`);
+
+    // Test user analytics
+    const userCount = await db.select({ count: count() }).from(users);
+    console.log(`✅ Total users: ${userCount[0].count}`);
+
+    // Test order analytics
+    const orderCount = await db.select({ count: count() }).from(orders);
+    console.log(`✅ Total orders: ${orderCount[0].count}`);
+
+    // Test revenue analytics
+    const totalRevenue = await db.select({ 
+      total: sum(orders.total) 
+    }).from(orders);
     
-    prisma.order.count({
-      where: { status: { not: 'CANCELLED' } }
-    }),
-    
-    prisma.user.count({
-      where: { role: 'CUSTOMER' }
-    }),
-    
-    prisma.product.count({
-      where: { isActive: true }
-    }),
-    
-    prisma.orderItem.groupBy({
-      by: ['productId'],
-      _sum: { quantity: true },
-      orderBy: { _sum: { quantity: 'desc' } },
-      take: 5
+    console.log(`✅ Total revenue: ${totalRevenue[0].total || 0}`);
+
+    // Test popular products
+    const popularProducts = await db.select({
+      name: products.name,
+      orderCount: count(orderItems.id)
     })
-  ])
+    .from(products)
+    .leftJoin(orderItems, eq(products.id, orderItems.productId))
+    .groupBy(products.id, products.name)
+    .orderBy(desc(count(orderItems.id)))
+    .limit(5);
 
-  console.log('📊 Analytics Summary:')
-  console.log(`💰 Total Revenue: ₹${totalRevenue._sum.total || 0}`)
-  console.log(`📦 Total Orders: ${totalOrders}`)
-  console.log(`👥 Total Customers: ${totalCustomers}`)
-  console.log(`🛍️ Total Products: ${totalProducts}`)
-  console.log(`🏆 Top Selling Products: ${topSellingProducts.length} products`)
+    console.log('📈 Top 5 popular products:');
+    popularProducts.forEach((product, index) => {
+      console.log(`  ${index + 1}. ${product.name} (${product.orderCount} orders)`);
+    });
 
-  // Get product names for top selling products
-  if (topSellingProducts.length > 0) {
-    const productIds = topSellingProducts.map(item => item.productId)
-    const products = await prisma.product.findMany({
-      where: { id: { in: productIds } },
-      select: { id: true, name: true }
-    })
+    // Test average order value
+    const avgOrderValue = await db.select({ 
+      avg: avg(orders.total) 
+    }).from(orders);
+    
+    console.log(`💰 Average order value: ${avgOrderValue[0].avg || 0}`);
 
-    console.log('\n🏆 Top Selling Products:')
-    topSellingProducts.forEach((item, index) => {
-      const product = products.find(p => p.id === item.productId)
-      console.log(`${index + 1}. ${product?.name || 'Unknown'} - ${item._sum.quantity || 0} sold`)
-    })
+    console.log('🎉 Analytics test completed successfully!');
+  } catch (error) {
+    console.error('❌ Error testing analytics:', error);
+    process.exit(1);
   }
-
-  console.log('\n✅ Analytics data is ready!')
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ Error testing analytics:', e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
+main();
