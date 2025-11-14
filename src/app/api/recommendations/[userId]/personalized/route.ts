@@ -90,7 +90,7 @@ export async function GET(
       product
     }))
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       products: result,
       total: totalCount,
@@ -102,6 +102,8 @@ export async function GET(
         hasPrev: page > 1
       }
     })
+    response.headers.set('Cache-Control', 'private, max-age=60')
+    return response
 
   } catch (error) {
     console.error('Personalized recommendations error:', error)

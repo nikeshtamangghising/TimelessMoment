@@ -52,12 +52,13 @@ export default function RecommendationGrid({
         url.searchParams.set('page', '1')
         // Reduce initial load to 4 products for ultra-fast rendering
         url.searchParams.set('limit', '4')
-        url.searchParams.set('_ts', Date.now().toString())
+        
 
         // Use fetch with priority hint for faster loading
+        const isCacheable = url.pathname.includes('/popular') || url.pathname.includes('/trending')
         const response = await fetch(url.toString(), {
-          priority: 'high', // Hint to browser for faster loading
-          cache: 'no-store',
+          priority: 'high',
+          cache: isCacheable ? 'force-cache' : 'no-store',
         })
         
         if (!response.ok) {

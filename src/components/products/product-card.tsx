@@ -1,6 +1,7 @@
 import { memo, useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { useFavorites } from "@/hooks/use-favorites";
@@ -25,6 +26,7 @@ function ProductCard({
   const { isInFavorites, toggleFavorite, isOperationLoading } = useFavorites();
   const cardRef = useRef<HTMLDivElement>(null);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const router = useRouter();
 
 
 
@@ -67,7 +69,7 @@ function ProductCard({
   // Navigation helper
   const navigateToProduct = () => {
     const href = `/products/${product.slug || product.id}`;
-    window.location.href = href;
+    router.push(href);
   };
 
   // Simple click handler for navigation
